@@ -1,0 +1,31 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "RUN MPI",
+            "command": "mpirun -np 16  ${cwd}/build/distributedcrack 80000",
+            "type": "shell",
+            "args": [],
+            "problemMatcher": [
+
+            ],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "none"
+        },
+        {
+            "label": "RUN MPI Valgrind",
+            "command": "mpirun -np 2 valgrind  --tool=massif ${cwd}/build/distributedcrack 80000",
+            "type": "shell",
+            "args": [],
+            "problemMatcher": [
+
+            ],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "none"
+        },
+    ]
+}
