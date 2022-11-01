@@ -18,13 +18,16 @@ using namespace boost::mpi;
 
 void delreq(std::vector<request> &workRequests, request *worker)
 {
-    for (int i = 0; i < workRequests.size(); i++)
+    /*for (int i = 0; i < workRequests.size(); i++)
         if (&workRequests.at(i) == worker)
         {
             workRequests.erase(workRequests.begin() + i);
             return;
-        }
-    std::cout << "Warning possible leak request: " << worker->wait().source() << std::endl;
+        }*/
+
+    workRequests.erase(workRequests.begin() +
+                       indexOf<boost::mpi::request>(workRequests.begin(), workRequests.end(),
+                                                    [&](request val) -> bool { return &val == worker; }));
 }
 
 bool compute(std::vector<std::string> &chunk, std::string target, std::string *found)

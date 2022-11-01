@@ -3,7 +3,7 @@
     "tasks": [
         {
             "label": "RUN MPI",
-            "command": "mpirun -np 16  ${cwd}/build/distributedcrack 80000",
+            "command": "${cwd}/build/distributedcrack --mpi on --thread 16",
             "type": "shell",
             "args": [],
             "problemMatcher": [

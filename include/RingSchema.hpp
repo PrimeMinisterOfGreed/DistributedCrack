@@ -11,6 +11,6 @@ class RingPipeLine : ISchema
     std::string &_target;
 
   public:
-    RingPipeLine(int chunkSize, std::string &target);
+    RingPipeLine(int chunkSize, std::string &target) : _chunkSize(chunkSize), _target(target){};
     void ExecuteSchema(boost::mpi::communicator &comm);
 };
