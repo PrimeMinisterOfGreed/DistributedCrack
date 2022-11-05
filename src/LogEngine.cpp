@@ -1,6 +1,11 @@
 #include "LogEngine.hpp"
 #include <Schema.hpp>
 
+
+MPILogEngine* MPILogEngine::_instance;
+
+std::stringstream& _trashStream = *new std::stringstream();
+
 void SendStream(boost::mpi::communicator& comm, std::istream& stream, int processTarget)
 {
 	char* buffer = new char[1024];
@@ -17,7 +22,7 @@ std::string& ReceiveStream(boost::mpi::communicator& comm, int process)
 	using namespace std;
 	using namespace boost::mpi;
 	char* buffer = new char[1024];
-	string result = "";
+	string& result = *new std::string();
 	vector<request> requests{};
 	requests.push_back(comm.irecv(process, TERMINATE));
 	requests.push_back(comm.irecv(process, MESSAGE,buffer,1024));
@@ -40,20 +45,10 @@ std::string& ReceiveStream(boost::mpi::communicator& comm, int process)
 }
 
 
-MPILogEngine::MPILogEngine(boost::mpi::communicator& comm, std::istream* loadStream, std::ostream* saveStream): _loadStream{loadStream}, _saveStream{saveStream}
-,_communicator{comm }
+MPILogEngine::MPILogEngine(boost::mpi::communicator& comm, std::istream* loadStream, std::ostream* saveStream, int verbosity): _loadStream{loadStream}, _saveStream{saveStream}
+,_communicator{comm }, _verbosity{verbosity}
 {
 	
-}
-
-void MPILogEngine::CreateInstance(boost::mpi::communicator& comm, std::istream* loadStream, std::ostream* saveStream)
-{
-	_instance = new MPILogEngine(comm, loadStream, saveStream);
-}
-
-MPILogEngine& MPILogEngine::Instance()
-{
-	return *_instance;
 }
 
 std::ostream& MPILogEngine::log()
@@ -61,7 +56,7 @@ std::ostream& MPILogEngine::log()
 	return *_saveStream;
 }
 
-void MPILogEngine::finalize()
+void MPILogEngine::Finalize()
 {
 	if (_communicator.rank() == 0)
 	{
@@ -76,7 +71,41 @@ void MPILogEngine::finalize()
 	}
 }
 
-std::ostream& logStream()
+std::ostream& MPILogEngine::TraceException()
 {
-	return MPILogEngine::Instance().log();
+	this->log() << "[Exception] ";
+	return this->log();
 }
+
+std::ostream& MPILogEngine::TraceInformation()
+{
+	if (_verbosity > 0)
+	{
+		this->log() << "[Information] ";
+		return this->log();
+	}
+	_trashStream.clear();
+	return _trashStream;
+}
+
+std::ostream& MPILogEngine::TraceTransfer()
+{
+	if (_verbosity > 1)
+	{
+		this->log() << "[Transfer]";
+		return this->log();
+	}
+	_trashStream.clear();
+	return _trashStream;
+}
+
+void MPILogEngine::CreateInstance(boost::mpi::communicator& comm, std::istream* loadStream, std::ostream* saveStream, int verbosity)
+{
+	MPILogEngine::_instance = new MPILogEngine(comm, loadStream, saveStream, verbosity);
+}
+
+MPILogEngine* MPILogEngine::Instance()
+{
+	return MPILogEngine::_instance;
+}
+
