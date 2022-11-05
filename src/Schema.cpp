@@ -101,7 +101,7 @@ void SimpleMasterWorker::Worker(boost::mpi::communicator &comm)
     using namespace boost::mpi;
     std::vector<std::string> chunk{};
     std::string target = "";
-    comm.recv(0, MESSAGE, target);
+    broadcast(comm, target, 0);
     std::vector<request> requests{};
     requests.push_back(comm.irecv(0, TERMINATE));
     bool terminate = false;
