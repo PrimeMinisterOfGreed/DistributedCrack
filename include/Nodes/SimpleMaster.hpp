@@ -1,11 +1,14 @@
 #include "Nodes/Node.hpp"
 #include <boost/mpi.hpp>
 
-class SimpleMaster : public MPINode
+class SimpleMaster : public Node
 {
   private:
     boost::mpi::communicator _comm;
     std::string _target;
+    std::vector<boost::mpi::request>& _requests= *new std::vector<boost::mpi::request>{};
+    std::string _result = "";
+    void DeleteRequest(boost::mpi::request* request);
   public:
     SimpleMaster(boost::mpi::communicator comm, std::string target);
     virtual void OnEndRoutine() override;

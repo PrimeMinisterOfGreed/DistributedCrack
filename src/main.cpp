@@ -2,6 +2,7 @@
 #include "Schema.hpp"
 #include "StringGenerator.hpp"
 #include "md5.hpp"
+#include "OptionsBag.hpp"
 #include <TimeMachine.hpp>
 #include <boost/mpi/communicator.hpp>
 #include "LogEngine.hpp"
@@ -14,15 +15,24 @@
 #include <mpi.h>
 #include <sstream>
 
+boost::program_options::variables_map optionsMap;
+
 void RunMPI(int argc, char *argv[])
 {
     using namespace boost::mpi;
     MPI_Init(&argc, &argv);
     auto &comm = *new communicator();
-    std::stringstream* logBuf = new std::stringstream();
-    MPILogEngine::CreateInstance(comm, logBuf, logBuf);
+    if (comm.rank() != 0)
+    {
+        std::stringstream* logBuf = new std::stringstream();
+        MPILogEngine::CreateInstance(comm, logBuf, logBuf);
+    }
+    else
+    {
+        MPILogEngine::CreateInstance(comm, nullptr, &std::cout);
+    }
     auto time = executeTimeComparison([&]() {
-        MasterWorkerDistributedGenerator schema{1000, *new std::string("0000")};
+        SimpleMasterWorker schema{1000, *new std::string("0000")};
         schema.ExecuteSchema(comm);
     });
     if (comm.rank() == 0)
@@ -47,7 +57,7 @@ int main(int argc, char *argv[])
     variables_map map;
     store(parse_command_line(argc, argv, desc), map);
     notify(map);
-
+    optionsMap = map;
     if (map.count("help"))
     {
         cout << desc << endl;

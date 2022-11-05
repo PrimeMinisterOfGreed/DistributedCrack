@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include <Nodes/SimpleMaster.hpp>
 
 using namespace boost::mpi;
 using namespace boost::accumulators;
@@ -55,7 +56,10 @@ void SimpleMasterWorker::ExecuteSchema(boost::mpi::communicator &comm)
 {
     int rank = comm.rank();
     if (rank == 0)
-        Master(comm);
+    {
+        SimpleMaster master{ comm,_target };
+        master.Execute();
+    }
     else
         Worker(comm);
 }
@@ -89,7 +93,6 @@ void SimpleMasterWorker::Master(boost::mpi::communicator &comm)
     }
     for (int i = 1; i < comm.size(); i++)
         comm.send(i, TERMINATE);
-    comm.barrier();
     
 }
 
@@ -130,7 +133,6 @@ void SimpleMasterWorker::Worker(boost::mpi::communicator &comm)
         chunk.clear();
         delreq(requests, res.second.base());
     }
-    comm.barrier();
 }
 
 MasterWorkerDistributedGenerator::MasterWorkerDistributedGenerator(int chunkSize, std::string &target)

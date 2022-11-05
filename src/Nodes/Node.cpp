@@ -1,22 +1,13 @@
 #include "Nodes/Node.hpp"
-void MPINode::Routine()
-{
 
-}
-
-void MPINode::Initialize()
-{
-	_logger->TraceInformation() << "Initializing node" << std::endl;
-}
-
-void MPINode::Execute()
+void Node::Execute()
 {
 	try
 	{
 		Initialize();
-		OnBeginRoutine();
+		BeginRoutine();
 		Routine();
-		OnEndRoutine();
+		EndRoutine();
 	}
 	catch (std::exception ex)
 	{
@@ -25,13 +16,51 @@ void MPINode::Execute()
 	}
 }
 
-void MPINode::OnBeginRoutine()
+
+
+void Node::BeginRoutine()
 {
 	_logger->TraceInformation() << "Routine Setup" << std::endl;
+	try
+	{
+		OnBeginRoutine();
+	}
+	catch (std::exception e)
+	{
+		_logger->TraceException() << "Exception during routine setup:" << e.what() << std::endl;
+		throw;
+	}
+	_logger->TraceInformation() << "Routine Setup completed" << std::endl;
 }
 
-void MPINode::OnEndRoutine()
+void Node::EndRoutine()
 {
-	_logger->TraceInformation() << "End" << std::endl;
-	_logger->Finalize();
+	_logger->TraceInformation() << "Ending Routine" << std::endl;
+	try
+	{
+		OnEndRoutine();
+	}
+	catch (std::exception e)
+	{
+		_logger->TraceException() << "Exception during routine ending: " << e.what() << std::endl;
+		throw;
+	}
+	_logger->TraceInformation() << "Routine end done" << std::endl;
 }
+
+void Node::ExecuteRoutine()
+{
+	_logger->TraceInformation() << "Routine Execution" << std::endl;
+	try
+	{
+		Routine();
+	}
+	catch (std::exception e)
+	{
+		_logger->TraceException() << "Exception during routine execution: " << e.what() << std::endl;
+		throw;
+	}
+	_logger->TraceInformation() << "Routine execution done" << std::endl;
+}
+
+

@@ -5,17 +5,19 @@ public:
 	virtual void Execute() = 0;
 };
 
-class MPINode : INode
+class Node: INode
 {
 private:
+	void BeginRoutine();
+	void EndRoutine();
+	void ExecuteRoutine();
 protected:
 	MPILogEngine* _logger = MPILogEngine::Instance();
 public:
-
-	// Ereditato tramite INode
-	virtual void Routine();
-	virtual void Initialize();
+	virtual void Routine() = 0;
+	virtual void Initialize() = 0;
+	virtual void OnBeginRoutine() = 0;
+	virtual void OnEndRoutine() = 0;
 	virtual void Execute() override;
-	virtual void OnBeginRoutine();
-	virtual void OnEndRoutine();
 };
+

@@ -53,6 +53,7 @@ MPILogEngine::MPILogEngine(boost::mpi::communicator& comm, std::istream* loadStr
 
 std::ostream& MPILogEngine::log()
 {
+	*_saveStream << "(Process: " << _communicator.rank() << ")";
 	return *_saveStream;
 }
 
