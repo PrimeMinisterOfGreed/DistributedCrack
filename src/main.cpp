@@ -21,15 +21,20 @@ void RunMPI(int argc, char *argv[])
 {
     using namespace boost::mpi;
     MPI_Init(&argc, &argv);
+    int verbosity = 0;
+    if (optionsMap.count("verbosity"))
+    {
+        verbosity = optionsMap.at("verbosity").as<int>();
+    }
     auto &comm = *new communicator();
     if (comm.rank() != 0)
     {
         std::stringstream* logBuf = new std::stringstream();
-        MPILogEngine::CreateInstance(comm, logBuf, logBuf);
+        MPILogEngine::CreateInstance(comm, logBuf, logBuf,verbosity);
     }
     else
     {
-        MPILogEngine::CreateInstance(comm, nullptr, &std::cout);
+        MPILogEngine::CreateInstance(comm, nullptr, &std::cout,verbosity);
     }
     auto time = executeTimeComparison([&]() {
         SimpleMasterWorker schema{1000, *new std::string("0000")};
@@ -52,11 +57,17 @@ int main(int argc, char *argv[])
         "thread", value<int>(),
         "if mt is specified indicates the number of threads to use else indicates the number of MPI process")(
         "chunk", value<int>(), "specified a starting point or a fixed number of chunk for the generators")(
-        "dynamic_chunks", value<bool>(), "specify if use or not dynamic chunking");
+        "dynamic_chunks", value<bool>(), "specify if use or not dynamic chunking")
+            ("verbosity",value<int>(),"specify verbosity for logger");
 
     variables_map map;
     store(parse_command_line(argc, argv, desc), map);
     notify(map);
+    int verbosity = 0;
+    if (map.count("verbosity"))
+    {
+        verbosity = map.at("verbosity").as<int>();
+    }
     optionsMap = map;
     if (map.count("help"))
     {
@@ -69,7 +80,7 @@ int main(int argc, char *argv[])
         int maxProc = 4;
         if (map.count("thread"))
             maxProc = map["thread"].as<int>();
-        command << "mpiexec -np " << maxProc << " " << argv[0] << " --mpiexec on";
+        command << "mpiexec -np " << maxProc << " " << argv[0] << " --mpiexec on --verbosity " << verbosity;
         system(command.str().c_str());
     }
     else if (map.count("mpiexec"))

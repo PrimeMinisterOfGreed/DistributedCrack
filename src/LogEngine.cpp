@@ -74,16 +74,16 @@ void MPILogEngine::Finalize()
 
 std::ostream& MPILogEngine::TraceException()
 {
-	this->log() << "[Exception] ";
-	return this->log();
+	auto &stream = this->log() << "[Exception] ";
+	return stream;
 }
 
 std::ostream& MPILogEngine::TraceInformation()
 {
 	if (_verbosity > 0)
 	{
-		this->log() << "[Information] ";
-		return this->log();
+		auto & stream=  this->log() << "[Information] ";
+		return stream;
 	}
 	_trashStream.clear();
 	return _trashStream;
@@ -93,8 +93,8 @@ std::ostream& MPILogEngine::TraceTransfer()
 {
 	if (_verbosity > 1)
 	{
-		this->log() << "[Transfer]";
-		return this->log();
+		auto & stream = this->log() << "[Transfer]";
+		return stream;
 	}
 	_trashStream.clear();
 	return _trashStream;

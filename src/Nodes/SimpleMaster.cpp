@@ -36,7 +36,6 @@ void SimpleMaster::Initialize()
 void SimpleMaster::Routine()
 {
     using namespace boost::mpi;
-
     int chunkSize = 2000;
     int startLength = 4;
     if (optionsMap.count("chunksize"))
@@ -49,16 +48,19 @@ void SimpleMaster::Routine()
     }
     SequentialGenerator generator{startLength};
     int computed = 0;
-
+    _logger->TraceInformation() << "Starting main task" << std::endl;
     while (_result == "")
     {
         auto worker = wait_any(_requests.begin(), _requests.end());
+        _logger->TraceInformation() << "Work request received from: " << worker.first.source() << std::endl;
         auto chunk = generator.generateChunk(chunkSize);
         _comm.send(worker.first.source(), MESSAGE, chunk);
         _requests.push_back(_comm.irecv(worker.first.source(), WORK));
         computed += chunkSize;
+        _logger->TraceInformation() << "Computed: " << computed << std::endl;
         DeleteRequest(worker.second.base());
     }
+    _logger->TraceInformation() << "Result Found: " << _result << std::endl;
 }
 
 void SimpleMaster::OnBeginRoutine()
