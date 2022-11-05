@@ -4,6 +4,7 @@
 #include "md5.hpp"
 #include <TimeMachine.hpp>
 #include <boost/mpi/communicator.hpp>
+#include "LogEngine.hpp"
 #include <boost/program_options.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
@@ -18,6 +19,8 @@ void RunMPI(int argc, char *argv[])
     using namespace boost::mpi;
     MPI_Init(&argc, &argv);
     auto &comm = *new communicator();
+    std::stringstream* logBuf = new std::stringstream();
+    MPILogEngine::CreateInstance(comm, logBuf, logBuf);
     auto time = executeTimeComparison([&]() {
         MasterWorkerDistributedGenerator schema{1000, *new std::string("0000")};
         schema.ExecuteSchema(comm);

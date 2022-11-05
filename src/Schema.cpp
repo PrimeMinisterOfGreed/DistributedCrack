@@ -4,6 +4,8 @@
 #include "md5.hpp"
 #include <boost/concept_check.hpp>
 #include <boost/mpi/collectives.hpp>
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics.hpp>
 #include <boost/mpi/communicator.hpp>
 #include <boost/mpi/nonblocking.hpp>
 #include <boost/mpi/request.hpp>
@@ -15,20 +17,18 @@
 #include <vector>
 
 using namespace boost::mpi;
+using namespace boost::accumulators;
+
+using Accumulator = accumulator_set<double, features<tag::mean, tag::max, tag::min, tag::variance>>;
 
 void delreq(std::vector<request> &workRequests, request *worker)
 {
-    /*for (int i = 0; i < workRequests.size(); i++)
-        if (&workRequests.at(i) == worker)
-        {
-            workRequests.erase(workRequests.begin() + i);
-            return;
-        }*/
 
     workRequests.erase(workRequests.begin() +
                        indexOf<boost::mpi::request>(workRequests.begin(), workRequests.end(),
                                                     [&](request val) -> bool { return &val == worker; }));
 }
+
 
 bool compute(std::vector<std::string> &chunk, std::string target, std::string *found)
 {
@@ -45,6 +45,8 @@ bool compute(std::vector<std::string> &chunk, std::string target, std::string *f
     return false;
 }
 
+
+
 SimpleMasterWorker::SimpleMasterWorker(int chunkSize, std::string &target) : _chunkSize(chunkSize), _target(target)
 {
 }
@@ -60,7 +62,6 @@ void SimpleMasterWorker::ExecuteSchema(boost::mpi::communicator &comm)
 
 void SimpleMasterWorker::Master(boost::mpi::communicator &comm)
 {
-
     using namespace boost::mpi;
     SequentialGenerator generator{4};
     std::string target = md5(_target);
@@ -84,17 +85,12 @@ void SimpleMasterWorker::Master(boost::mpi::communicator &comm)
         comm.send(worker.first.source(), MESSAGE, chunk);
         workRequests.push_back(comm.irecv(worker.first.source(), WORK));
         computed += _chunkSize;
-        std::cout << "\033[2J\033[1;1H";
-        std::cout << "Computed: " << computed << std::endl;
-        std::cout << "Current Combination Length: " << generator.GetCurrentSequenceLength() << std::endl;
-        std::cout << "Work Requests: " << workRequests.size() << std::endl;
-        std::cout << "First Chunk Word: " << chunk.at(0) << std::endl;
         delreq(workRequests, worker.second.base());
     }
     for (int i = 1; i < comm.size(); i++)
         comm.send(i, TERMINATE);
     comm.barrier();
-    std::cout << "Password Found: " << found << std::endl;
+    
 }
 
 void SimpleMasterWorker::Worker(boost::mpi::communicator &comm)
