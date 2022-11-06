@@ -100,6 +100,12 @@ std::ostream& MPILogEngine::TraceTransfer()
 	return _trashStream;
 }
 
+std::ostream& MPILogEngine::TraceResult()
+{
+	auto& stream = this->log() << "[Result]";
+	return stream;
+}
+
 void MPILogEngine::CreateInstance(boost::mpi::communicator& comm, std::istream* loadStream, std::ostream* saveStream, int verbosity)
 {
 	MPILogEngine::_instance = new MPILogEngine(comm, loadStream, saveStream, verbosity);

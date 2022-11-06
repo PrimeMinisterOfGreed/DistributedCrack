@@ -20,7 +20,7 @@ public:
 	std::ostream& TraceException();
 	std::ostream& TraceInformation();
 	std::ostream& TraceTransfer();
-
+	std::ostream& TraceResult();
 };
 
 

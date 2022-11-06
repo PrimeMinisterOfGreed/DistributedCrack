@@ -1,5 +1,8 @@
 #include "Nodes/Node.hpp"
-
+#include "Functions.hpp"
+#include "md5.hpp"
+#include <thread>
+#include <future>
 void Node::Execute()
 {
 	try
@@ -63,4 +66,40 @@ void Node::ExecuteRoutine()
 	_logger->TraceInformation() << "Routine execution done" << std::endl;
 }
 
+void MPINode::DeleteRequest(boost::mpi::request* request)
+{
+	_requests.erase(_requests.begin() +
+		indexOf<boost::mpi::request>(_requests.begin(), _requests.end(),
+			[&](boost::mpi::request val) -> bool { return &val == request; }));
+}
 
+bool MPINode::Compute(const std::vector<std::string>& chunk, std::string* result)
+{
+	for (auto string : chunk)
+	{
+		if (md5(string) == _target)
+		{
+			*result = string;
+			return true;
+		}
+	}
+	return false;
+}
+
+std::future<bool> MPINode::ComputeAsync(const std::vector<std::string>& chunk, std::function<void(std::string)> callback)
+{
+	return std::async([&]()->bool
+		{
+			std::string result = "";
+			if (Compute(chunk, &result))
+			{
+				callback(result);
+				return true;
+			}
+			else
+			{
+				callback("NULL");
+				return false;
+			}
+		});
+}

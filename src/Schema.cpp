@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <Nodes/SimpleMaster.hpp>
+#include <Nodes/SimpleWorker.hpp>
 
 using namespace boost::mpi;
 using namespace boost::accumulators;
@@ -61,79 +62,12 @@ void SimpleMasterWorker::ExecuteSchema(boost::mpi::communicator &comm)
         master.Execute();
     }
     else
-        Worker(comm);
+    {
+        SimpleWorker worker{ comm };
+        worker.Execute();
+    }
 }
 
-void SimpleMasterWorker::Master(boost::mpi::communicator &comm)
-{
-    using namespace boost::mpi;
-    SequentialGenerator generator{4};
-    std::string target = md5(_target);
-    std::string found = "";
-    std::cout << target << std::endl;
-    auto request = comm.irecv(boost::mpi::any_source, FOUND, found);
-    std::vector<boost::mpi::request> workRequests{};
-    workRequests.push_back(request);
-    int computed = 0;
-    for (int i = 1; i < comm.size(); i++)
-    {
-        workRequests.push_back(comm.irecv(i, WORK));
-        comm.send(i, MESSAGE, target);
-    }
-    while (found == "")
-    {
-        auto worker = wait_any(workRequests.begin(), workRequests.end());
-        if (worker.first.tag() == FOUND)
-            break;
-        auto chunk = generator.generateChunk(_chunkSize);
-        comm.send(worker.first.source(), MESSAGE, chunk);
-        workRequests.push_back(comm.irecv(worker.first.source(), WORK));
-        computed += _chunkSize;
-        delreq(workRequests, worker.second.base());
-    }
-    for (int i = 1; i < comm.size(); i++)
-        comm.send(i, TERMINATE);
-    
-}
-
-void SimpleMasterWorker::Worker(boost::mpi::communicator &comm)
-{
-    using namespace boost::mpi;
-    std::vector<std::string> chunk{};
-    std::string target = "";
-    broadcast(comm, target, 0);
-    std::vector<request> requests{};
-    requests.push_back(comm.irecv(0, TERMINATE));
-    bool terminate = false;
-    std::cout << "Listening for terminate message: " << std::endl;
-    comm.send(0, WORK);
-    while (!terminate)
-    {
-        std::string found;
-        requests.push_back(comm.irecv(0, MESSAGE, chunk));
-        auto res = wait_any(requests.begin(), requests.end());
-        if (res.first.tag() == TERMINATE)
-            terminate = true;
-        else
-        {
-            if (res.first.tag() == MESSAGE)
-            {
-                bool computed = compute(chunk, target, &found);
-                if (computed)
-                {
-                    terminate = true;
-                    comm.send(0, FOUND, found);
-                }
-                if (!terminate)
-                {
-                    comm.send(0, WORK);
-                }
-            }
-        }
-        chunk.clear();
-        delreq(requests, res.second.base());
-    }
-}
 
 MasterWorkerDistributedGenerator::MasterWorkerDistributedGenerator(int chunkSize, std::string &target)
     : _chunkSize(chunkSize), _target(target)

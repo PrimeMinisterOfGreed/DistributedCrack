@@ -58,7 +58,8 @@ int main(int argc, char *argv[])
         "if mt is specified indicates the number of threads to use else indicates the number of MPI process")(
         "chunk", value<int>(), "specified a starting point or a fixed number of chunk for the generators")(
         "dynamic_chunks", value<bool>(), "specify if use or not dynamic chunking")
-            ("verbosity",value<int>(),"specify verbosity for logger");
+            ("verbosity",value<int>(),"specify verbosity for logger")
+        ("target",value<int>(),"target md5 to crack");
 
     variables_map map;
     store(parse_command_line(argc, argv, desc), map);
