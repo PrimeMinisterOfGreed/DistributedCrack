@@ -12,7 +12,7 @@ void Node::Execute()
 		Routine();
 		EndRoutine();
 	}
-	catch (std::exception ex)
+	catch (const std::exception& ex)
 	{
 		_logger->TraceException() << ex.what() << std::endl;
 		_logger->Finalize();
@@ -28,7 +28,7 @@ void Node::BeginRoutine()
 	{
 		OnBeginRoutine();
 	}
-	catch (std::exception e)
+	catch (const std::exception& e)
 	{
 		_logger->TraceException() << "Exception during routine setup:" << e.what() << std::endl;
 		throw;
@@ -43,7 +43,7 @@ void Node::EndRoutine()
 	{
 		OnEndRoutine();
 	}
-	catch (std::exception e)
+	catch (const std::exception& e)
 	{
 		_logger->TraceException() << "Exception during routine ending: " << e.what() << std::endl;
 		throw;
@@ -58,7 +58,7 @@ void Node::ExecuteRoutine()
 	{
 		Routine();
 	}
-	catch (std::exception e)
+	catch (const std::exception& e)
 	{
 		_logger->TraceException() << "Exception during routine execution: " << e.what() << std::endl;
 		throw;

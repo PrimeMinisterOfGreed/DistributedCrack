@@ -17,9 +17,11 @@ void SchedulerMaster::Routine()
 		switch (req.first.tag())
 		{
 			case WORK:
-			_communicator.send(req.first.source(), MESSAGE, std::vector<size_t>(currentAddress, chunkSize));
+			_logger->TraceTransfer() << "Work request received from: " << req.first.source();
+			_communicator.send(req.first.source(), MESSAGE, std::vector<size_t>({ currentAddress, (size_t)chunkSize }));
 			_requests.push_back(_communicator.irecv(req.first.source(), WORK));
 			currentAddress += chunkSize;
+			_logger->TraceTransfer() << "Current Address: " << currentAddress << std::endl;
 			break;
 
 			case FOUND:

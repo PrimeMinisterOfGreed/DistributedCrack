@@ -17,8 +17,9 @@ void AddressableWorker::Routine()
 		switch (req.first.tag())
 		{
 			case MESSAGE:
-			_generator->AssignAddress(address[0]);
-			chunk = _generator->generateChunk(address[1]);
+			_logger->TraceTransfer() << "Received Address: " << address.at(0) << ",Received chunkSize: " << address.at(1) << std::endl;
+			_generator->AssignAddress(address.at(0));
+			chunk = _generator->generateChunk(address.at(1));
 			if (Compute(chunk, result))
 			{
 				_communicator.send(0, FOUND, *result);

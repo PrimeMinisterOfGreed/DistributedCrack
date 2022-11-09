@@ -1,7 +1,7 @@
 #pragma once
 #include "Node.hpp"
 #include "StringGenerator.hpp"
-class AddressableWorker : MPINode
+class AddressableWorker : public MPINode
 {
 private:
 	// Ereditato tramite MPINode

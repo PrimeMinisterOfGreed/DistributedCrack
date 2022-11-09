@@ -1,6 +1,6 @@
 #include "Node.hpp"
 
-class SchedulerMaster : MPINode
+class SchedulerMaster : public MPINode
 {
 private:
 	// Ereditato tramite MPINode

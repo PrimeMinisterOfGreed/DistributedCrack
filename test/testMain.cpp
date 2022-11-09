@@ -1,4 +1,7 @@
 #include <gtest/gtest.h>
+#include <boost/program_options.hpp>
+
+boost::program_options::variables_map& optionsMap = *new boost::program_options::variables_map{};
 
 int main(int argc, char **argv)
 {

@@ -17,6 +17,8 @@
 #include <vector>
 #include <Nodes/SimpleMaster.hpp>
 #include <Nodes/SimpleWorker.hpp>
+#include <Nodes/SchedulerMaster.hpp>
+#include <Nodes/AddressableWorker.hpp>
 
 using namespace boost::mpi;
 using namespace boost::accumulators;
@@ -76,10 +78,23 @@ MasterWorkerDistributedGenerator::MasterWorkerDistributedGenerator(int chunkSize
 
 void MasterWorkerDistributedGenerator::ExecuteSchema(boost::mpi::communicator &comm)
 {
-    if (comm.rank() == 0)
-        Master(comm);
-    else
-        Worker(comm);
+    try
+    {
+        if (comm.rank() == 0)
+        {
+            SchedulerMaster master(comm, _target);
+            master.Execute();
+        }
+        else
+        {
+            AddressableWorker worker(comm);
+            worker.Execute();
+        }
+    }
+    catch (std::exception e)
+    {
+        std::cout << e.what() << std::endl;
+    }
 }
 
 void MasterWorkerDistributedGenerator::Master(communicator &comm)

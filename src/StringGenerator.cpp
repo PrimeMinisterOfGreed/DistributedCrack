@@ -52,7 +52,7 @@ AssignedSequenceGenerator::AssignedSequenceGenerator(int initlength)
 void AssignedSequenceGenerator::AssignAddress(uint64_t address)
 {
     if (address < _currentSequenceIndex)
-        throw GeneratorException((char *)"Address is beyond bounds");
+        throw * new std::invalid_argument(std::string("Address: ") + std::to_string(address) + " is lower than current: " + std::to_string(_currentSequenceIndex));
     for (int i = 0; i < address - _currentSequenceIndex; i++)
     {
         nextSequence().clear();

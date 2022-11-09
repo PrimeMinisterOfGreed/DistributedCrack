@@ -37,7 +37,7 @@ void RunMPI(int argc, char *argv[])
         MPILogEngine::CreateInstance(comm, nullptr, &std::cout,verbosity);
     }
     auto time = executeTimeComparison([&]() {
-        SimpleMasterWorker schema{1000, *new std::string("0000")};
+        MasterWorkerDistributedGenerator schema{1000, *new std::string("0000")};
         schema.ExecuteSchema(comm);
     });
     if (comm.rank() == 0)
