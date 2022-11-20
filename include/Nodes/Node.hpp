@@ -16,9 +16,7 @@ private:
 	void EndRoutine();
 	void ExecuteRoutine();
 protected:
-	EventProcessor& _processor = *new EventProcessor();
-	StopWatch& _stopWatch = *new StopWatch();
-	MPILogEngine* _logger = MPILogEngine::Instance();
+	ILogEngine* _logger;
 public:
 	virtual void Routine() = 0;
 	virtual void Initialize() = 0;
@@ -30,6 +28,9 @@ public:
 class MPINode : public Node
 {
 protected:
+	EventProcessor& _processor = *new EventProcessor();
+	StopWatch& _stopWatch = *new StopWatch();
+	MPILogEngine* _logger = MPILogEngine::Instance();
 	virtual void DeleteRequest(boost::mpi::request * request);
 	std::vector<boost::mpi::request>& _requests = *new std::vector<boost::mpi::request>{};
 	boost::mpi::communicator _communicator;

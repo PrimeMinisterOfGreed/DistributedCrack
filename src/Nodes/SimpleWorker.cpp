@@ -47,12 +47,15 @@ void SimpleWorker::Initialize()
 
 void SimpleWorker::OnBeginRoutine()
 {
+	_stopWatch.Start();
 	_communicator.send(0, WORK);
 	_requests.push_back(_communicator.irecv(0, TERMINATE));
 }
 
 void SimpleWorker::OnEndRoutine()
 {
+	auto stat = _processor.ComputeStatistics();
+	_communicator.send(0, MESSAGE, stat);
 }
 
 SimpleWorker::SimpleWorker(boost::mpi::communicator comm) : MPINode(comm,"NOTARGET")

@@ -3,7 +3,17 @@
 #include <iostream>
 
 
-class MPILogEngine
+class ILogEngine
+{
+public:
+	virtual void Finalize() = 0;
+	virtual std::ostream& TraceException() = 0;
+	virtual std::ostream& TraceInformation() = 0;
+	virtual std::ostream& TraceTransfer() = 0;
+	virtual std::ostream& TraceResult() = 0;
+};
+
+class MPILogEngine: public ILogEngine
 {
 private:
 	std::istream* _loadStream;
@@ -16,11 +26,11 @@ private:
 public:
 	static void CreateInstance(boost::mpi::communicator& comm, std::istream* loadStream, std::ostream* saveStream, int verbosity = 0);
 	static MPILogEngine* Instance();
-	void Finalize();
-	std::ostream& TraceException();
-	std::ostream& TraceInformation();
-	std::ostream& TraceTransfer();
-	std::ostream& TraceResult();
+	virtual void Finalize() override;
+	virtual std::ostream& TraceException() override;
+	virtual std::ostream& TraceInformation() override;
+	virtual std::ostream& TraceTransfer() override;
+	virtual std::ostream& TraceResult() override;
 };
 
 

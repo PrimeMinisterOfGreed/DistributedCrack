@@ -1,7 +1,7 @@
 #include "Nodes/Node.hpp"
 #include <boost/mpi.hpp>
 
-class SimpleMaster : public Node
+class SimpleMaster : public MPINode
 {
   private:
     boost::mpi::communicator _comm;

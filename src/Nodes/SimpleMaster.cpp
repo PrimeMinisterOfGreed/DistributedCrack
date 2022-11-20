@@ -25,6 +25,12 @@ void SimpleMaster::OnEndRoutine()
     for (int i = 1; i < _comm.size(); i++)
         _comm.send(i, TERMINATE);
     _comm.barrier();
+    for (int i = 1; i < _comm.size(); i++)
+    {
+        Statistics collected;
+        _comm.recv(i, MESSAGE, collected);
+        this->_collectedStats.push_back(collected);
+    }
 }
 
 void SimpleMaster::Initialize()
@@ -65,7 +71,7 @@ void SimpleMaster::Routine()
 
 void SimpleMaster::OnBeginRoutine()
 {
-   
+    _stopWatch.Start();
     for (int i = 1; i < _comm.size(); i++)
     {
         _requests.push_back(_comm.irecv(i, WORK));

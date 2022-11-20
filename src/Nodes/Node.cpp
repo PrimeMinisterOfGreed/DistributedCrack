@@ -24,7 +24,6 @@ void Node::Execute()
 void Node::BeginRoutine()
 {
 	_logger->TraceInformation() << "Routine Setup" << std::endl;
-	_stopWatch.Start();
 	try
 	{
 		OnBeginRoutine();
