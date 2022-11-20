@@ -1,6 +1,6 @@
 #include "Schema.hpp"
 #include "StringGenerator.hpp"
-#include "TimeMachine.hpp"
+#include "Statistics/TimeMachine.hpp"
 #include "md5.hpp"
 #include <boost/concept_check.hpp>
 #include <boost/mpi/collectives.hpp>

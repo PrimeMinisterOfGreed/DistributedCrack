@@ -7,6 +7,7 @@ public:
 	virtual void Execute() = 0;
 };
 
+
 class Node: public INode
 {
 private:

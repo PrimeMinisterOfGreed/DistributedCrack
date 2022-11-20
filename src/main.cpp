@@ -3,7 +3,7 @@
 #include "StringGenerator.hpp"
 #include "md5.hpp"
 #include "OptionsBag.hpp"
-#include <TimeMachine.hpp>
+#include <Statistics/TimeMachine.hpp>
 #include <boost/mpi/communicator.hpp>
 #include "LogEngine.hpp"
 #include <boost/program_options.hpp>

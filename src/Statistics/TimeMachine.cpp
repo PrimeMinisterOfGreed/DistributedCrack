@@ -1,4 +1,4 @@
-#include "TimeMachine.hpp"
+#include "Statistics/TimeMachine.hpp"
 #include <chrono>
 #include <ctime>
 #include <functional>
@@ -20,4 +20,12 @@ std::chrono::milliseconds executeTimeComparison(std::function<void()> lambda)
 std::chrono::microseconds executeMicroTimeComparison(std::function<void()> lambda)
 {
     return std::chrono::duration_cast<std::chrono::microseconds>(executeTime(lambda));
+}
+
+Event& IStopWatch::RecordEvent(std::function<void(Event& e)> function)
+{
+    auto startTime = _lastTime;
+    Event& newEvent = *new Event();
+    //TODO assegna start time, computa la funzione e aggiungi serviceTime
+
 }
