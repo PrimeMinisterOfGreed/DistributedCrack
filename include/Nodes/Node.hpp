@@ -1,6 +1,7 @@
 #pragma once
 #include "LogEngine.hpp"
 #include <future>
+#include "Statistics/EventProcessor.hpp"
 class INode
 {
 public:
@@ -15,6 +16,8 @@ private:
 	void EndRoutine();
 	void ExecuteRoutine();
 protected:
+	EventProcessor& _processor = *new EventProcessor();
+	StopWatch& _stopWatch = *new StopWatch();
 	MPILogEngine* _logger = MPILogEngine::Instance();
 public:
 	virtual void Routine() = 0;

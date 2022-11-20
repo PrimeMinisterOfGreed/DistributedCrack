@@ -5,6 +5,7 @@ class SimpleMaster : public Node
 {
   private:
     boost::mpi::communicator _comm;
+    std::vector<Statistics> _collectedStats{};
     std::string _target;
     std::vector<boost::mpi::request>& _requests= *new std::vector<boost::mpi::request>{};
     std::string _result = "";

@@ -24,6 +24,7 @@ void Node::Execute()
 void Node::BeginRoutine()
 {
 	_logger->TraceInformation() << "Routine Setup" << std::endl;
+	_stopWatch.Start();
 	try
 	{
 		OnBeginRoutine();
@@ -75,15 +76,26 @@ void MPINode::DeleteRequest(boost::mpi::request* request)
 
 bool MPINode::Compute(const std::vector<std::string>& chunk, std::string* result)
 {
+	bool comp = false;
+	auto ev = _stopWatch.RecordEvent([&](Event& e)
+		{
+			size_t completions = 0;
 	for (auto string : chunk)
 	{
+		completions++;
 		if (md5(string) == _target)
 		{
 			*result = string;
-			return true;
+			comp = true;
+			e.completitions = completions;
+			break;
 		}
 	}
-	return false;
+	e.completitions = completions;
+	comp = false;
+		});
+	_processor.AddEvent(ev);
+	return comp;
 }
 
 std::future<bool> MPINode::ComputeAsync(const std::vector<std::string>& chunk, std::function<void(std::string)> callback)
@@ -91,15 +103,15 @@ std::future<bool> MPINode::ComputeAsync(const std::vector<std::string>& chunk, s
 	return std::async([&]()->bool
 		{
 			std::string result = "";
-			if (Compute(chunk, &result))
-			{
-				callback(result);
-				return true;
-			}
-			else
-			{
-				callback("NULL");
-				return false;
-			}
+	if (Compute(chunk, &result))
+	{
+		callback(result);
+		return true;
+	}
+	else
+	{
+		callback("NULL");
+		return false;
+	}
 		});
 }

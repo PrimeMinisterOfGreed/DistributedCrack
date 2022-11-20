@@ -8,11 +8,11 @@ std::chrono::microseconds executeMicroTimeComparison(std::function<void()> lambd
 
 using namespace std::chrono;
 
-class IStopWatch
+class StopWatch
 {
 private:
 	time_point<system_clock> _instantiationTime = system_clock::now();
-	nanoseconds _lastTime = 0;
+	nanoseconds _lastTime;
 public:
 	Event& RecordEvent(std::function<void(Event& e)> function);
 	void Start();

@@ -23,7 +23,7 @@ std::chrono::microseconds executeMicroTimeComparison(std::function<void()> lambd
 	return std::chrono::duration_cast<std::chrono::microseconds>(executeTime(lambda));
 }
 
-Event& IStopWatch::RecordEvent(std::function<void(Event& e)> function)
+Event& StopWatch::RecordEvent(std::function<void(Event& e)> function)
 {
 	auto startTime = Now();
 	double interarrival = (startTime - _lastTime).count();
@@ -35,13 +35,13 @@ Event& IStopWatch::RecordEvent(std::function<void(Event& e)> function)
 	return newEvent;
 }
 
-void IStopWatch::Start()
+void StopWatch::Start()
 {
 	_instantiationTime = system_clock::now();
 	_lastTime = Now();
 }
 
-nanoseconds IStopWatch::Now()
+nanoseconds StopWatch::Now()
 {
 	return system_clock::now() - _instantiationTime;
 }
