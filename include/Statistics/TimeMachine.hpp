@@ -11,8 +11,10 @@ using namespace std::chrono;
 class IStopWatch
 {
 private:
-	time_point<steady_clock> _lastTime = steady_clock::now();
+	time_point<system_clock> _instantiationTime = system_clock::now();
+	nanoseconds _lastTime = 0;
 public:
 	Event& RecordEvent(std::function<void(Event& e)> function);
-
+	void Start();
+	nanoseconds Now();
 };
