@@ -91,85 +91,8 @@ void MasterWorkerDistributedGenerator::ExecuteSchema(boost::mpi::communicator &c
             worker.Execute();
         }
     }
-    catch (std::exception e)
+    catch (...)
     {
-        std::cout << e.what() << std::endl;
+        std::cout << "Fatal Exception" << std::endl;
     }
-}
-
-void MasterWorkerDistributedGenerator::Master(communicator &comm)
-{
-    std::vector<request> requests{};
-    std::string found = "";
-    std::string target = md5(_target);
-    uint64_t actualAddress = 0;
-    broadcast(comm, target, 0);
-    auto receivedFound = comm.irecv(any_source, FOUND, found);
-    requests.push_back(receivedFound);
-    for (int i = 1; i < comm.size(); i++)
-        requests.push_back(comm.irecv(i, WORK));
-    std::cout << "Setup done initiating brute" << std::endl;
-    while (found == "")
-    {
-        auto worker = wait_any(requests.begin(), requests.end());
-        if (worker.first.tag() == FOUND)
-        {
-            std::cout << "Password: " << found << std::endl;
-            found = "1";
-            break;
-        }
-        else if (worker.first.tag() == WORK)
-        {
-
-            comm.send(worker.first.source(), MESSAGE, std::vector<uint64_t>{actualAddress, (uint64_t)_chunkSize});
-            actualAddress += _chunkSize - 1;
-        }
-        std::cout << "\033[2J\033[1;1H";
-        std::cout << "Computed: " << actualAddress << std::endl;
-        std::cout << "Work Requests: " << requests.size() << std::endl;
-        delreq(requests, worker.second.base());
-        requests.push_back(comm.irecv(worker.first.source(), WORK));
-    }
-    for (int i = 1; i < comm.size(); i++)
-        comm.send(i, TERMINATE);
-    comm.barrier();
-    std::cout << "Found: " << found << std::endl;
-}
-
-void MasterWorkerDistributedGenerator::Worker(communicator &comm)
-{
-    AssignedSequenceGenerator generator{4};
-    std::string target = "";
-    broadcast(comm, target, 0);
-    comm.send(0, WORK);
-    bool found = false;
-    std::vector<request> reqs{};
-    reqs.push_back(comm.irecv(0, TERMINATE));
-    while (!found)
-    {
-        std::vector<uint64_t> addr(2);
-        std::string foundStr = "";
-        reqs.push_back(comm.irecv(0, MESSAGE, addr));
-        auto worker = wait_any(reqs.begin(), reqs.end());
-        if (worker.first.tag() == TERMINATE)
-        {
-            found = true;
-            break;
-        }
-        else if (worker.first.tag() == MESSAGE)
-            generator.AssignAddress(addr.at(0));
-        auto chunk = generator.generateChunk((int)addr.at(1));
-        bool computed = compute(chunk, target, &foundStr);
-        if (computed)
-        {
-            comm.send(0, FOUND, foundStr);
-            found = true;
-            break;
-        }
-        delreq(reqs, worker.second.base());
-        comm.send(0, WORK);
-        chunk.clear();
-        addr.clear();
-    }
-    comm.barrier();
 }

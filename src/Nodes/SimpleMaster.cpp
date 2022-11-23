@@ -15,7 +15,7 @@ void SimpleMaster::DeleteRequest(request* request)
                 [&](boost::mpi::request val) -> bool { return &val == request; }));   
 }
 
-SimpleMaster::SimpleMaster(boost::mpi::communicator comm, std::string target): _target{target},_comm{comm}
+SimpleMaster::SimpleMaster(boost::mpi::communicator comm, std::string target): MPINode(comm,target)
 {
 
 }

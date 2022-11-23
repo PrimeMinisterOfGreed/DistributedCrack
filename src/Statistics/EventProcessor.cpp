@@ -3,7 +3,6 @@
 Statistics& EventProcessor::ComputeStatistics()
 {
 	double clock = max(_arrivalTimes);
-	double completitions = 0;
 	Statistics& result = _actual;
 	for (auto ev : _events)
 	{
@@ -12,7 +11,7 @@ Statistics& EventProcessor::ComputeStatistics()
 		_interArrivals(ev.arrivalTime - clock);
 		result.busyTime += ev.serviceTime;
 		clock = ev.arrivalTime;
-		completitions += ev.completitions;
+		result.completitions += ev.completitions;
 	}
 	result.meanInterarrival = mean(_interArrivals);
 	result.meanServiceTime = mean(_serviceTimes);
@@ -23,4 +22,6 @@ Statistics& EventProcessor::ComputeStatistics()
 	result.serviceRate = result.completitions / result.busyTime;
 	result.utilization = result.busyTime / result.observationPeriod;
 	result.throughput = result.completitions / result.observationPeriod;
+	_events.clear();
+	return result;
 }

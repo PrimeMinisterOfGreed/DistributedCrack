@@ -1,12 +1,11 @@
 #pragma once
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics.hpp>
-#include "Statistics/TimeMachine.hpp"
 #include <chrono>
+#include "Statistics/TimeMachine.hpp"
 
 struct Event
 {
-	friend class IStopWatch;
 	double arrivalTime;
 	double serviceTime;
 	double completitions = 1.0;

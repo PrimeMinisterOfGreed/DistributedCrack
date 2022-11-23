@@ -27,8 +27,7 @@ Event& StopWatch::RecordEvent(std::function<void(Event& e)> function)
 {
 	auto startTime = Now();
 	double interarrival = (startTime - _lastTime).count();
-		Event & newEvent = *new Event();
-	//TODO assegna start time, computa la funzione e aggiungi serviceTime
+	Event& newEvent = *new Event();
 	newEvent.arrivalTime = startTime.count();
 	function(newEvent);
 	newEvent.serviceTime = (Now() - startTime).count();
@@ -38,7 +37,7 @@ Event& StopWatch::RecordEvent(std::function<void(Event& e)> function)
 void StopWatch::Start()
 {
 	_instantiationTime = system_clock::now();
-	_lastTime = Now();
+	_lastTime = system_clock::now() - _instantiationTime;
 }
 
 nanoseconds StopWatch::Now()

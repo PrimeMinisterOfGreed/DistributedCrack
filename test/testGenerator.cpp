@@ -16,3 +16,4 @@ TEST(testGenerator, test_wrong_address)
 		std::cout << e.what() << std::endl;
 	}
 }
+

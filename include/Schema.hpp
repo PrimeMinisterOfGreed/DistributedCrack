@@ -26,8 +26,6 @@ class ISchema
 class SimpleMasterWorker : ISchema
 {
   private:
-    void Master(boost::mpi::communicator &comm);
-    void Worker(boost::mpi::communicator &comm);
     int _chunkSize;
     std::string &_target;
 
@@ -39,8 +37,6 @@ class SimpleMasterWorker : ISchema
 class MasterWorkerDistributedGenerator : ISchema
 {
   private:
-    void Master(boost::mpi::communicator &comm);
-    void Worker(boost::mpi::communicator &comm);
     int _chunkSize;
     std::string &_target;
 

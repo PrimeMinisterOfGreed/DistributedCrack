@@ -30,14 +30,15 @@ void RunMPI(int argc, char *argv[])
     if (comm.rank() != 0)
     {
         std::stringstream* logBuf = new std::stringstream();
-        MPILogEngine::CreateInstance(comm, logBuf, logBuf,verbosity);
+        MPILogEngine::CreateInstance(comm, nullptr, &std::cout,verbosity);
     }
     else
     {
         MPILogEngine::CreateInstance(comm, nullptr, &std::cout,verbosity);
     }
+    MPILogEngine::Instance()->TraceInformation() << "Starting process: " << comm.rank() << std::endl;
     auto time = executeTimeComparison([&]() {
-        MasterWorkerDistributedGenerator schema{1000, *new std::string("0000")};
+        MasterWorkerDistributedGenerator schema{2000, *new std::string(md5("!!!!"))};
         schema.ExecuteSchema(comm);
     });
     if (comm.rank() == 0)

@@ -3,6 +3,7 @@
 #include <functional>
 #include "Statistics/Event.hpp"
 
+struct Event;
 std::chrono::milliseconds executeTimeComparison(std::function<void()> lambda);
 std::chrono::microseconds executeMicroTimeComparison(std::function<void()> lambda);
 

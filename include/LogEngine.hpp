@@ -13,6 +13,18 @@ public:
 	virtual std::ostream& TraceResult() = 0;
 };
 
+class ConsoleLogEngine : public ILogEngine
+{
+
+public:
+	// Ereditato tramite ILogEngine
+	virtual void Finalize() override;
+	virtual std::ostream& TraceException() override;
+	virtual std::ostream& TraceInformation() override;
+	virtual std::ostream& TraceTransfer() override;
+	virtual std::ostream& TraceResult() override;
+};
+
 class MPILogEngine: public ILogEngine
 {
 private:

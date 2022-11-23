@@ -39,7 +39,7 @@ void SchedulerMaster::Routine()
 
 void SchedulerMaster::Initialize()
 {
-	_logger->TraceInformation() << "Broadcasting target" << std::endl;
+	_logger->TraceInformation() << "Broadcasting target: " << _target << std::endl;
 	broadcast(_communicator, _target, 0);
 }
 
@@ -64,5 +64,20 @@ void SchedulerMaster::OnEndRoutine()
 	for (int i = 1; i < _communicator.size(); i++)
 	{
 		_communicator.send(i, TERMINATE);
+	}
+	Statistics& current = *new Statistics();
+	for (int i = 1; i < _communicator.size(); i++)
+	{
+		_communicator.recv(i, MESSAGE, current);
+		_statistics.push_back(current);
+	}
+}
+
+void SchedulerMaster::Report()
+{
+	for (int i = 0; i < _statistics.size(); i++)
+	{
+		_logger->TraceInformation() << "Statistics of Process " << i + 1 << std::endl
+			<< _statistics.at(i).ToString() << std::endl << "###########################" << std::endl;
 	}
 }

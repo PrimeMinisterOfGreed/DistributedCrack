@@ -116,3 +116,32 @@ MPILogEngine* MPILogEngine::Instance()
 	return MPILogEngine::_instance;
 }
 
+inline std::ostream& _local(const char * localString)
+{
+	auto& stream = std::cout << localString;
+	return stream;
+}
+
+void ConsoleLogEngine::Finalize()
+{
+}
+
+std::ostream& ConsoleLogEngine::TraceException()
+{
+	return _local("[Exception]");
+}
+
+std::ostream& ConsoleLogEngine::TraceInformation()
+{
+	return _local("[Information]");
+}
+
+std::ostream& ConsoleLogEngine::TraceTransfer()
+{
+	return _local("[Transfer]");
+}
+
+std::ostream& ConsoleLogEngine::TraceResult()
+{
+	return _local("[Result]");
+}

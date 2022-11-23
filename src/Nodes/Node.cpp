@@ -84,6 +84,7 @@ bool MPINode::Compute(const std::vector<std::string>& chunk, std::string* result
 		completions++;
 		if (md5(string) == _target)
 		{
+			_logger->TraceInformation() << "Founded password: " << string << std::endl;
 			*result = string;
 			comp = true;
 			e.completitions = completions;
@@ -114,3 +115,4 @@ std::future<bool> MPINode::ComputeAsync(const std::vector<std::string>& chunk, s
 	}
 		});
 }
+
