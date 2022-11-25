@@ -1,19 +1,11 @@
 #include <gtest/gtest.h>
 #include "StringGenerator.hpp"
 
-TEST(testGenerator, test_wrong_address)
+TEST(TestGenerator, test_known_sequence)
 {
-	AssignedSequenceGenerator gen(4);
-	
-	try
-	{
-		gen.AssignAddress(2000);
-		gen.AssignAddress(0);
-		FAIL();
-	}
-	catch (const std::exception & e)
-	{
-		std::cout << e.what() << std::endl;
-	}
+	AssignedSequenceGenerator generator{4};
+	generator.AssignAddress(372);
+	auto seq = generator.nextSequence();
+	assert(seq.at(seq.size() - 1) == (char)minCharInt);
+	assert(seq.at(seq.size() - 2) == (char)minCharInt + 4);
 }
-

@@ -11,18 +11,19 @@ public:
 	// Ereditato tramite MPINode
 	virtual void Routine() override
 	{
-	}
-	virtual void Initialize() override
-	{
-	}
-	virtual void OnBeginRoutine() override
-	{
 		SequentialGenerator generator{ 4 };
 		std::string result;
 		while (!Compute(generator.generateChunk(2000), &result))
 		{
 
 		}
+	}
+	virtual void Initialize() override
+	{
+	}
+	virtual void OnBeginRoutine() override
+	{
+		
 	}
 	virtual void OnEndRoutine() override
 	{

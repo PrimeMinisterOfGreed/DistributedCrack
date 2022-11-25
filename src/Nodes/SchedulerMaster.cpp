@@ -45,9 +45,10 @@ void SchedulerMaster::Initialize()
 
 void SchedulerMaster::OnBeginRoutine()
 {
-	_requests.push_back(_communicator.irecv(any_source, FOUND,_result));
+	
 	for (int i = 1; i < _communicator.size(); i++)
 	{
+		_requests.push_back(_communicator.irecv(i, FOUND, _result));
 		_requests.push_back(_communicator.irecv(i, WORK));
 	}
 	int startSequence = 4;

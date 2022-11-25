@@ -92,7 +92,6 @@ bool MPINode::Compute(const std::vector<std::string>& chunk, std::string* result
 		}
 	}
 	e.completitions = completions;
-	comp = false;
 		});
 	_processor.AddEvent(ev);
 	return comp;
