@@ -34,7 +34,7 @@ void SchedulerMaster::Routine()
 		default:
 			break;
 		}
-		DeleteRequest(&*req.second);
+		DeleteRequest(*req.second);
 	}
 	_logger->TraceResult() << "Found password: " << _result << std::endl;
 }
@@ -71,6 +71,7 @@ void SchedulerMaster::OnEndRoutine()
 		_communicator.recv(i, MESSAGE, current);
 		_statistics.push_back(current);
 	}
+	Report();
 }
 
 void SchedulerMaster::Report()

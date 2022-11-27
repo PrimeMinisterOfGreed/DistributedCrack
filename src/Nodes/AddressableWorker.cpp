@@ -43,7 +43,8 @@ void AddressableWorker::Routine()
 		default:
 			break;
 		}
-		DeleteRequest(&*req.second);
+		_logger->TraceTransfer() << "Deleting old request" << std::endl;
+		_requests.erase(_requests.begin() + 1);
 		computations++;
 		if (computations > 10)
 		{

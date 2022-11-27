@@ -31,7 +31,7 @@ class MPINode : public Node
 protected:
 	EventProcessor& _processor = *new EventProcessor();
 	StopWatch& _stopWatch = *new StopWatch();
-	virtual void DeleteRequest(boost::mpi::request* request);
+	virtual void DeleteRequest(boost::mpi::request& request);
 	std::vector<boost::mpi::request>& _requests = *new std::vector<boost::mpi::request>{};
 	boost::mpi::communicator _communicator;
 	virtual bool Compute(const std::vector<std::string>& chunk, std::string* result);

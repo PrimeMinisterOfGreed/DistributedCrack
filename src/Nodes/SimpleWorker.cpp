@@ -35,7 +35,7 @@ void SimpleWorker::Routine()
 			default:
 			break;
 		}
-		DeleteRequest(&*stat.second);
+		DeleteRequest(*stat.second);
 	}
 }
 

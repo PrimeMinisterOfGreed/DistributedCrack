@@ -66,11 +66,15 @@ void Node::ExecuteRoutine()
 	_logger->TraceInformation() << "Routine execution done" << std::endl;
 }
 
-void MPINode::DeleteRequest(boost::mpi::request* request)
+
+void MPINode::DeleteRequest(boost::mpi::request& request)
 {
+	int index = indexOf<boost::mpi::request>(_requests.begin(), _requests.end(),
+		[&](boost::mpi::request val) -> bool { return &val == &request; });
+	if (index == -1)
+		throw std::invalid_argument("Index of request is not existent");
 	_requests.erase(_requests.begin() +
-		indexOf<boost::mpi::request>(_requests.begin(), _requests.end(),
-			[&](boost::mpi::request val) -> bool { return &val == request; }));
+		index);
 }
 
 bool MPINode::Compute(const std::vector<std::string>& chunk, std::string* result)
