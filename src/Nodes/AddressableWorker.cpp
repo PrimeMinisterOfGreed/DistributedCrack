@@ -10,10 +10,13 @@ void AddressableWorker::Routine()
 	std::vector<size_t> address{};
 	std::string* result = new std::string();
 	std::vector<std::string> chunk{};
+	request terminateRequest = _communicator.irecv(0, TERMINATE);
+	_requests.push_back(terminateRequest);
 	_requests.push_back(_communicator.irecv(0, MESSAGE, address));
 	char computations = 0;
 	while (!terminate)
 	{
+
 		auto req = wait_any(_requests.begin(), _requests.end());
 		switch (req.first.tag())
 		{
@@ -35,19 +38,21 @@ void AddressableWorker::Routine()
 
 		case TERMINATE:
 			terminate = true;
+			_logger->TraceTransfer() << "Termination Logged" << std::endl;
 			break;
 		default:
 			break;
 		}
-		DeleteRequest(req.second.base());
+		DeleteRequest(&*req.second);
 		computations++;
-		if (computations > 100)
+		if (computations > 10)
 		{
 			_logger->TraceTransfer() << "Executing statistics retrieval" << _processor.ToCompute() << std::endl;
 			_processor.ComputeStatistics();
 			computations = 0;
 		}
 	}
+	_logger->TraceTransfer() << "Termination processed" << std::endl;
 }
 
 void AddressableWorker::Initialize()
@@ -69,6 +74,8 @@ void AddressableWorker::OnBeginRoutine()
 
 void AddressableWorker::OnEndRoutine()
 {
-	auto ev = _processor.ComputeStatistics();
+	_logger->TraceTransfer() << "Computing data on: " << _processor.ToCompute() << " events" << std::endl;
+	auto& ev = _processor.ComputeStatistics();
+	_logger->TraceTransfer() << "Sending computed statistics to root" << std::endl;
 	_communicator.send(0, MESSAGE, ev);
 }

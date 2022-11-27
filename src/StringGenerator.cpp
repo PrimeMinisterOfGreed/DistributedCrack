@@ -15,7 +15,7 @@ SequentialGenerator::SequentialGenerator(int initialSequenceLength) : _current(*
 
 std::string SequentialGenerator::nextSequence()
 {
-	auto result = *new std::string(_current);
+	auto &result = *new std::string(_current);
 	for (int i = _current.size() - 1; i >= 0; i--)
 	{
 		_current[i]++;
@@ -55,7 +55,7 @@ void AssignedSequenceGenerator::AssignAddress(uint64_t address)
 	int q = address / div;
 	int r = address % div;
 	int it = 0;
-	*_current.end() = (char)(r + minCharInt);
+	*(_current.end() - 1) = (char)(r + minCharInt);
 	while (q > 0)
 	{
 		r = q % div;

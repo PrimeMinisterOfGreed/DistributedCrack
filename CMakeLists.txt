@@ -1,10 +1,14 @@
 project(DistributedCrack)
 cmake_minimum_required(VERSION 3.14)
+
+set(CMAKE_CXX_STANDARD 20)
 find_package(OpenMP REQUIRED)
 find_package(MPI REQUIRED)
 find_package(Boost COMPONENTS mpi program_options REQUIRED)
+find_package(GTest REQUIRED)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 include(GoogleTest)
+
 
 enable_testing()
 
@@ -21,8 +25,8 @@ add_executable(distributedcrack ${SRC_LIST} )
 
 #define unit test for non MPI functions
 add_executable(tests ${TEST_SOURCES})
-target_include_directories(tests PUBLIC  ${MPI_INCLUDE_PATH} ./include ${Boost_INCLUDE_DIRS} gtest)
-target_link_libraries(tests  ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES} gtest)
+target_include_directories(tests PUBLIC  ${MPI_INCLUDE_PATH} ./include ${Boost_INCLUDE_DIRS})
+target_link_libraries(tests  ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES}  GTest::gtest_main)
 gtest_discover_tests(tests WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} TEST_LIST TestList)
 
 

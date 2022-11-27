@@ -7,16 +7,18 @@ using namespace boost::mpi;
 void SchedulerMaster::Routine()
 {
 	bool terminate = false;
+	request found = _communicator.irecv(any_source, FOUND, _result);
 	size_t currentAddress = 0;
 	int chunkSize = 2000;
 	if (optionsMap.count("chunksize"))
 		chunkSize = optionsMap.at("chunksize").as<int>();
 	while (!terminate)
 	{
-		auto req = wait_any(_requests.begin(), _requests.end());
+		if (found.test()) break; \
+			auto req = wait_any(_requests.begin(), _requests.end());
 		switch (req.first.tag())
 		{
-			case WORK:
+		case WORK:
 			_logger->TraceTransfer() << "Work request received from: " << req.first.source();
 			_communicator.send(req.first.source(), MESSAGE, std::vector<size_t>({ currentAddress, (size_t)chunkSize }));
 			_requests.push_back(_communicator.irecv(req.first.source(), WORK));
@@ -24,15 +26,15 @@ void SchedulerMaster::Routine()
 			_logger->TraceTransfer() << "Current Address: " << currentAddress << std::endl;
 			break;
 
-			case FOUND:
+		case FOUND:
 			terminate = true;
 			break;
 
 
-			default:
+		default:
 			break;
 		}
-		DeleteRequest(req.second.base());
+		DeleteRequest(&*req.second);
 	}
 	_logger->TraceResult() << "Found password: " << _result << std::endl;
 }
@@ -45,10 +47,9 @@ void SchedulerMaster::Initialize()
 
 void SchedulerMaster::OnBeginRoutine()
 {
-	
+
 	for (int i = 1; i < _communicator.size(); i++)
 	{
-		_requests.push_back(_communicator.irecv(i, FOUND, _result));
 		_requests.push_back(_communicator.irecv(i, WORK));
 	}
 	int startSequence = 4;
@@ -62,13 +63,11 @@ void SchedulerMaster::OnBeginRoutine()
 
 void SchedulerMaster::OnEndRoutine()
 {
-	for (int i = 1; i < _communicator.size(); i++)
-	{
-		_communicator.send(i, TERMINATE);
-	}
 	Statistics& current = *new Statistics();
 	for (int i = 1; i < _communicator.size(); i++)
 	{
+		_logger->TraceInformation() << "Sending termination to process: " << i << std::endl;
+		_communicator.send(i, TERMINATE);
 		_communicator.recv(i, MESSAGE, current);
 		_statistics.push_back(current);
 	}
@@ -82,3 +81,5 @@ void SchedulerMaster::Report()
 			<< _statistics.at(i).ToString() << std::endl << "###########################" << std::endl;
 	}
 }
+
+

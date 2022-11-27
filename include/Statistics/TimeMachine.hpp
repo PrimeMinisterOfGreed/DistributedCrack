@@ -13,9 +13,9 @@ class StopWatch
 {
 private:
 	time_point<system_clock> _instantiationTime = system_clock::now();
-	nanoseconds _lastTime;
+	milliseconds _lastTime;
 public:
 	Event& RecordEvent(std::function<void(Event& e)> function);
 	void Start();
-	nanoseconds Now();
+	milliseconds Now();
 };

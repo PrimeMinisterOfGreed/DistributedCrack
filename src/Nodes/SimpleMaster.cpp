@@ -64,7 +64,7 @@ void SimpleMaster::Routine()
         _requests.push_back(_comm.irecv(worker.first.source(), WORK));
         computed += chunkSize;
         _logger->TraceInformation() << "Computed: " << computed << std::endl;
-        DeleteRequest(worker.second.base());
+        DeleteRequest(&*worker.second);
     }
     _logger->TraceInformation() << "Result Found: " << _result << std::endl;
 }

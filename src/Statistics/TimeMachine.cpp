@@ -37,10 +37,10 @@ Event& StopWatch::RecordEvent(std::function<void(Event& e)> function)
 void StopWatch::Start()
 {
 	_instantiationTime = system_clock::now();
-	_lastTime = system_clock::now() - _instantiationTime;
+	_lastTime = Now();
 }
 
-nanoseconds StopWatch::Now()
+milliseconds StopWatch::Now()
 {
-	return system_clock::now() - _instantiationTime;
+	return duration_cast<milliseconds>(system_clock::now() - _instantiationTime);
 }

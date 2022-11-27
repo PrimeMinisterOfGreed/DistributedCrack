@@ -23,17 +23,17 @@ struct Statistics
 	std::string& ToString()
 	{
 		std::stringstream stream{};
-		stream << "Mean interval: " << meanInterarrival << std::endl
-			<< "Mean service time: " << meanServiceTime << std::endl
-			<< "Max interval: " << maxInterArrival << std::endl
-			<< "Max service time: " << maxServiceTime << std::endl
-			<< "Arrival rate: " << arrivalRate << std::endl
-			<< "Throughput: " << throughput << std::endl
-			<< "Service rate: " << serviceRate << std::endl
+		stream << "Mean interval: " << meanInterarrival << "ms" << std::endl
+			<< "Mean service time: " << meanServiceTime << "ms"<< std::endl
+			<< "Max interval: " << maxInterArrival << "ms" << std::endl
+			<< "Max service time: " << maxServiceTime << "ms" << std::endl
+			<< "Arrival rate: " << arrivalRate << "job/ms" << std::endl
+			<< "Throughput: " << throughput << "job/ms" << std::endl
+			<< "Service rate: " << serviceRate << "job/ms" << std::endl
 			<< "Utilization: " << utilization << std::endl
-			<< "Completitions: " << completitions << std::endl
-			<< "Busy Time: " << busyTime << "nanoseconds" << std::endl
-			<< "Observation time: " << observationPeriod << "nanoseconds" << std::endl;
+			<< "Completitions: " << (size_t)completitions << "jobs" << std::endl
+			<< "Busy Time: " << busyTime << "ms" << std::endl
+			<< "Observation time: " << observationPeriod << "ms" << std::endl;
 		return *new std::string(stream.str());
 	}
 };

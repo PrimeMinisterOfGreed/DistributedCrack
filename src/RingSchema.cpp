@@ -55,7 +55,7 @@ void RingPipeLine::MasterNode(communicator &comm)
     {
         auto req = wait_any(requests.begin(), requests.end());
         requests.erase(requests.begin() + indexOf<request>(requests.begin(), requests.end(),
-                                                           [&](request &val) { return &val == req.second.base(); }));
+                                                           [&](request &val) { return &val == &*req.second; }));
         switch (req.first.tag())
         {
         case WORK:
@@ -104,7 +104,7 @@ void RingPipeLine::Node(communicator &comm)
     {
         auto req = wait_any(requests.begin(), requests.end());
         requests.erase(requests.begin() + indexOf<request>(requests.begin(), requests.end(),
-                                                           [&](request &val) { return &val == req.second.base(); }));
+                                                           [&](request &val) { return &val == &*req.second; }));
         switch (req.first.tag())
         {
         case WORK:
