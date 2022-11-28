@@ -21,7 +21,7 @@ void AddressableWorker::Routine()
 		switch (req.first.tag())
 		{
 		case MESSAGE:
-			_logger->TraceTransfer() << "Received Address: " << address.at(0) << ",Received chunkSize: " << address.at(1) << std::endl;
+			_logger->TraceTransfer("Received Address: {0},Received chunkSize:{1}",address.at(0),address.at(1));
 			_generator->AssignAddress(address.at(0));
 			chunk = _generator->generateChunk(address.at(1));
 			if (Compute(chunk, result))
@@ -39,34 +39,34 @@ void AddressableWorker::Routine()
 
 		case TERMINATE:
 			terminate = true;
-			_logger->TraceTransfer() << "Termination Logged" << std::endl;
+			_logger->TraceTransfer("Termination Logged");
 			break;
 		default:
 			break;
 		}
-		_logger->TraceTransfer() << "Deleting old request" << std::endl;
+		_logger->TraceTransfer( "Deleting old request");
 		_requests.erase(_requests.begin() + 1);
 		computations++;
 		if (computations > 10)
 		{
-			_logger->TraceTransfer() << "Executing statistics retrieval" << _processor.ToCompute() << std::endl;
+			_logger->TraceTransfer("Executing statistics retrieval: {0}",_processor.ToCompute());
 			_processor.ComputeStatistics();
 			computations = 0;
 		}
 	}
-	_logger->TraceTransfer() << "Termination processed" << std::endl;
+	_logger->TraceTransfer("Termination processed");
 }
 
 void AddressableWorker::Initialize()
 {
-	_logger->TraceTransfer() << "Broadcasting target" << std::endl;
+	_logger->TraceTransfer("Broadcasting target");
 	broadcast(_communicator, _target, 0);
-	_logger->TraceTransfer() << "Target acquired: " << _target << std::endl;
+	_logger->TraceTransfer("Target acquired:{0}",_target);
 }
 
 void AddressableWorker::OnBeginRoutine()
 {
-	_logger->TraceInformation() << "Starting stopwatch" << std::endl;
+	_logger->TraceInformation("Starting stopwatch");
 	_stopWatch.Start();
 	int startSequence = 4;
 	broadcast(_communicator, startSequence, 0);
@@ -76,8 +76,8 @@ void AddressableWorker::OnBeginRoutine()
 
 void AddressableWorker::OnEndRoutine()
 {
-	_logger->TraceTransfer() << "Computing data on: " << _processor.ToCompute() << " events" << std::endl;
+	_logger->TraceTransfer("Computing data on:{0} events ", _processor.ToCompute());
 	auto& ev = _processor.ComputeStatistics();
-	_logger->TraceTransfer() << "Sending computed statistics to root" << std::endl;
+	_logger->TraceTransfer("Sending computed statistics to root");
 	_communicator.send(0, MESSAGE, ev);
 }

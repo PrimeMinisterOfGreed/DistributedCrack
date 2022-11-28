@@ -73,7 +73,7 @@ void SimpleMasterWorker::ExecuteSchema(boost::mpi::communicator& comm)
     }
     catch (...)
     {
-        MPILogEngine::Instance()->TraceException() << "Endend for exception" << std::endl;
+        MPILogEngine::Instance()->TraceException("Endend for exception");
     }
 }
 

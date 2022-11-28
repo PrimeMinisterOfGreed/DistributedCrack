@@ -20,7 +20,7 @@ void SimpleMaster::OnEndRoutine()
 
 	for (int i = 1; i < _comm.size(); i++)
 	{
-		_logger->TraceTransfer() << "Sending terminate to process: " << i << std::endl;
+		_logger->TraceTransfer("Sending terminate to process: {0}",i);
 		_comm.send(i, TERMINATE);
 		_comm.recv(i, MESSAGE, collected);
 		this->_collectedStats.push_back(collected);
@@ -29,7 +29,7 @@ void SimpleMaster::OnEndRoutine()
 
 void SimpleMaster::Initialize()
 {
-	_logger->TraceInformation() << "Broadcasting Target:" << _target << std::endl;
+	_logger->TraceInformation("Broadcasting Target:{0}",_target);
 	broadcast(_comm, _target, _comm.rank());
 }
 
@@ -66,7 +66,7 @@ void SimpleMaster::Routine()
 			_comm.send(req.first.source(), MESSAGE, chunk);
 			_requests.push_back(_comm.irecv(req.first.source(), WORK));
 			computed += chunk.size();
-			_logger->TraceTransfer() << "chunk sended: " << computed << std::endl;
+			_logger->TraceTransfer("chunk sended:{0}",computed);
 			break;
 
 		case FOUND:
@@ -79,7 +79,7 @@ void SimpleMaster::Routine()
 
 		_requests.erase(req.second);
 	}
-	_logger->TraceInformation() << "Result Found: " << _result << std::endl;
+	_logger->TraceInformation("Result Found:{0} ",_result);
 }
 
 void SimpleMaster::OnBeginRoutine()

@@ -20,7 +20,7 @@ void SimpleWorker::Routine()
 			if (Compute(chunk, result))
 			{
 				_communicator.send(0, FOUND, *result);
-				_logger->TraceTransfer() << "Found: " << *result << std::endl;
+				_logger->TraceTransfer("Found: {0}",*result);
 			}
 			else
 			{
@@ -42,7 +42,7 @@ void SimpleWorker::Routine()
 
 void SimpleWorker::Initialize()
 {
-	_logger->TraceInformation() << "Broadcasting target" << std::endl;
+	_logger->TraceInformation("Broadcasting target");
 	broadcast(_communicator, _target, 0);
 }
 
@@ -50,7 +50,7 @@ void SimpleWorker::OnBeginRoutine()
 {
 	_stopWatch.Start();
 	broadcast(_communicator, _target, 0);
-	_logger->TraceTransfer() << "Target acquired: " << _target << std::endl;
+	_logger->TraceTransfer("Target acquired:{0} ",_target);
 	_communicator.send(0, WORK);
 	_requests.push_back(_communicator.irecv(0, TERMINATE));
 }

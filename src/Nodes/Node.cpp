@@ -14,7 +14,7 @@ void Node::Execute()
 	}
 	catch (const std::exception& ex)
 	{
-		_logger->TraceException() << ex.what() << std::endl;
+		_logger->TraceException(ex.what());
 		_logger->Finalize();
 	}
 }
@@ -23,47 +23,47 @@ void Node::Execute()
 
 void Node::BeginRoutine()
 {
-	_logger->TraceInformation() << "Routine Setup" << std::endl;
+	_logger->TraceInformation("Routine Setup");
 	try
 	{
 		OnBeginRoutine();
 	}
 	catch (const std::exception& e)
 	{
-		_logger->TraceException() << "Exception during routine setup:" << e.what() << std::endl;
+		_logger->TraceException("Exception during routine setup:{0}", e.what());
 		throw;
 	}
-	_logger->TraceInformation() << "Routine Setup completed" << std::endl;
+	_logger->TraceInformation("Routine Setup completed");
 }
 
 void Node::EndRoutine()
 {
-	_logger->TraceInformation() << "Ending Routine" << std::endl;
+	_logger->TraceInformation("Ending Routine");
 	try
 	{
 		OnEndRoutine();
 	}
 	catch (const std::exception& e)
 	{
-		_logger->TraceException() << "Exception during routine ending: " << e.what() << std::endl;
+		_logger->TraceException("Exception during routine ending:{0}", e.what());
 		throw;
 	}
-	_logger->TraceInformation() << "Routine end done" << std::endl;
+	_logger->TraceInformation("Routine end done");
 }
 
 void Node::ExecuteRoutine()
 {
-	_logger->TraceInformation() << "Routine Execution" << std::endl;
+	_logger->TraceInformation("Routine Execution");
 	try
 	{
 		Routine();
 	}
 	catch (const std::exception& e)
 	{
-		_logger->TraceException() << "Exception during routine execution: " << e.what() << std::endl;
+		_logger->TraceException("Exception during routine execution:{0} ",e.what());
 		throw;
 	}
-	_logger->TraceInformation() << "Routine execution done" << std::endl;
+	_logger->TraceInformation("Routine execution done");
 }
 
 
@@ -88,7 +88,7 @@ bool MPINode::Compute(const std::vector<std::string>& chunk, std::string* result
 		completions++;
 		if (hashFnc(string) == _target)
 		{
-			_logger->TraceInformation() << "Founded password: " << string << std::endl;
+			_logger->TraceInformation("Founded password: ",string);
 			*result = string;
 			comp = true;
 			e.completitions = completions;

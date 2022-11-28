@@ -72,76 +72,56 @@ void MPILogEngine::Finalize()
 	}
 }
 
-std::ostream& MPILogEngine::TraceException()
+void MPILogEngine::TraceException(std::string& message)
 {
-	auto &stream = this->log() << "[Exception] ";
-	return stream;
+	this->log() << "[Exception]" << message << std::endl;
 }
 
-std::ostream& MPILogEngine::TraceInformation()
+void MPILogEngine::TraceInformation(std::string& message)
 {
-	if (_verbosity > 0)
-	{
-		auto & stream=  this->log() << "[Information] ";
-		return stream;
-	}
-	_trashStream.clear();
-	return _trashStream;
+	this->log() << "[Information]" << message << std::endl;
 }
 
-std::ostream& MPILogEngine::TraceTransfer()
+void MPILogEngine::TraceTransfer(std::string& message)
 {
-	if (_verbosity > 1)
-	{
-		auto & stream = this->log() << "[Transfer]";
-		return stream;
-	}
-	_trashStream.clear();
-	return _trashStream;
+	this->log() << "[Transfer]" << message << std::endl;
 }
 
-std::ostream& MPILogEngine::TraceResult()
+void MPILogEngine::TraceResult(std::string& message)
 {
-	auto& stream = this->log() << "[Result]";
-	return stream;
+	this->log() << "[Result]" << message << std::endl;
 }
+
 
 void MPILogEngine::CreateInstance(boost::mpi::communicator& comm, std::istream* loadStream, std::ostream* saveStream, int verbosity)
 {
 	MPILogEngine::_instance = new MPILogEngine(comm, loadStream, saveStream, verbosity);
 }
 
-MPILogEngine* MPILogEngine::Instance()
+ILogEngine* MPILogEngine::Instance()
 {
 	return MPILogEngine::_instance;
 }
 
-inline std::ostream& _local(const char * localString)
-{
-	auto& stream = std::cout << localString;
-	return stream;
-}
 
+
+void ConsoleLogEngine::TraceException(std::string& message)
+{
+	printf("[Exception]%s", message.c_str());
+}
+void ConsoleLogEngine::TraceInformation(std::string& message)
+{
+	printf("[Information]%s", message.c_str());
+}
+void ConsoleLogEngine::TraceTransfer(std::string& message)
+{
+	printf("[Transfer]%s", message.c_str());
+}
+void ConsoleLogEngine::TraceResult(std::string& message)
+{
+	printf("[Result]%s", message.c_str());
+}
 void ConsoleLogEngine::Finalize()
 {
-}
-
-std::ostream& ConsoleLogEngine::TraceException()
-{
-	return _local("[Exception]");
-}
-
-std::ostream& ConsoleLogEngine::TraceInformation()
-{
-	return _local("[Information]");
-}
-
-std::ostream& ConsoleLogEngine::TraceTransfer()
-{
-	return _local("[Transfer]");
-}
-
-std::ostream& ConsoleLogEngine::TraceResult()
-{
-	return _local("[Result]");
+	
 }
