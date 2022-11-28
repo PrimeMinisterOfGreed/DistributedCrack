@@ -77,7 +77,7 @@ void MPINode::DeleteRequest(boost::mpi::request& request)
 		index);
 }
 
-bool MPINode::Compute(const std::vector<std::string>& chunk, std::string* result)
+bool MPINode::Compute(const std::vector<std::string>& chunk, std::string* result, std::function<std::string(std::string)> hashFnc)
 {
 	bool comp = false;
 	auto ev = _stopWatch.RecordEvent([&](Event& e)
@@ -86,7 +86,7 @@ bool MPINode::Compute(const std::vector<std::string>& chunk, std::string* result
 	for (auto string : chunk)
 	{
 		completions++;
-		if (md5(string) == _target)
+		if (hashFnc(string) == _target)
 		{
 			_logger->TraceInformation() << "Founded password: " << string << std::endl;
 			*result = string;

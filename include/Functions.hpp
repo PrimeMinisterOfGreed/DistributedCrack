@@ -7,7 +7,7 @@ int indexOf(typename std::vector<T>::iterator begin, typename std::vector<T>::it
 {
     auto b = begin;
     int i = 0;
-    while (b != end && predicate(*b))
+    while (b != end && !predicate(*b))
     {
         i++;
         b++;

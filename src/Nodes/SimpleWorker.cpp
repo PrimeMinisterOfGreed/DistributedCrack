@@ -8,7 +8,7 @@ using namespace boost::mpi;
 void SimpleWorker::Routine()
 {
 	bool terminate = false;
-	std::vector<std::string> chunk{};
+	std::vector<std::string>& chunk = *new std::vector<std::string>();
 	std::string* result = new std::string();
 	_requests.push_back(_communicator.irecv(0, MESSAGE, chunk));
 	while (!terminate)
@@ -20,13 +20,15 @@ void SimpleWorker::Routine()
 			if (Compute(chunk, result))
 			{
 				_communicator.send(0, FOUND, *result);
-				terminate = true;
+				_logger->TraceTransfer() << "Found: " << *result << std::endl;
 			}
 			else
 			{
 				_communicator.send(0, WORK);
+				_requests.erase(_requests.begin() + 1);
 				_requests.push_back(_communicator.irecv(0, MESSAGE, chunk));
 			}
+			chunk.clear();
 			break;
 
 			case TERMINATE:
@@ -35,7 +37,6 @@ void SimpleWorker::Routine()
 			default:
 			break;
 		}
-		DeleteRequest(*stat.second);
 	}
 }
 
@@ -48,6 +49,8 @@ void SimpleWorker::Initialize()
 void SimpleWorker::OnBeginRoutine()
 {
 	_stopWatch.Start();
+	broadcast(_communicator, _target, 0);
+	_logger->TraceTransfer() << "Target acquired: " << _target << std::endl;
 	_communicator.send(0, WORK);
 	_requests.push_back(_communicator.irecv(0, TERMINATE));
 }

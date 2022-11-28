@@ -8,29 +8,23 @@
 #include "OptionsBag.hpp"
 using namespace boost::mpi;
 
-void SimpleMaster::DeleteRequest(request* request)
+static bool operator==(request& r1, request& r2)
 {
-        _requests.erase(_requests.begin() +
-            indexOf<boost::mpi::request>(_requests.begin(), _requests.end(),
-                [&](boost::mpi::request val) -> bool { return &val == request; }));   
+	return &r1 == &r2;
 }
 
-SimpleMaster::SimpleMaster(boost::mpi::communicator comm, std::string target): MPINode(comm,target)
-{
-
-}
 
 void SimpleMaster::OnEndRoutine()
 {
-    for (int i = 1; i < _comm.size(); i++)
-        _comm.send(i, TERMINATE);
-    _comm.barrier();
-    for (int i = 1; i < _comm.size(); i++)
-    {
-        Statistics collected;
-        _comm.recv(i, MESSAGE, collected);
-        this->_collectedStats.push_back(collected);
-    }
+	Statistics collected;
+
+	for (int i = 1; i < _comm.size(); i++)
+	{
+		_logger->TraceTransfer() << "Sending terminate to process: " << i << std::endl;
+		_comm.send(i, TERMINATE);
+		_comm.recv(i, MESSAGE, collected);
+		this->_collectedStats.push_back(collected);
+	}
 }
 
 void SimpleMaster::Initialize()
@@ -41,40 +35,59 @@ void SimpleMaster::Initialize()
 
 void SimpleMaster::Routine()
 {
-    using namespace boost::mpi;
-    int chunkSize = 2000;
-    int startLength = 4;
-    if (optionsMap.count("chunksize"))
-    {
-        chunkSize = optionsMap.at("chunksize").as<int>();
-    }
-    if (optionsMap.count("startlength"))
-    {
-        startLength = optionsMap.at("startlength").as<int>();
-    }
-    SequentialGenerator generator{startLength};
-    int computed = 0;
-    _logger->TraceInformation() << "Starting main task" << std::endl;
-    while (_result == "")
-    {
-        auto worker = wait_any(_requests.begin(), _requests.end());
-        _logger->TraceInformation() << "Work request received from: " << worker.first.source() << std::endl;
-        auto chunk = generator.generateChunk(chunkSize);
-        _comm.send(worker.first.source(), MESSAGE, chunk);
-        _requests.push_back(_comm.irecv(worker.first.source(), WORK));
-        computed += chunkSize;
-        _logger->TraceInformation() << "Computed: " << computed << std::endl;
-        DeleteRequest(&*worker.second);
-    }
-    _logger->TraceInformation() << "Result Found: " << _result << std::endl;
+	using namespace boost::mpi;
+	auto termReq = _comm.irecv(any_source, FOUND, _result);
+	_requests.push_back(termReq);
+
+	int chunkSize = 2000;
+	int startLength = 4;
+	int computed = 0;
+	bool terminate = false;
+	if (optionsMap.count("chunksize"))
+	{
+		chunkSize = optionsMap.at("chunksize").as<int>();
+	}
+	if (optionsMap.count("startlength"))
+	{
+		startLength = optionsMap.at("startlength").as<int>();
+	}
+	SequentialGenerator generator{ startLength };
+	std::vector<std::string>& chunk = *new std::vector<std::string>();
+
+	while (!terminate)
+	{
+		if (termReq.test())
+			break;
+		auto req = wait_any(_requests.begin(),_requests.end());
+		switch (req.first.tag())
+		{
+		case WORK:
+			chunk = generator.generateChunk(chunkSize);
+			_comm.send(req.first.source(), MESSAGE, chunk);
+			_requests.push_back(_comm.irecv(req.first.source(), WORK));
+			computed += chunk.size();
+			_logger->TraceTransfer() << "chunk sended: " << computed << std::endl;
+			break;
+
+		case FOUND:
+			terminate = true;
+			break;
+
+		default:
+			break;
+		}
+
+		_requests.erase(req.second);
+	}
+	_logger->TraceInformation() << "Result Found: " << _result << std::endl;
 }
 
 void SimpleMaster::OnBeginRoutine()
 {
-    _stopWatch.Start();
-    for (int i = 1; i < _comm.size(); i++)
-    {
-        _requests.push_back(_comm.irecv(i, WORK));
-    }
-    _requests.push_back(_comm.irecv(any_source, FOUND, _result));
+	_stopWatch.Start();
+	broadcast(_comm,_target,0);
+	for (int i = 1; i < _comm.size(); i++)
+	{
+		_requests.push_back(_comm.irecv(i, WORK));
+	}
 }

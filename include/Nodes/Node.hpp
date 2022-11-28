@@ -1,6 +1,7 @@
 #pragma once
 #include "LogEngine.hpp"
 #include <future>
+#include "md5.hpp"
 #include "Statistics/EventProcessor.hpp"
 class INode
 {
@@ -34,7 +35,7 @@ protected:
 	virtual void DeleteRequest(boost::mpi::request& request);
 	std::vector<boost::mpi::request>& _requests = *new std::vector<boost::mpi::request>{};
 	boost::mpi::communicator _communicator;
-	virtual bool Compute(const std::vector<std::string>& chunk, std::string* result);
+	virtual bool Compute(const std::vector<std::string>& chunk, std::string* result, std::function<std::string(std::string)> hashFnc = md5);
 	virtual std::future<bool> ComputeAsync(const std::vector<std::string>& chunk, std::function<void(std::string)> callback);
 	std::string _target = *new std::string;
 public:

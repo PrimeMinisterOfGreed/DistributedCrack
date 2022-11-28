@@ -34,11 +34,11 @@ void delreq(std::vector<request> &workRequests, request *worker)
 }
 
 
-bool compute(std::vector<std::string> &chunk, std::string target, std::string *found)
+bool compute(std::vector<std::string> &chunk, std::string target, std::string *found, std::function<std::string(std::string)> hashfnc = md5)
 {
     for (auto val : chunk)
     {
-        auto res = md5(val);
+        auto res = hashfnc(val);
 
         if (res == target)
         {
@@ -55,18 +55,25 @@ SimpleMasterWorker::SimpleMasterWorker(int chunkSize, std::string &target) : _ch
 {
 }
 
-void SimpleMasterWorker::ExecuteSchema(boost::mpi::communicator &comm)
+void SimpleMasterWorker::ExecuteSchema(boost::mpi::communicator& comm)
 {
-    int rank = comm.rank();
-    if (rank == 0)
+    try
     {
-        SimpleMaster master{ comm,_target };
-        master.Execute();
+        int rank = comm.rank();
+        if (rank == 0)
+        {
+            SimpleMaster master{ comm,_target };
+            master.Execute();
+        }
+        else
+        {
+            SimpleWorker worker{ comm };
+            worker.Execute();
+        }
     }
-    else
+    catch (...)
     {
-        SimpleWorker worker{ comm };
-        worker.Execute();
+        MPILogEngine::Instance()->TraceException() << "Endend for exception" << std::endl;
     }
 }
 

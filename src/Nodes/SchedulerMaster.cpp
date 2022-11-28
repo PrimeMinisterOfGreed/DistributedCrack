@@ -34,7 +34,7 @@ void SchedulerMaster::Routine()
 		default:
 			break;
 		}
-		DeleteRequest(*req.second);
+		_requests.erase(req.second);
 	}
 	_logger->TraceResult() << "Found password: " << _result << std::endl;
 }

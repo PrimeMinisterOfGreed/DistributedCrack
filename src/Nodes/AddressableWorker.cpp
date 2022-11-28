@@ -34,6 +34,7 @@ void AddressableWorker::Routine()
 				_requests.push_back(_communicator.irecv(0, MESSAGE, address));
 				_communicator.send(0, WORK);
 			}
+			chunk.clear();
 			break;
 
 		case TERMINATE:
