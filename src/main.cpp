@@ -38,7 +38,7 @@ void RunMPI(int argc, char *argv[])
     }
     MPILogEngine::Instance()->TraceInformation("Starting process:{0}",comm.rank());
     auto time = executeTimeComparison([&]() {
-        MasterWorkerDistributedGenerator schema{2000, *new std::string(md5("0000"))};
+        SimpleMasterWorker schema{2000, *new std::string(md5("0000"))};
         schema.ExecuteSchema(comm);
     });
     if (comm.rank() == 0)

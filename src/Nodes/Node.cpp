@@ -83,7 +83,7 @@ bool MPINode::Compute(const std::vector<std::string>& chunk, std::string* result
 	auto ev = _stopWatch.RecordEvent([&](Event& e)
 		{
 			size_t completions = 0;
-	for (auto string : chunk)
+	for (auto& string : chunk)
 	{
 		completions++;
 		if (hashFnc(string) == _target)
@@ -118,4 +118,6 @@ std::future<bool> MPINode::ComputeAsync(const std::vector<std::string>& chunk, s
 	}
 		});
 }
+
+
 

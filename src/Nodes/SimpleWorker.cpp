@@ -16,11 +16,12 @@ void SimpleWorker::Routine()
 		auto stat = wait_any(_requests.begin(), _requests.end());
 		switch (stat.first.tag())
 		{
-			case MESSAGE:
+		case MESSAGE:
+			_logger->TraceTransfer("Received chunk of size {0}, computing against {1}", chunk.size(),_target);
 			if (Compute(chunk, result))
 			{
 				_communicator.send(0, FOUND, *result);
-				_logger->TraceTransfer("Found: {0}",*result);
+				_logger->TraceTransfer("Found: {0}", *result);
 			}
 			else
 			{
@@ -31,12 +32,15 @@ void SimpleWorker::Routine()
 			chunk.clear();
 			break;
 
-			case TERMINATE:
+		case TERMINATE:
 			terminate = true;
 			break;
-			default:
+		default:
 			break;
 		}
+
+		if (_processor.ToCompute() > 100)
+			_processor.ComputeStatistics();
 	}
 }
 
@@ -50,7 +54,7 @@ void SimpleWorker::OnBeginRoutine()
 {
 	_stopWatch.Start();
 	broadcast(_communicator, _target, 0);
-	_logger->TraceTransfer("Target acquired:{0} ",_target);
+	_logger->TraceTransfer("Target acquired:{0} ", _target);
 	_communicator.send(0, WORK);
 	_requests.push_back(_communicator.irecv(0, TERMINATE));
 }
@@ -61,6 +65,6 @@ void SimpleWorker::OnEndRoutine()
 	_communicator.send(0, MESSAGE, stat);
 }
 
-SimpleWorker::SimpleWorker(boost::mpi::communicator comm) : MPINode(comm,"NOTARGET")
+SimpleWorker::SimpleWorker(boost::mpi::communicator comm) : MPINode(comm, "NOTARGET")
 {
 }

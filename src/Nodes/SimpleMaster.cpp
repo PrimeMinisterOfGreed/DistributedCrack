@@ -20,16 +20,17 @@ void SimpleMaster::OnEndRoutine()
 
 	for (int i = 1; i < _comm.size(); i++)
 	{
-		_logger->TraceTransfer("Sending terminate to process: {0}",i);
+		_logger->TraceTransfer("Sending terminate to process: {0}", i);
 		_comm.send(i, TERMINATE);
 		_comm.recv(i, MESSAGE, collected);
 		this->_collectedStats.push_back(collected);
 	}
+
 }
 
 void SimpleMaster::Initialize()
 {
-	_logger->TraceInformation("Broadcasting Target:{0}",_target);
+	_logger->TraceInformation("Broadcasting Target:{0}", _target);
 	broadcast(_comm, _target, _comm.rank());
 }
 
@@ -58,7 +59,7 @@ void SimpleMaster::Routine()
 	{
 		if (termReq.test())
 			break;
-		auto req = wait_any(_requests.begin(),_requests.end());
+		auto req = wait_any(_requests.begin(), _requests.end());
 		switch (req.first.tag())
 		{
 		case WORK:
@@ -66,7 +67,7 @@ void SimpleMaster::Routine()
 			_comm.send(req.first.source(), MESSAGE, chunk);
 			_requests.push_back(_comm.irecv(req.first.source(), WORK));
 			computed += chunk.size();
-			_logger->TraceTransfer("chunk sended:{0}",computed);
+			_logger->TraceTransfer("chunk sended:{0}", computed);
 			break;
 
 		case FOUND:
@@ -79,15 +80,26 @@ void SimpleMaster::Routine()
 
 		_requests.erase(req.second);
 	}
-	_logger->TraceInformation("Result Found:{0} ",_result);
+	_logger->TraceInformation("Result Found:{0} ", _result);
 }
 
 void SimpleMaster::OnBeginRoutine()
 {
 	_stopWatch.Start();
-	broadcast(_comm,_target,0);
+	broadcast(_comm, _target, 0);
 	for (int i = 1; i < _comm.size(); i++)
 	{
 		_requests.push_back(_comm.irecv(i, WORK));
 	}
 }
+
+void SimpleMaster::Report()
+{
+
+	for (int i = 0; i < _collectedStats.size(); i++)
+	{
+		_logger->TraceInformation("Statistics of Process {0}\n{1}\n###########################", i, _collectedStats.at(i).ToString());
+	}
+
+}
+

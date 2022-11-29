@@ -13,5 +13,5 @@ class SimpleMaster : public MPINode
     virtual void OnBeginRoutine() override;
   public:
     SimpleMaster(boost::mpi::communicator comm, std::string target) : MPINode(comm, target) {};
-   
+    void Report();
 };

@@ -3,7 +3,6 @@
 class SimpleWorker : public MPINode
 {
 private:
-	std::string _target;
 public:
 	// Ereditato tramite Node
 	virtual void Routine() override;
