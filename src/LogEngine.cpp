@@ -91,7 +91,7 @@ void MPILogEngine::Finalize()
 
 void MPILogEngine::Trace(LogType type, std::string& message)
 {
-	if (_verbosity <= (int)type)
+	if (_verbosity >= (int)type)
 		this->log() << LogTypeToString(type) << message << std::endl;
 }
 
@@ -115,6 +115,6 @@ void ConsoleLogEngine::Finalize()
 
 void ConsoleLogEngine::Trace(LogType type, std::string& message)
 {
-	if(_verbosity <= (int)type)
+	if(_verbosity >= (int)type)
 		printf("%s%s\n", LogTypeToString(type).c_str(), message.c_str());
 }
