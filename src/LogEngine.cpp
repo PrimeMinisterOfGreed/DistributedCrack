@@ -6,6 +6,23 @@ MPILogEngine* MPILogEngine::_instance;
 
 std::stringstream& _trashStream = *new std::stringstream();
 
+std::string& LogTypeToString(LogType logType)
+{
+	switch (logType)
+	{
+	case LogType::EXCEPTION:
+		return *new std::string("[Exception]");
+	case LogType::RESULT:
+		return *new std::string("[Result]");
+	case LogType::INFORMATION:
+		return *new std::string("[Information]");
+	case LogType::TRANSFER:
+		return *new std::string("[Transfer]");
+	case LogType::DEBUG:
+		return *new std::string("[Debug]");
+	}
+}
+
 void SendStream(boost::mpi::communicator& comm, std::istream& stream, int processTarget)
 {
 	char* buffer = new char[1024];
@@ -72,25 +89,12 @@ void MPILogEngine::Finalize()
 	}
 }
 
-void MPILogEngine::TraceException(std::string& message)
+void MPILogEngine::Trace(LogType type, std::string& message)
 {
-	this->log() << "[Exception]" << message << std::endl;
+	if (_verbosity <= (int)type)
+		this->log() << LogTypeToString(type) << message << std::endl;
 }
 
-void MPILogEngine::TraceInformation(std::string& message)
-{
-	this->log() << "[Information]" << message << std::endl;
-}
-
-void MPILogEngine::TraceTransfer(std::string& message)
-{
-	this->log() << "[Transfer]" << message << std::endl;
-}
-
-void MPILogEngine::TraceResult(std::string& message)
-{
-	this->log() << "[Result]" << message << std::endl;
-}
 
 
 void MPILogEngine::CreateInstance(boost::mpi::communicator& comm, std::istream* loadStream, std::ostream* saveStream, int verbosity)
@@ -104,24 +108,13 @@ ILogEngine* MPILogEngine::Instance()
 }
 
 
-
-void ConsoleLogEngine::TraceException(std::string& message)
-{
-	printf("[Exception]%s", message.c_str());
-}
-void ConsoleLogEngine::TraceInformation(std::string& message)
-{
-	printf("[Information]%s", message.c_str());
-}
-void ConsoleLogEngine::TraceTransfer(std::string& message)
-{
-	printf("[Transfer]%s", message.c_str());
-}
-void ConsoleLogEngine::TraceResult(std::string& message)
-{
-	printf("[Result]%s", message.c_str());
-}
 void ConsoleLogEngine::Finalize()
 {
 	
+}
+
+void ConsoleLogEngine::Trace(LogType type, std::string& message)
+{
+	if(_verbosity <= (int)type)
+		printf("%s%s\n", LogTypeToString(type).c_str(), message.c_str());
 }
