@@ -3,7 +3,7 @@
     "tasks": [
         {
             "label": "RUN MPI",
-            "command": "${cwd}/build/distributedcrack --mpi on --thread 16",
+            "command": "${cwd}/build/distributedcrack --mpi on --thread 16 --verbosity 3",
             "type": "shell",
             "args": [],
             "problemMatcher": [

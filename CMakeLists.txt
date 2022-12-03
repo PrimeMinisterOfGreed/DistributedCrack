@@ -2,6 +2,7 @@ project(DistributedCrack)
 cmake_minimum_required(VERSION 3.14)
 
 set(CMAKE_CXX_STANDARD 20)
+find_package(fmt REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(MPI REQUIRED)
 find_package(Boost COMPONENTS mpi program_options REQUIRED)
@@ -26,13 +27,13 @@ add_executable(distributedcrack ${SRC_LIST} )
 #define unit test for non MPI functions
 add_executable(tests ${TEST_SOURCES})
 target_include_directories(tests PUBLIC  ${MPI_INCLUDE_PATH} ./include ${Boost_INCLUDE_DIRS})
-target_link_libraries(tests  ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES}  GTest::gtest_main)
+target_link_libraries(tests fmt::fmt ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES}  GTest::gtest_main)
 gtest_discover_tests(tests WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} TEST_LIST TestList)
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
 target_include_directories(distributedcrack PUBLIC  ${MPI_INCLUDE_PATH} ./include ${Boost_INCLUDE_DIRS})
-target_link_libraries(distributedcrack  ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES} )
+target_link_libraries(distributedcrack PRIVATE fmt::fmt ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES} )
 
 
