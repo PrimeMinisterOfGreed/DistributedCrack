@@ -1,9 +1,10 @@
 #pragma once
+#include <functional>
 #include <vector>
 
 template <typename T>
 int indexOf(typename std::vector<T>::iterator begin, typename std::vector<T>::iterator end,
-    std::function<bool(T&)> predicate)
+            std::function<bool(T &)> predicate)
 {
     auto b = begin;
     int i = 0;

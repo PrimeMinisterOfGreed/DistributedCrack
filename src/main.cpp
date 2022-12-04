@@ -1,11 +1,11 @@
+#include "LogEngine.hpp"
+#include "OptionsBag.hpp"
 #include "RingSchema.hpp"
 #include "Schema.hpp"
 #include "StringGenerator.hpp"
 #include "md5.hpp"
-#include "OptionsBag.hpp"
 #include <Statistics/TimeMachine.hpp>
 #include <boost/mpi/communicator.hpp>
-#include "LogEngine.hpp"
 #include <boost/program_options.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
@@ -14,6 +14,7 @@
 #include <iostream>
 #include <mpi.h>
 #include <sstream>
+#include <string>
 
 boost::program_options::variables_map optionsMap;
 
@@ -29,20 +30,31 @@ void RunMPI(int argc, char *argv[])
     auto &comm = *new communicator();
     if (comm.rank() != 0)
     {
-        std::stringstream* logBuf = new std::stringstream();
-        MPILogEngine::CreateInstance(comm, nullptr, &std::cout,verbosity);
+        std::stringstream *logBuf = new std::stringstream();
+        MPILogEngine::CreateInstance(comm, nullptr, &std::cout, verbosity);
     }
     else
     {
-        MPILogEngine::CreateInstance(comm, nullptr, &std::cout,verbosity);
+        MPILogEngine::CreateInstance(comm, nullptr, &std::cout, verbosity);
     }
-    MPILogEngine::Instance()->TraceInformation("Starting process:{0}",comm.rank());
-    auto time = executeTimeComparison([&]() {
-        SimpleMasterWorker schema{2000, *new std::string(md5("0000"))};
-        schema.ExecuteSchema(comm);
-    });
-    if (comm.rank() == 0)
-        std::cout << "Executed in time: " << time.count() << "ms" << std::endl;
+    MPILogEngine::Instance()->TraceInformation("Starting process:{0}", comm.rank());
+    int schema = 0;
+    std::string target = optionsMap.at("target").as<std::string>();
+    if (optionsMap.count("schema"))
+        schema = optionsMap.at("schema").as<int>();
+    int chunk = 2000;
+    if (optionsMap.count("chunk"))
+        chunk = optionsMap.at("chunk").as<int>();
+    switch (schema)
+    {
+    case 0:
+        SimpleMasterWorker(chunk, target).ExecuteSchema(comm);
+        break;
+
+    case 1:
+        MasterWorkerDistributedGenerator(chunk, target).ExecuteSchema(comm);
+        break;
+    }
     MPI_Finalize();
 }
 
@@ -51,42 +63,32 @@ int main(int argc, char *argv[])
     using namespace boost::program_options;
     using namespace std;
     options_description desc("allowed options");
-    desc.add_options()("help", "display help message")("mpi", "use mpi to decrypt")(
-        "gpu", value<bool>(), "use gpu to decrypt")("mt", value<bool>(), "use multithread to crack")(
+    desc.add_options()("help", "display help message")("gpu", "use gpu to decrypt")("mt", "use multithread to crack")(
         "target", value<std::string>(), "the target of the crack")(
-        "mpiexec", value<bool>(), "launch the program as an mpiexec program [use mpi if command line]")(
+        "mpiexec", "launch the program as an mpiexec program (should use MPIexec and then run this program)")(
         "thread", value<int>(),
         "if mt is specified indicates the number of threads to use else indicates the number of MPI process")(
         "chunk", value<int>(), "specified a starting point or a fixed number of chunk for the generators")(
-        "dynamic_chunks", value<bool>(), "specify if use or not dynamic chunking")
-            ("verbosity",value<int>(),"specify verbosity for logger")
-        ("target",value<int>(),"target md5 to crack");
-
+        "dynamic_chunks", value<bool>(), "specify if use or not dynamic chunking")(
+        "verbosity", value<int>(), "specify verbosity for logger")("target", value<int>(), "target md5 to crack")(
+        "schema", value<int>(), "specify a certain schema to use with MPI");
     variables_map map;
     store(parse_command_line(argc, argv, desc), map);
     notify(map);
-    int verbosity = 0;
-    if (map.count("verbosity"))
-    {
-        verbosity = map.at("verbosity").as<int>();
-    }
     optionsMap = map;
     if (map.count("help"))
     {
         cout << desc << endl;
         return 1;
     }
-    else if (map.count("mpi"))
+    if (!map.count("target"))
     {
-        stringstream command;
-        int maxProc = 4;
-        if (map.count("thread"))
-            maxProc = map["thread"].as<int>();
-        command << "mpiexec -np " << maxProc << " " << argv[0] << " --mpiexec on --verbosity " << verbosity;
-        system(command.str().c_str());
+        cout << "You need to specify a target before continuing (an md5 hash)" << std::endl;
+        return 0;
     }
-    else if (map.count("mpiexec"))
+    if (map.count("mpiexec"))
     {
         RunMPI(argc, argv);
+        return 0;
     }
 }
