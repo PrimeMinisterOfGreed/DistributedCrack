@@ -22,6 +22,7 @@ find_package(OpenMP REQUIRED)
 find_package(MPI REQUIRED)
 find_package(Boost COMPONENTS mpi program_options REQUIRED)
 find_package(GTest REQUIRED)
+find_package(CUDA REQUIRED)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 include(GoogleTest)
 

@@ -9,8 +9,10 @@
 #include <boost/program_options.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
+#include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <mpi.h>
 #include <sstream>
@@ -62,18 +64,29 @@ int main(int argc, char *argv[])
 {
     using namespace boost::program_options;
     using namespace std;
-    options_description desc("allowed options");
-    desc.add_options()("help", "display help message")("gpu", "use gpu to decrypt")("mt", "use multithread to crack")(
-        "target", value<std::string>(), "the target of the crack")(
+    options_description desc("allowed options: those are parsed automatically if file dcrack.config exist");
+    desc.add_options()("help", "display help message")("config", value<std::string>(),
+                                                       "manually specify a config file")("gpu", "use gpu to decrypt")(
+        "mt", "use multithread to crack")("target", value<std::string>(), "the target of the crack")(
         "mpiexec", "launch the program as an mpiexec program (should use MPIexec and then run this program)")(
-        "thread", value<int>(),
-        "if mt is specified indicates the number of threads to use else indicates the number of MPI process")(
+        "thread", value<int>(), "if mt is specified indicates the number of threads to use")(
         "chunk", value<int>(), "specified a starting point or a fixed number of chunk for the generators")(
         "dynamic_chunks", value<bool>(), "specify if use or not dynamic chunking")(
-        "verbosity", value<int>(), "specify verbosity for logger")("target", value<int>(), "target md5 to crack")(
-        "schema", value<int>(), "specify a certain schema to use with MPI");
+        "verbosity", value<int>(), "specify verbosity for logger")("schema", value<int>(),
+                                                                   "specify a certain schema to use with MPI")(
+        "stat", value<std::string>(), "save a csv file with stat from the program");
     variables_map map;
     store(parse_command_line(argc, argv, desc), map);
+    if (map.contains("config") || filesystem::exists("dcrack.config"))
+    {
+        std::string filename;
+        if (map.contains("config"))
+            std::string filename = map.at("config").as<std::string>();
+        else
+            filename = "dcrack.config";
+        map.clear();
+        store(parse_config_file(filename.c_str(), desc), map);
+    }
     notify(map);
     optionsMap = map;
     if (map.count("help"))

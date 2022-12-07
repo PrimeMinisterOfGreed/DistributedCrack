@@ -1,8 +1,10 @@
 #include "Functions.hpp"
-#include "Statistics/CsvManager.hpp"
 #include "StringGenerator.hpp"
+#include "md5.hpp"
 #include <cassert>
+#include <cstdio>
 #include <gtest/gtest.h>
+#include <string>
 
 TEST(TestGenerator, test_known_sequence)
 {
@@ -29,18 +31,10 @@ TEST(TestGenerator, test_indexof)
     assert(index == 4);
 }
 
-TEST(TestCsvManager, test_save)
+TEST(testMd5, test_md5)
 {
-    CsvManager manager{"testFile.csv"};
-    manager.Save({"prova", "ciao"}, RowIterator<double>{{{0, 1}, {1, 0}}});
-}
-
-TEST(TestCsvManager, test_load)
-{
-    CsvManager manager{"testFile.csv"};
-    auto result = manager.Load();
-    auto headers = result.first;
-    auto rows = result.second;
-    assert(headers.at(0) == "prova");
-    assert(headers.at(1) == "ciao");
+    std::string computed = md5("0000");
+    printf("computed: %s\n", computed.c_str());
+    printf("original %s", "4a7d1ed414474e4033ac29ccb8653d9b");
+    assert(md5("0000") == "4a7d1ed414474e4033ac29ccb8653d9b");
 }

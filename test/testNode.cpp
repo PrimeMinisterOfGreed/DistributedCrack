@@ -1,8 +1,13 @@
 #include "Nodes/Node.hpp"
+#include "OptionsBag.hpp"
 #include <StringGenerator.hpp>
 #include <boost/mpi.hpp>
+#include <boost/program_options/variables_map.hpp>
+#include <cstdio>
 #include <gtest/gtest.h>
 #include <md5.hpp>
+#include <string>
+#include <utility>
 
 class NodeComputeMock : public MPINode
 {
@@ -70,6 +75,7 @@ class NodeProcessMock : public MPINode
     {
         auto stat = _processor.ComputeStatistics();
         std::cout << stat.ToString() << std::endl;
+        AddResult(stat, 0, "Test");
     }
 
     NodeProcessMock(std::string target) : MPINode(*new boost::mpi::communicator(), target)
@@ -80,10 +86,7 @@ class NodeProcessMock : public MPINode
 
 TEST(TestNode, test_processor_node)
 {
-    NodeProcessMock mock{md5("%%%%")};
+    auto value = std::pair<std::string, std::string>("stat", "test.csv");
+    NodeProcessMock mock{md5("!!%!")};
     mock.Execute();
-}
-
-TEST(TestNode, test_event_serialization)
-{
 }
