@@ -26,6 +26,7 @@ find_package(CUDA REQUIRED)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 include(GoogleTest)
 
+enable_language(CUDA)
 
 enable_testing()
 
@@ -45,6 +46,11 @@ add_executable(tests ${TEST_SOURCES})
 target_include_directories(tests PUBLIC  ${MPI_INCLUDE_PATH} ./include ${Boost_INCLUDE_DIRS})
 target_link_libraries(tests fmt::fmt ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES}  GTest::gtest_main)
 gtest_discover_tests(tests WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} TEST_LIST TestList)
+
+
+set(CMAKE_CUDA_ARCHITECTURES 75)
+add_library(cudaSupport SHARED kernels/md5_support.cu)
+target_include_directories(cudaSupport PUBLIC  ./include ${Boost_INCLUDE_DIRS})
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
