@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <gtest/gtest.h>
 #include <md5.hpp>
+#include <md5Cuda.cuh>
 #include <string>
 #include <utility>
 

@@ -22,7 +22,7 @@ find_package(OpenMP REQUIRED)
 find_package(MPI REQUIRED)
 find_package(Boost COMPONENTS mpi program_options REQUIRED)
 find_package(GTest REQUIRED)
-find_package(CUDA REQUIRED)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 include(GoogleTest)
 
@@ -39,23 +39,20 @@ list(REMOVE_ITEM TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 add_executable(distributedcrack ${SRC_LIST} )
 enable_cxx_compiler_flag_if_supported("-Wall")
 
-#add_library(distributedstcLib SHARED src/Functions.cpp)
 
 #define unit test for non MPI functions
 add_executable(tests ${TEST_SOURCES})
-target_include_directories(tests PUBLIC  ${MPI_INCLUDE_PATH} ./include ${Boost_INCLUDE_DIRS})
-target_link_libraries(tests fmt::fmt ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES}  GTest::gtest_main)
+target_include_directories(tests PUBLIC  ${MPI_INCLUDE_PATH} ./include ${Boost_INCLUDE_DIRS} DistributedCrack.GPU)
+target_link_libraries(tests fmt::fmt ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES}  GTest::gtest_main DistributedCrack.GPU)
 gtest_discover_tests(tests WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} TEST_LIST TestList)
 
 
-set(CMAKE_CUDA_ARCHITECTURES 75)
-add_library(cudaSupport SHARED kernels/md5_support.cu)
-target_include_directories(cudaSupport PUBLIC  ./include ${Boost_INCLUDE_DIRS})
+
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
-target_include_directories(distributedcrack PUBLIC  ${MPI_INCLUDE_PATH} ./include ${Boost_INCLUDE_DIRS})
-target_link_libraries(distributedcrack PRIVATE fmt::fmt ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES} )
+target_include_directories(distributedcrack PUBLIC  ${MPI_INCLUDE_PATH} ./include ${Boost_INCLUDE_DIRS} DistributedCrack.GPU)
+target_link_libraries(distributedcrack PRIVATE fmt::fmt ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES} DistributedCrack.GPU)
 
-
+add_subdirectory("GPU")

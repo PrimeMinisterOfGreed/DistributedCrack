@@ -1,0 +1,6 @@
+project(DistributedCrack.GPU)
+find_package(CUDA REQUIRED)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CUDA_ARCHITECTURES 75)
+add_library(DistributedCrack.GPU SHARED src/md5Cuda.cu )
+target_include_directories(DistributedCrack.GPU PUBLIC  ./include ${Boost_INCLUDE_DIRS} ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
