@@ -21,5 +21,7 @@ std::string md5_gpu(std::string string)
 {
     uint8_t *converted = stringToArray(string);
     uint32_t *result = new uint32_t[4];
-    md5(converted, string.size(), result);
+    md5_gpu(converted, string.size(), result);
+
+    return "";
 }
