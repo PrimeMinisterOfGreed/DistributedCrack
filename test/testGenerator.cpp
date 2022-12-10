@@ -46,4 +46,3 @@ TEST(testMd5, test_gpu_md5)
     uint8_t *string = new uint8_t[4];
     string[0] = '0', string[1] = '0', string[2] = '0', string[3] = '0';
 }
-}
