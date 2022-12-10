@@ -64,4 +64,4 @@ __device__ __host__ uint byteswap(uint word);
 
 __device__ __host__ void transform(uint state[4], const uchar block[block_size]);
 
-__device__ __host__ void md5(const uchar *data, const uint size, uint result[4]);
+__device__ __host__ void md5(const uint8_t *data, const uint32_t size, uint32_t result[4]);

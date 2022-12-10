@@ -1,5 +1,6 @@
 #include "md5Cuda.cuh"
 #include "stdio.h"
+#include <cstdint>
 #include <cstring>
 __device__ constexpr uchar padding[block_size] = { 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -93,7 +94,7 @@ __device__ __host__ void transform(uint state[4], const uchar block[block_size])
 	state[3] += d;
 }
 
-__device__ __host__ void md5(const uchar* data, const uint size, uint result[4])
+__device__ __host__ void md5(const uint8_t* data, const uint8_t size, uint8_t result[4])
 {
 	uint state[4] = { 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476 }, i;
 
