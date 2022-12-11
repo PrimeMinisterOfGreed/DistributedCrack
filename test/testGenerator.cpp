@@ -43,5 +43,7 @@ TEST(testMd5, test_md5)
 
 TEST(testMd5, test_gpu_md5)
 {
-    assert(md5_gpu("000") == md5("0000"));
+    auto md5Gpu = md5_gpu("0000");
+    auto md5CPU = md5("0000");
+    assert(md5Gpu == md5CPU);
 }

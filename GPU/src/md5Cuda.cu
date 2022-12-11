@@ -96,7 +96,7 @@ __device__ __host__ void transform(uint state[4], const uchar block[block_size])
     state[3] += d;
 }
 
-__device__ __host__ void md5(const uint8_t *data, const uint8_t size, uint8_t result[4])
+__device__ __host__ void md5(const uint8_t *data, uint8_t size, uint32_t result[4])
 {
     uint state[4] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476}, i;
 
@@ -117,25 +117,39 @@ __device__ __host__ void md5(const uint8_t *data, const uint8_t size, uint8_t re
     memcpy(result, state, 4 * sizeof(uint));
 }
 
-__global__ void md5_call_gpu(const uint8_t **data, const uint32_t *sizes, uint32_t *result[4], uint32_t size)
+__global__ void md5_call_gpu(const uint8_t **data, const uint8_t *sizes, uint32_t *result[4], uint32_t size)
 {
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < size)
+        md5(data[i], sizes[i], result[i]);
 }
 
-__host__ void md5_gpu(const uint8_t **data, const uint32_t *sizes, uint32_t *result[4], uint32_t size)
+
+__host__ void md5_gpu(const uint8_t **data, const uint8_t *sizes, uint32_t *result[4], uint32_t size, int threads)
 {
-    uint8_t **remoteData = nullptr;
-    uint32_t **remoteResults, *remoteSizes = nullptr;
+    uint8_t **remoteData = nullptr, *remoteSizes = nullptr;
+    uint32_t **remoteResults;
     for (int i = 0; i < size; i++)
     {
         cudaMalloc(&remoteData[i], sizes[i]);
         cudaMemcpy(&remoteData[i], data[i], sizes[i], cudaMemcpyHostToDevice);
         cudaMalloc(&remoteResults[i], 4 * sizeof(uint32_t));
     }
-    cudaMalloc(&remoteSizes, size * sizeof(uint32_t));
+    cudaMalloc(&remoteSizes, size * sizeof(uint8_t));
     cudaMemcpy(remoteSizes, sizes, size * sizeof(uint32_t), cudaMemcpyHostToDevice);
-    md5_call_gpu<<<1,1>>>((const uint8_t**) remoteData, remoteSizes, remoteResults, size); // devi capire che farne di sta funzione
+    int blocks = ceil(size / threads);
+    md5_call_gpu<<<blocks, threads>>>((const uint8_t **)remoteData, remoteSizes, remoteResults,
+                                      size); // devi capire che farne di sta funzione
+
+    for (int i = 0; i < size; i++)
+    {
+        cudaFree(&remoteData[i]);
+        cudaMemcpy(result[i], remoteResults[i], 4 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+    }
+    cudaFree(remoteSizes);
 }
 
 __host__ void md5_gpu(const uint8_t *data, uint32_t size, uint32_t result[4])
 {
+    md5(data, size, result);
 }
