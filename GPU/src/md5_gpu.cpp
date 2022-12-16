@@ -1,30 +1,54 @@
 #include "md5_gpu.hpp"
 #include "md5Cuda.cuh"
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <stdlib.h>
 #include <string>
+#include <strings.h>
 #include <sys/types.h>
 #include <vector>
 
-const uint8_t *stringToArray(const std::string string)
+template <typename T> T *malloc(size_t size)
 {
-    const uint8_t *converted = (const uint8_t *)string.data();
-    return converted;
+    auto mem = (T *)std::malloc(sizeof(T) * size);
+    bzero(mem, sizeof(T) * size);
+    return mem;
 }
 
-std::vector<std::string> md5_gpu(std::vector<std::string> &chunk)
+__host__ const char *hexdigest(const uint8_t *digest)
 {
-}
 
-std::string md5_gpu(std::string string)
-{
-    const uint8_t *converted = stringToArray(string);
-    uint32_t *result = (uint32_t *)std::malloc(sizeof(uint32_t) * 4);
-    md5_gpu(converted, string.size(), result);
-    char buf[33];
+    char *buf = (char *)std::malloc(33);
     for (int i = 0; i < 16; i++)
-        sprintf(buf + i * 2, "%02x", result[i]);
+        sprintf(buf + i * 2, "%02x", digest[i]);
     buf[32] = 0;
-    return std::string(buf);
+
+    return buf;
+}
+
+std::vector<std::string> md5_gpu(std::vector<std::string> &chunk, int threads)
+{
+    std::vector<std::string> resultsVector = std::vector<std::string>();
+    uint32_t *sizes = malloc<uint32_t>(chunk.size());
+    uint8_t **data = malloc<uint8_t *>(chunk.size());
+    uint8_t **results = malloc<uint8_t *>(chunk.size());
+    for (int i = 0; i < chunk.size(); i++)
+    {
+        int size = chunk.at(i).size();
+        data[i] = malloc<uint8_t>(size);
+        sizes[i] = size;
+        results[i] = malloc<uint8_t>(size);
+        memcpy(data[i], chunk.at(i).c_str(), sizeof(uint8_t) * size);
+    }
+    md5_gpu((const uint8_t **)data, sizes, results, chunk.size(), threads);
+    for (int i = 0; i < chunk.size(); i++)
+    {
+        resultsVector.push_back(std::string(hexdigest(results[i])));
+    }
+    std::free(data);
+    std::free(results);
+    std::free(sizes);
+    return resultsVector;
 }

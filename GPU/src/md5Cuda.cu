@@ -2,6 +2,7 @@
 #include "stdio.h"
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -21,6 +22,14 @@
 #define S42 10
 #define S43 15
 #define S44 21
+
+__host__ void HandleError(cudaError_t cudaError)
+{
+    if (cudaError != cudaSuccess)
+    {
+        printf("Error on cuda execution: %s\n", cudaGetErrorString(cudaError));
+    }
+}
 
 ///////////////////////////////////////////////
 
@@ -86,9 +95,13 @@ __device__ __host__ MD5::MD5()
 // nifty shortcut ctor, compute MD5 for string and finalize it right away
 __device__ __host__ MD5::MD5(const uint8_t *text, size_t size)
 {
+    printf("Converting");
     init();
+    printf("Init");
     update(text, size);
+    printf("Update");
     finalize();
+    printf("Finalize");
 }
 
 //////////////////////////////
@@ -292,35 +305,24 @@ __device__ __host__ MD5 &MD5::finalize()
         // Store state in digest
         encode(digest, state, 16);
 
-        // Zeroize sensitive information.
-        memset(buffer, 0, sizeof buffer);
-        memset(count, 0, sizeof count);
-
-        finalized = true;
+        // Zeroize sensitive informationsize_t size
     }
+}
 
-    return *this;
+__device__ __host__ void MD5::exportdigest(uint8_t *dataOut)
+{
+    memcpy(dataOut, this->digest, 16 * sizeof(uint8_t));
 }
 
 //////////////////////////////
 
 // return hex representation of digest as string
-__host__ const char * hexdigest(const uint8_t * digest)
-{
-
-    char *buf = (char *)std::malloc(33);
-    for (int i = 0; i < 16; i++)
-        sprintf(buf + i * 2, "%02x", digest[i]);
-    buf[32] = 0;
-
-    return buf;
-}
 
 ///////////////////////////////////////////////////////////
 
-__device__ __host__  void md5(const uint8_t *data, uint32_t size, uint8_t *result)
+__device__ __host__ void md5(const uint8_t *data, uint32_t size, uint8_t *result)
 {
-    MD5 converter = MD5(data,size);
+    MD5 converter = MD5(data, size);
     converter.exportdigest(result);
 }
 
@@ -333,29 +335,29 @@ __global__ void md5_call_gpu(const uint8_t **data, const uint32_t *sizes, uint8_
 
 __host__ void md5_gpu(const uint8_t **data, const uint32_t *sizes, uint8_t **result, uint32_t size, int threads)
 {
-    uint8_t **remoteData = nullptr,  ** remoteResults;
-    uint32_t*remoteSizes = nullptr;
+    uint8_t **remoteData, **remoteResults;
+    uint32_t *remoteSizes;
+    cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
+    HandleError(GpuMalloc(remoteData,size));
+    HandleError(GpuMalloc(remoteResults,size));
     for (int i = 0; i < size; i++)
     {
-        cudaMalloc(&remoteData[i], sizes[i]);
-        cudaMemcpy(&remoteData[i], data[i], sizes[i], cudaMemcpyHostToDevice);
-        cudaMalloc(&remoteResults[i], 4 * sizeof(uint32_t));
+        HandleError(GpuMalloc(&remoteData[i], sizes[i]));
+        auto dataPtr = data[i];
+        HandleError(GpuCopy((uint8_t*)remoteData[i],(uint8_t*)dataPtr, sizes[i], cudaMemcpyHostToDevice));
+        HandleError(GpuMalloc(&remoteResults[i], 64));
     }
-    cudaMalloc(&remoteSizes, size * sizeof(uint8_t));
-    cudaMemcpy(remoteSizes, sizes, size * sizeof(uint32_t), cudaMemcpyHostToDevice);
+    HandleError(GpuMalloc(&remoteSizes, size));
+    HandleError(GpuCopy(remoteSizes, (uint32_t*)sizes, size, cudaMemcpyHostToDevice));
     int blocks = ceil(size / threads);
+    HandleError(cudaDeviceSynchronize());
     md5_call_gpu<<<blocks, threads>>>((const uint8_t **)remoteData, remoteSizes, remoteResults,
                                       size); // devi capire che farne di sta funzione
-
+    HandleError(cudaDeviceSynchronize());
     for (int i = 0; i < size; i++)
     {
-        cudaFree(&remoteData[i]);
-        cudaMemcpy(result[i], remoteResults[i], 4 * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+        HandleError(cudaFree(&remoteData[i]));
+        HandleError(GpuCopy(result[i], remoteResults[i], 4 , cudaMemcpyDeviceToHost));
     }
-    cudaFree(remoteSizes);
-}
-
-__host__ void md5_gpu(const uint8_t *data, uint32_t size, uint8_t *result)
-{
-    md5(data, size, result);
+    HandleError(cudaFree(remoteSizes));
 }

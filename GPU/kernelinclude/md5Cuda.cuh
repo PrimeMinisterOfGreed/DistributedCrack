@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <functional>
 
 class MD5
 {
@@ -10,12 +11,11 @@ class MD5
     typedef unsigned int size_type; // must be 32bit
 
     __device__ __host__ MD5();
-    __device__ __host__ MD5(const uint8_t * text, size_t size);
+    __device__ __host__ MD5(const uint8_t *text, size_t size);
     __device__ __host__ void update(const unsigned char *buf, size_type length);
     __device__ __host__ void update(const char *buf, size_type length);
     __device__ __host__ MD5 &finalize();
-    __device__ __host__ void exportdigest(uint8_t * dataOut);
-
+    __device__ __host__ void exportdigest(uint8_t *dataOut);
 
   private:
     __device__ __host__ void init();
@@ -31,10 +31,10 @@ class MD5
     __device__ __host__ static void encode(uint1 output[], const uint4 input[], size_type len);
 
     bool finalized;
-    uint1 buffer[blocksize]; // bytes that didn't fit in last 64 byte chunk
-    uint4 count[2];          // 64bit counter for number of bits (lo, hi)
-    uint4 state[4];          // digest so far
-    uint1 digest[16];        // the result
+    __device__ uint1 buffer[blocksize]; // bytes that didn't fit in last 64 byte chunk
+    __device__ uint4 count[2];          // 64bit counter for number of bits (lo, hi)
+    __device__ uint4 state[4];          // digest so far
+    __device__ uint1 digest[16];        // the result
 
     // low level logic operations
     __device__ __host__ static inline uint4 F(uint4 x, uint4 y, uint4 z);
@@ -48,6 +48,20 @@ class MD5
     __device__ __host__ static inline void II(uint4 &a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac);
 };
 
-__host__ __device__ void  md5(const uint8_t *data, uint32_t size, uint8_t * result);
+__host__ __device__ void md5(const uint8_t *data, uint32_t size, uint8_t *result);
 __host__ void md5_gpu(const uint8_t **data, const uint32_t *sizes, uint8_t **result, uint32_t size, int threads);
-__host__ void md5_gpu(const uint8_t *data, uint32_t size, uint8_t * result);
+
+template <typename T> cudaError_t GpuMalloc(T **pointer, size_t size)
+{
+    return cudaMalloc(pointer, sizeof(T) * size);
+}
+
+template <typename T> cudaError_t GpuCopy(T *dst, T *src, size_t size, cudaMemcpyKind kind)
+{
+    return cudaMemcpy(dst, src, sizeof(T) * size, kind);
+}
+
+template <typename T> cudaError_t GpuManagedMalloc(T **pointer, size_t size)
+{
+    return cudaMallocManaged(pointer, sizeof(T) * size);
+}
