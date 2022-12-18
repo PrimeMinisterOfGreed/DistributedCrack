@@ -17,6 +17,7 @@ endfunction()
 
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/)
 find_package(fmt REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(MPI REQUIRED)
@@ -44,7 +45,7 @@ enable_cxx_compiler_flag_if_supported("-Wall")
 #define unit test for non MPI functions
 add_executable(tests ${TEST_SOURCES})
 target_include_directories(tests PUBLIC  ${MPI_INCLUDE_PATH} ./include ${Boost_INCLUDE_DIRS})
-target_link_libraries(tests PUBLIC fmt::fmt ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES}  GTest::gtest_main DistributedCrack.GPU)
+target_link_libraries(tests PUBLIC fmt::fmt ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES}  ${Boost_LIBRARIES}  GTest::gtest_main PRIVATE DistributedCrack.GPU)
 gtest_discover_tests(tests WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} TEST_LIST TestList)
 
 

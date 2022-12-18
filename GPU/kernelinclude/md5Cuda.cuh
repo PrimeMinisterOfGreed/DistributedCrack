@@ -31,10 +31,10 @@ class MD5
     __device__ __host__ static void encode(uint1 output[], const uint4 input[], size_type len);
 
     bool finalized;
-    __device__ uint1 buffer[blocksize]; // bytes that didn't fit in last 64 byte chunk
-    __device__ uint4 count[2];          // 64bit counter for number of bits (lo, hi)
-    __device__ uint4 state[4];          // digest so far
-    __device__ uint1 digest[16];        // the result
+    uint1 buffer[blocksize]; // bytes that didn't fit in last 64 byte chunk
+    uint4 count[2];          // 64bit counter for number of bits (lo, hi)
+    uint4 state[4];          // digest so far
+    uint1 digest[16];        // the result
 
     // low level logic operations
     __device__ __host__ static inline uint4 F(uint4 x, uint4 y, uint4 z);

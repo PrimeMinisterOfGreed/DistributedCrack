@@ -307,6 +307,7 @@ __device__ __host__ MD5 &MD5::finalize()
 
         // Zeroize sensitive informationsize_t size
     }
+    return *this;
 }
 
 __device__ __host__ void MD5::exportdigest(uint8_t *dataOut)
@@ -335,14 +336,14 @@ __global__ void md5_call_gpu(const uint8_t **data, const uint32_t *sizes, uint8_
 
 __host__ void md5_gpu(const uint8_t **data, const uint32_t *sizes, uint8_t **result, uint32_t size, int threads)
 {
-    uint8_t **remoteData, **remoteResults;
-    uint32_t *remoteSizes;
+    uint8_t **remoteData = nullptr, **remoteResults = nullptr;
+    uint32_t *remoteSizes = nullptr;
     cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
     HandleError(GpuMalloc(remoteData,size));
     HandleError(GpuMalloc(remoteResults,size));
     for (int i = 0; i < size; i++)
     {
-        HandleError(GpuMalloc(&remoteData[i], sizes[i]));
+        HandleError(GpuMalloc(remoteData + i, sizes[i]));
         auto dataPtr = data[i];
         HandleError(GpuCopy((uint8_t*)remoteData[i],(uint8_t*)dataPtr, sizes[i], cudaMemcpyHostToDevice));
         HandleError(GpuMalloc(&remoteResults[i], 64));

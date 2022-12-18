@@ -4,16 +4,15 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <stdlib.h>
 #include <string>
-#include <strings.h>
+#include <cstdlib>
 #include <sys/types.h>
 #include <vector>
+#include <string.h>
 
 template <typename T> T *malloc(size_t size)
 {
     auto mem = (T *)std::malloc(sizeof(T) * size);
-    bzero(mem, sizeof(T) * size);
     return mem;
 }
 
