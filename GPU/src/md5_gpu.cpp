@@ -4,11 +4,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <string.h>
 #include <string>
-#include <cstdlib>
 #include <sys/types.h>
 #include <vector>
-#include <string.h>
 
 template <typename T> T *malloc(size_t size)
 {
@@ -40,6 +39,7 @@ std::vector<std::string> md5_gpu(std::vector<std::string> &chunk, int threads)
         sizes[i] = size;
         results[i] = malloc<uint8_t>(size);
         memcpy(data[i], chunk.at(i).c_str(), sizeof(uint8_t) * size);
+        data[i][size] = (uint8_t)'\000';
     }
     md5_gpu((const uint8_t **)data, sizes, results, chunk.size(), threads);
     for (int i = 0; i < chunk.size(); i++)

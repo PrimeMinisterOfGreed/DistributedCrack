@@ -346,23 +346,20 @@ __host__ void md5_gpu(const uint8_t **data, const uint32_t *sizes, uint8_t **res
         HandleError(cudaInitDevice(0, 0, 0) );
         init = true;
     }
-    cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
-    HandleError(cudaMallocManaged(&remoteData, size));
-    HandleError(cudaMallocManaged(&remoteResults, size));
+    HandleError(cudaMalloc(&remoteData, size));
+    HandleError(cudaMalloc(&remoteResults, size));
     for (int i = 0; i < size; i++)
     {
-        HandleError(GpuMalloc(&remoteData[i], sizes[i]));
+        HandleError(cudaMalloc((remoteData+i), sizes[i]));
         auto dataPtr = data[i];
         HandleError(GpuCopy((uint8_t *)remoteData[i], (uint8_t *)dataPtr, sizes[i], cudaMemcpyHostToDevice));
-        HandleError(GpuMalloc(&remoteResults[i], 64));
+        HandleError(cudaMalloc(remoteResults, 16));
     }
-    HandleError(GpuMalloc(&remoteSizes, size));
+    HandleError(cudaMalloc(&remoteSizes, size));
     HandleError(GpuCopy(remoteSizes, (uint32_t *)sizes, size, cudaMemcpyHostToDevice));
     int blocks = ceil(size / threads);
-    HandleError(cudaDeviceSynchronize());
     md5_call_gpu<<<blocks, threads>>>((const uint8_t **)remoteData, remoteSizes, remoteResults,
                                       size); // devi capire che farne di sta funzione
-    HandleError(cudaDeviceSynchronize());
     for (int i = 0; i < size; i++)
     {
         HandleError(cudaFree(&remoteData[i]));

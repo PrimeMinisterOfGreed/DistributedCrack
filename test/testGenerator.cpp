@@ -11,41 +11,42 @@
 
 TEST(TestGenerator, test_known_sequence)
 {
-	AssignedSequenceGenerator generator{ 4 };
-	generator.AssignAddress(372);
-	auto seq = generator.nextSequence();
-	assert(seq.at(seq.size() - 1) == (char)minCharInt);
-	assert(seq.at(seq.size() - 2) == (char)minCharInt + 4);
+    AssignedSequenceGenerator generator{4};
+    generator.AssignAddress(372);
+    auto seq = generator.nextSequence();
+    assert(seq.at(seq.size() - 1) == (char)minCharInt);
+    assert(seq.at(seq.size() - 2) == (char)minCharInt + 4);
 }
 
 TEST(TestGenerator, test_sequence_increment)
 {
-	AssignedSequenceGenerator generator{ 1 };
-	generator.AssignAddress(93);
-	auto seq = generator.nextSequence();
-	assert(seq.at(seq.size() - 1) == (char)minCharInt);
-	assert(seq.at(seq.size() - 2) == (char)minCharInt + 1);
+    AssignedSequenceGenerator generator{1};
+    generator.AssignAddress(93);
+    auto seq = generator.nextSequence();
+    assert(seq.at(seq.size() - 1) == (char)minCharInt);
+    assert(seq.at(seq.size() - 2) == (char)minCharInt + 1);
 }
 
 TEST(TestGenerator, test_indexof)
 {
-	std::vector<int> integers{ {0, 1, 2, 3, 4} };
-	int index = indexOf<int>(integers.begin(), integers.end(), [=](int x) { return x == 4; });
-	assert(index == 4);
+    std::vector<int> integers{{0, 1, 2, 3, 4}};
+    int index = indexOf<int>(integers.begin(), integers.end(), [=](int x) { return x == 4; });
+    assert(index == 4);
 }
 
 TEST(testMd5, test_md5)
 {
-	std::string computed = md5("0000");
-	printf("computed: %s\n", computed.c_str());
-	printf("original %s", "4a7d1ed414474e4033ac29ccb8653d9b");
-	assert(md5("0000") == "4a7d1ed414474e4033ac29ccb8653d9b");
+    std::string computed = md5("0000");
+    printf("computed: %s\n", computed.c_str());
+    printf("original %s", "4a7d1ed414474e4033ac29ccb8653d9b");
+    assert(md5("0000") == "4a7d1ed414474e4033ac29ccb8653d9b");
 }
 
 TEST(testMd5, test_gpu_md5)
 {
-	auto chunk = std::vector<std::string>({ "0000" });
-	auto md5Gpu = md5_gpu(chunk, 1).at(0);
-	auto md5CPU = md5("0000");
-	assert(md5Gpu == md5CPU);
+    auto chunk = std::vector<std::string>({"0000"});
+    std::string md5Gpu = md5_gpu(chunk, 1).at(0);
+    auto md5CPU = md5("0000");
+    printf("%s", md5Gpu.c_str());
+    assert(md5Gpu == md5CPU);
 }
