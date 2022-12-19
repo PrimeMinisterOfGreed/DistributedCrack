@@ -334,22 +334,30 @@ __global__ void md5_call_gpu(const uint8_t **data, const uint32_t *sizes, uint8_
         md5(data[i], sizes[i], result[i]);
 }
 
+static bool init = false;
+
 __host__ void md5_gpu(const uint8_t **data, const uint32_t *sizes, uint8_t **result, uint32_t size, int threads)
 {
     uint8_t **remoteData = nullptr, **remoteResults = nullptr;
     uint32_t *remoteSizes = nullptr;
+
+    if (!init)
+    {
+        HandleError(cudaInitDevice(0, 0, 0) );
+        init = true;
+    }
     cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
-    HandleError(GpuMalloc(remoteData,size));
-    HandleError(GpuMalloc(remoteResults,size));
+    HandleError(cudaMallocManaged(&remoteData, size));
+    HandleError(cudaMallocManaged(&remoteResults, size));
     for (int i = 0; i < size; i++)
     {
-        HandleError(GpuMalloc(remoteData + i, sizes[i]));
+        HandleError(GpuMalloc(&remoteData[i], sizes[i]));
         auto dataPtr = data[i];
-        HandleError(GpuCopy((uint8_t*)remoteData[i],(uint8_t*)dataPtr, sizes[i], cudaMemcpyHostToDevice));
+        HandleError(GpuCopy((uint8_t *)remoteData[i], (uint8_t *)dataPtr, sizes[i], cudaMemcpyHostToDevice));
         HandleError(GpuMalloc(&remoteResults[i], 64));
     }
     HandleError(GpuMalloc(&remoteSizes, size));
-    HandleError(GpuCopy(remoteSizes, (uint32_t*)sizes, size, cudaMemcpyHostToDevice));
+    HandleError(GpuCopy(remoteSizes, (uint32_t *)sizes, size, cudaMemcpyHostToDevice));
     int blocks = ceil(size / threads);
     HandleError(cudaDeviceSynchronize());
     md5_call_gpu<<<blocks, threads>>>((const uint8_t **)remoteData, remoteSizes, remoteResults,
@@ -358,7 +366,7 @@ __host__ void md5_gpu(const uint8_t **data, const uint32_t *sizes, uint8_t **res
     for (int i = 0; i < size; i++)
     {
         HandleError(cudaFree(&remoteData[i]));
-        HandleError(GpuCopy(result[i], remoteResults[i], 4 , cudaMemcpyDeviceToHost));
+        HandleError(GpuCopy(result[i], remoteResults[i], 4, cudaMemcpyDeviceToHost));
     }
     HandleError(cudaFree(remoteSizes));
 }
