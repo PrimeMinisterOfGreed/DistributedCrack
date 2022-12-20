@@ -38,7 +38,7 @@ TEST(testMd5, test_md5)
 {
     std::string computed = md5("0000");
     printf("computed: %s\n", computed.c_str());
-    printf("original %s", "4a7d1ed414474e4033ac29ccb8653d9b");
+    printf("original %s\n", "4a7d1ed414474e4033ac29ccb8653d9b");
     assert(md5("0000") == "4a7d1ed414474e4033ac29ccb8653d9b");
 }
 

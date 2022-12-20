@@ -95,13 +95,9 @@ __device__ __host__ MD5::MD5()
 // nifty shortcut ctor, compute MD5 for string and finalize it right away
 __device__ __host__ MD5::MD5(const uint8_t *text, size_t size)
 {
-    printf("Converting");
     init();
-    printf("Init");
     update(text, size);
-    printf("Update");
     finalize();
-    printf("Finalize");
 }
 
 //////////////////////////////
@@ -340,30 +336,30 @@ __host__ void md5_gpu(const uint8_t **data, const uint32_t *sizes, uint8_t **res
 {
     uint8_t **remoteData = nullptr, **remoteResults = nullptr;
     uint32_t *remoteSizes = nullptr;
-
     if (!init)
     {
-        HandleError(cudaInitDevice(0, 0, 0) );
+        HandleError(cudaInitDevice(0, 0, 0));
         init = true;
     }
-    HandleError(cudaMalloc(&remoteData, size));
-    HandleError(cudaMalloc(&remoteResults, size));
+    HandleError(GpuManagedMalloc(&remoteData, size));
+    HandleError(GpuManagedMalloc(&remoteResults, size));
+    HandleError(GpuManagedMalloc(&remoteSizes, size));
     for (int i = 0; i < size; i++)
     {
-        HandleError(cudaMalloc((remoteData+i), sizes[i]));
-        auto dataPtr = data[i];
-        HandleError(GpuCopy((uint8_t *)remoteData[i], (uint8_t *)dataPtr, sizes[i], cudaMemcpyHostToDevice));
-        HandleError(cudaMalloc(remoteResults, 16));
+        HandleError(GpuManagedMalloc(&remoteResults[i], 16));
+        HandleError(GpuManagedMalloc(&remoteData[i], sizes[i]));
+        memcpy(remoteData[i], data[i], sizes[i]);
+        remoteSizes[i] = sizes[i];
     }
-    HandleError(cudaMalloc(&remoteSizes, size));
-    HandleError(GpuCopy(remoteSizes, (uint32_t *)sizes, size, cudaMemcpyHostToDevice));
+
     int blocks = ceil(size / threads);
     md5_call_gpu<<<blocks, threads>>>((const uint8_t **)remoteData, remoteSizes, remoteResults,
                                       size); // devi capire che farne di sta funzione
+    HandleError(cudaDeviceSynchronize());
     for (int i = 0; i < size; i++)
     {
         HandleError(cudaFree(&remoteData[i]));
-        HandleError(GpuCopy(result[i], remoteResults[i], 4, cudaMemcpyDeviceToHost));
+        memcpy(remoteResults[i], result[i], 16);
     }
     HandleError(cudaFree(remoteSizes));
 }
