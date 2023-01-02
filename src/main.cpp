@@ -4,6 +4,7 @@
 #include "Schema.hpp"
 #include "StringGenerator.hpp"
 #include "md5.hpp"
+#include "md5_gpu.hpp"
 #include <Statistics/TimeMachine.hpp>
 #include <boost/mpi/communicator.hpp>
 #include <boost/program_options.hpp>
@@ -60,6 +61,23 @@ void RunMPI(int argc, char *argv[])
     MPI_Finalize();
 }
 
+void RunGpu()
+{
+    std::string target = optionsMap.at("target").as<std::string>();
+    bool result = false;
+    int chunk = 2000;
+    if (optionsMap.count("chunk"))
+        chunk = optionsMap.at("chunk").as<int>();
+    AssignedSequenceGenerator generator{4};
+    size_t computed = 0;
+    while (!result)
+    {
+        result = md5_gpu(generator.generateChunk(chunk), 256, target);
+        computed += chunk;
+        printf("computed: %d\n", computed);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     using namespace boost::program_options;
@@ -102,6 +120,11 @@ int main(int argc, char *argv[])
     if (map.count("mpiexec"))
     {
         RunMPI(argc, argv);
+        return 0;
+    }
+    else if (map.count("gpu"))
+    {
+        RunGpu();
         return 0;
     }
 }

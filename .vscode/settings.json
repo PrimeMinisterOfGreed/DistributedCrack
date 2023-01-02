@@ -57,7 +57,9 @@
             "cinttypes": "cpp",
             "typeinfo": "cpp",
             "semaphore": "cpp",
-            "numeric": "cpp"
+            "numeric": "cpp",
+            "optional": "cpp",
+            "__nullptr": "cpp"
       },
       "[cuda-cpp]": {
             "editor.wordBasedSuggestions": false,

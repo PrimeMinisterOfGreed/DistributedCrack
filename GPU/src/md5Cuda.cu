@@ -111,7 +111,6 @@ __device__ __host__ void transform(uint state[4], const uchar block[block_size])
 __device__ __host__ void md5(const uint8_t *data, const uint32_t size, uint8_t *result)
 {
     uint state[4] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476}, i;
-    printf("calculate on: %s\n", data);
     for (i = 0; i + block_size <= size; i += block_size)
     {
         transform(state, data + i);
@@ -129,11 +128,24 @@ __device__ __host__ void md5(const uint8_t *data, const uint32_t size, uint8_t *
     memcpy(result, state, 4 * sizeof(uint));
 }
 
-//////////////////////////////
-
-// return hex representation of digest as string
-
-///////////////////////////////////////////////////////////
+__global__ void md5_gpu_comparer(const uint8_t *digests, const uint8_t *targetDigest, uint32_t size, uint32_t *result)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < size)
+    {
+        uint8_t eq = 1;
+        for (int j = 0; j < 16; j++)
+        {
+            if (digests[j + i * 16] != targetDigest[j])
+            {
+                eq = 0;
+                break;
+            }
+        }
+        if (eq)
+            *result = i+1;
+    }
+}
 
 __global__ void md5_call_gpu(const uint8_t *data, const uint32_t *sizes, uint32_t *offsets, uint8_t *result,
                              uint32_t size)
@@ -141,6 +153,38 @@ __global__ void md5_call_gpu(const uint8_t *data, const uint32_t *sizes, uint32_
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < size)
         md5(data + offsets[i], sizes[i], result + i * sizeof(uint32_t) * 4);
+}
+
+__host__ int md5_gpu(const uint8_t *data, const uint32_t *sizes, uint32_t size, int threads, uint8_t *targetDigest)
+{
+    uint8_t *remoteData = nullptr, *remoteResults = nullptr, *remoteTarget = nullptr;
+    uint32_t *remoteSizes = nullptr, *offsets = nullptr;
+    size_t grandTotal = 0;
+    HandleError(GpuManagedMalloc(&offsets, size * sizeof(uint32_t)));
+    for (int i = 0; i < size; i++)
+    {
+        offsets[i] = grandTotal;
+        grandTotal += sizes[i];
+    }
+    HandleError(GpuMalloc(&remoteData, size * grandTotal));
+    HandleError(GpuMalloc(&remoteResults, size * sizeof(uint32_t) * 4));
+    HandleError(GpuMalloc(&remoteSizes, size * sizeof(uint32_t)));
+    HandleError(GpuCopy(remoteData, data, size * grandTotal, cudaMemcpyHostToDevice));
+    HandleError(GpuCopy(remoteSizes, sizes, size * sizeof(uint32_t), cudaMemcpyHostToDevice));
+    int blocks = ceil((float)size / threads);
+    md5_call_gpu<<<blocks, threads>>>(remoteData, remoteSizes, offsets, remoteResults, size);
+
+    HandleError(GpuMalloc(&remoteTarget, 4 * sizeof(uint32_t)));
+    HandleError(GpuCopy(remoteTarget, targetDigest, 4 * sizeof(uint32_t), cudaMemcpyHostToDevice));
+    md5_gpu_comparer<<<blocks, threads>>>(remoteResults, remoteTarget, size, offsets);
+    HandleError(cudaDeviceSynchronize());
+
+    HandleError(cudaFree(remoteData));
+    HandleError(cudaFree(remoteSizes));
+    HandleError(cudaFree(remoteResults));
+    uint32_t res = offsets[0] - 1;
+    HandleError(cudaFree(offsets));
+    return res;
 }
 
 __host__ void md5_gpu(const uint8_t *data, const uint32_t *sizes, uint8_t *result, uint32_t size, int threads)
@@ -161,7 +205,7 @@ __host__ void md5_gpu(const uint8_t *data, const uint32_t *sizes, uint8_t *resul
     HandleError(GpuCopy(remoteSizes, sizes, size * sizeof(uint32_t), cudaMemcpyHostToDevice));
 
     int blocks = ceil((float)size / threads);
-    md5_call_gpu<<<blocks, threads>>>(remoteData, remoteSizes,offsets, remoteResults, size);
+    md5_call_gpu<<<blocks, threads>>>(remoteData, remoteSizes, offsets, remoteResults, size);
 
     HandleError(cudaDeviceSynchronize());
     HandleError(GpuCopy(result, remoteResults, size * sizeof(uint32_t) * 4, cudaMemcpyDeviceToHost));

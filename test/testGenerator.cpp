@@ -53,10 +53,20 @@ TEST(testMd5, test_gpu_md5)
 
 TEST(testMd5, test_multiple_digests)
 {
-    auto chunk = std::vector<std::string>({{"0000"},{"0001"},{"0002"}});
-    std::vector<std::string> & md5Gpu = hexdigest(md5_gpu(chunk,3));
+    auto chunk = std::vector<std::string>({{"0000"}, {"0001"}, {"0002"}});
+    std::vector<std::string> &md5Gpu = hexdigest(md5_gpu(chunk, 3));
     for (int i = 0; i < chunk.size(); i++)
     {
-     ASSERT_EQ(md5Gpu[i], md5(chunk.at(i)));   
+        ASSERT_EQ(md5Gpu[i], md5(chunk.at(i)));
     }
 }
+
+TEST(testMd5, test_md5_comparer)
+{
+    std::vector<std::string> chunk = {"0000", "0001", "0002"};
+    std::string targetMd5 = md5(chunk.at(0));
+    ASSERT_EQ(md5_gpu(chunk, 3, targetMd5) , 0);
+    std::string targetFalse = md5("ciao");
+    ASSERT_EQ(md5_gpu(chunk, 3, targetFalse),-1);
+}
+
