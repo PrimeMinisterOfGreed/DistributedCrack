@@ -2,4 +2,4 @@ CompileFlags:                     # Tweak the parse settings
   Add: [-xc++, -Wall, -fopenmp=libomp ]
   #Add: [-xc++, -Wall, -fopenmp=libomp,--cuda-gpu-arch=sm_35]            
   Remove:  [-fopenacc,-fcf-protection=check,-fno-stack-protector,-fopt-info-all,-foffload=nvptx-none,-foffload=-misa=sm_35, -forward-unknown-to-host-compiler, "--generate-code=arch=compute_75,code=[compute_75,sm_75]"]                      # strip all other warning-related flags
-  Compiler: g++            # Change argv[0] of compile flags to `clang++`
+  Compiler: c++            # Change argv[0] of compile flags to `clang++`

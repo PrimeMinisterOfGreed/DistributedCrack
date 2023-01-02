@@ -6,24 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#define S11 7
-#define S12 12
-#define S13 17
-#define S14 22
-#define S21 5
-#define S22 9
-#define S23 14
-#define S24 20
-#define S31 4
-#define S32 11
-#define S33 16
-#define S34 23
-#define S41 6
-#define S42 10
-#define S43 15
-#define S44 21
-
-__host__ void HandleError(cudaError_t cudaError)
+__host__ inline void HandleError(cudaError_t cudaError)
 {
     if (cudaError != cudaSuccess)
     {
@@ -31,195 +14,93 @@ __host__ void HandleError(cudaError_t cudaError)
     }
 }
 
-///////////////////////////////////////////////
+__device__ constexpr uchar padding[block_size] = {0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                  0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                  0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-// F, G, H and I are basic MD5 functions.
-__device__ __host__ inline MD5::uint4 MD5::F(uint4 x, uint4 y, uint4 z)
+__device__ __host__ uint byteswap(uint word)
 {
-    return x & y | ~x & z;
+    return ((word >> 24) & 0x000000FF) | ((word >> 8) & 0x0000FF00) | ((word << 8) & 0x00FF0000) |
+           ((word << 24) & 0xFF000000);
 }
 
-__device__ __host__ inline MD5::uint4 MD5::G(uint4 x, uint4 y, uint4 z)
+__device__ __host__ void transform(uint state[4], const uchar block[block_size])
 {
-    return x & z | y & ~z;
-}
+    uint a = state[0], b = state[1], c = state[2], d = state[3];
+    uint x[16];
 
-__device__ __host__ inline MD5::uint4 MD5::H(uint4 x, uint4 y, uint4 z)
-{
-    return x ^ y ^ z;
-}
-
-__device__ __host__ inline MD5::uint4 MD5::I(uint4 x, uint4 y, uint4 z)
-{
-    return y ^ (x | ~z);
-}
-
-// rotate_left rotates x left n bits.
-__device__ __host__ inline MD5::uint4 MD5::rotate_left(uint4 x, int n)
-{
-    return (x << n) | (x >> (32 - n));
-}
-
-// FF, GG, HH, and II transformations for rounds 1, 2, 3, and 4.
-// Rotation is separate from addition to prevent recomputation.
-__device__ __host__ inline void MD5::FF(uint4 &a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac)
-{
-    a = rotate_left(a + F(b, c, d) + x + ac, s) + b;
-}
-
-__device__ __host__ inline void MD5::GG(uint4 &a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac)
-{
-    a = rotate_left(a + G(b, c, d) + x + ac, s) + b;
-}
-
-__device__ __host__ inline void MD5::HH(uint4 &a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac)
-{
-    a = rotate_left(a + H(b, c, d) + x + ac, s) + b;
-}
-
-__device__ __host__ inline void MD5::II(uint4 &a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac)
-{
-    a = rotate_left(a + I(b, c, d) + x + ac, s) + b;
-}
-
-//////////////////////////////////////////////
-
-// default ctor, just initailize
-__device__ __host__ MD5::MD5()
-{
-    init();
-}
-
-//////////////////////////////////////////////
-
-// nifty shortcut ctor, compute MD5 for string and finalize it right away
-__device__ __host__ MD5::MD5(const uint8_t *text, size_t size)
-{
-    init();
-    update(text, size);
-    finalize();
-}
-
-//////////////////////////////
-
-__device__ __host__ void MD5::init()
-{
-    finalized = false;
-
-    count[0] = 0;
-    count[1] = 0;
-
-    // load magic initialization constants.
-    state[0] = 0x67452301;
-    state[1] = 0xefcdab89;
-    state[2] = 0x98badcfe;
-    state[3] = 0x10325476;
-}
-
-//////////////////////////////
-
-// decodes input (unsigned char) into output (uint4). Assumes len is a multiple of 4.
-__device__ __host__ void MD5::decode(uint4 output[], const uint1 input[], size_type len)
-{
-    for (unsigned int i = 0, j = 0; j < len; i++, j += 4)
-        output[i] = ((uint4)input[j]) | (((uint4)input[j + 1]) << 8) | (((uint4)input[j + 2]) << 16) |
-                    (((uint4)input[j + 3]) << 24);
-}
-
-//////////////////////////////
-
-// encodes input (uint4) into output (unsigned char). Assumes len is
-// a multiple of 4.
-__device__ __host__ void MD5::encode(uint1 output[], const uint4 input[], size_type len)
-{
-    for (size_type i = 0, j = 0; j < len; i++, j += 4)
+    for (uint i = 0, j = 0; j < block_size && i < 16; i++, j += 4)
     {
-        output[j] = input[i] & 0xff;
-        output[j + 1] = (input[i] >> 8) & 0xff;
-        output[j + 2] = (input[i] >> 16) & 0xff;
-        output[j + 3] = (input[i] >> 24) & 0xff;
+        x[i] = (uint)block[j] | ((uint)block[j + 1] << 8) | ((uint)block[j + 2] << 16) | ((uint)block[j + 3] << 24);
     }
-}
 
-//////////////////////////////
+    FF(a, b, c, d, x[0], S11, 0xd76aa478);
+    FF(d, a, b, c, x[1], S12, 0xe8c7b756);
+    FF(c, d, a, b, x[2], S13, 0x242070db);
+    FF(b, c, d, a, x[3], S14, 0xc1bdceee);
+    FF(a, b, c, d, x[4], S11, 0xf57c0faf);
+    FF(d, a, b, c, x[5], S12, 0x4787c62a);
+    FF(c, d, a, b, x[6], S13, 0xa8304613);
+    FF(b, c, d, a, x[7], S14, 0xfd469501);
+    FF(a, b, c, d, x[8], S11, 0x698098d8);
+    FF(d, a, b, c, x[9], S12, 0x8b44f7af);
+    FF(c, d, a, b, x[10], S13, 0xffff5bb1);
+    FF(b, c, d, a, x[11], S14, 0x895cd7be);
+    FF(a, b, c, d, x[12], S11, 0x6b901122);
+    FF(d, a, b, c, x[13], S12, 0xfd987193);
+    FF(c, d, a, b, x[14], S13, 0xa679438e);
+    FF(b, c, d, a, x[15], S14, 0x49b40821);
 
-// apply MD5 algo on a block
-__device__ __host__ void MD5::transform(const uint1 block[blocksize])
-{
-    uint4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
-    decode(x, block, blocksize);
+    GG(a, b, c, d, x[1], S21, 0xf61e2562);
+    GG(d, a, b, c, x[6], S22, 0xc040b340);
+    GG(c, d, a, b, x[11], S23, 0x265e5a51);
+    GG(b, c, d, a, x[0], S24, 0xe9b6c7aa);
+    GG(a, b, c, d, x[5], S21, 0xd62f105d);
+    GG(d, a, b, c, x[10], S22, 0x2441453);
+    GG(c, d, a, b, x[15], S23, 0xd8a1e681);
+    GG(b, c, d, a, x[4], S24, 0xe7d3fbc8);
+    GG(a, b, c, d, x[9], S21, 0x21e1cde6);
+    GG(d, a, b, c, x[14], S22, 0xc33707d6);
+    GG(c, d, a, b, x[3], S23, 0xf4d50d87);
+    GG(b, c, d, a, x[8], S24, 0x455a14ed);
+    GG(a, b, c, d, x[13], S21, 0xa9e3e905);
+    GG(d, a, b, c, x[2], S22, 0xfcefa3f8);
+    GG(c, d, a, b, x[7], S23, 0x676f02d9);
+    GG(b, c, d, a, x[12], S24, 0x8d2a4c8a);
 
-    /* Round 1 */
-    FF(a, b, c, d, x[0], S11, 0xd76aa478);  /* 1 */
-    FF(d, a, b, c, x[1], S12, 0xe8c7b756);  /* 2 */
-    FF(c, d, a, b, x[2], S13, 0x242070db);  /* 3 */
-    FF(b, c, d, a, x[3], S14, 0xc1bdceee);  /* 4 */
-    FF(a, b, c, d, x[4], S11, 0xf57c0faf);  /* 5 */
-    FF(d, a, b, c, x[5], S12, 0x4787c62a);  /* 6 */
-    FF(c, d, a, b, x[6], S13, 0xa8304613);  /* 7 */
-    FF(b, c, d, a, x[7], S14, 0xfd469501);  /* 8 */
-    FF(a, b, c, d, x[8], S11, 0x698098d8);  /* 9 */
-    FF(d, a, b, c, x[9], S12, 0x8b44f7af);  /* 10 */
-    FF(c, d, a, b, x[10], S13, 0xffff5bb1); /* 11 */
-    FF(b, c, d, a, x[11], S14, 0x895cd7be); /* 12 */
-    FF(a, b, c, d, x[12], S11, 0x6b901122); /* 13 */
-    FF(d, a, b, c, x[13], S12, 0xfd987193); /* 14 */
-    FF(c, d, a, b, x[14], S13, 0xa679438e); /* 15 */
-    FF(b, c, d, a, x[15], S14, 0x49b40821); /* 16 */
+    HH(a, b, c, d, x[5], S31, 0xfffa3942);
+    HH(d, a, b, c, x[8], S32, 0x8771f681);
+    HH(c, d, a, b, x[11], S33, 0x6d9d6122);
+    HH(b, c, d, a, x[14], S34, 0xfde5380c);
+    HH(a, b, c, d, x[1], S31, 0xa4beea44);
+    HH(d, a, b, c, x[4], S32, 0x4bdecfa9);
+    HH(c, d, a, b, x[7], S33, 0xf6bb4b60);
+    HH(b, c, d, a, x[10], S34, 0xbebfbc70);
+    HH(a, b, c, d, x[13], S31, 0x289b7ec6);
+    HH(d, a, b, c, x[0], S32, 0xeaa127fa);
+    HH(c, d, a, b, x[3], S33, 0xd4ef3085);
+    HH(b, c, d, a, x[6], S34, 0x4881d05);
+    HH(a, b, c, d, x[9], S31, 0xd9d4d039);
+    HH(d, a, b, c, x[12], S32, 0xe6db99e5);
+    HH(c, d, a, b, x[15], S33, 0x1fa27cf8);
+    HH(b, c, d, a, x[2], S34, 0xc4ac5665);
 
-    /* Round 2 */
-    GG(a, b, c, d, x[1], S21, 0xf61e2562);  /* 17 */
-    GG(d, a, b, c, x[6], S22, 0xc040b340);  /* 18 */
-    GG(c, d, a, b, x[11], S23, 0x265e5a51); /* 19 */
-    GG(b, c, d, a, x[0], S24, 0xe9b6c7aa);  /* 20 */
-    GG(a, b, c, d, x[5], S21, 0xd62f105d);  /* 21 */
-    GG(d, a, b, c, x[10], S22, 0x2441453);  /* 22 */
-    GG(c, d, a, b, x[15], S23, 0xd8a1e681); /* 23 */
-    GG(b, c, d, a, x[4], S24, 0xe7d3fbc8);  /* 24 */
-    GG(a, b, c, d, x[9], S21, 0x21e1cde6);  /* 25 */
-    GG(d, a, b, c, x[14], S22, 0xc33707d6); /* 26 */
-    GG(c, d, a, b, x[3], S23, 0xf4d50d87);  /* 27 */
-    GG(b, c, d, a, x[8], S24, 0x455a14ed);  /* 28 */
-    GG(a, b, c, d, x[13], S21, 0xa9e3e905); /* 29 */
-    GG(d, a, b, c, x[2], S22, 0xfcefa3f8);  /* 30 */
-    GG(c, d, a, b, x[7], S23, 0x676f02d9);  /* 31 */
-    GG(b, c, d, a, x[12], S24, 0x8d2a4c8a); /* 32 */
-
-    /* Round 3 */
-    HH(a, b, c, d, x[5], S31, 0xfffa3942);  /* 33 */
-    HH(d, a, b, c, x[8], S32, 0x8771f681);  /* 34 */
-    HH(c, d, a, b, x[11], S33, 0x6d9d6122); /* 35 */
-    HH(b, c, d, a, x[14], S34, 0xfde5380c); /* 36 */
-    HH(a, b, c, d, x[1], S31, 0xa4beea44);  /* 37 */
-    HH(d, a, b, c, x[4], S32, 0x4bdecfa9);  /* 38 */
-    HH(c, d, a, b, x[7], S33, 0xf6bb4b60);  /* 39 */
-    HH(b, c, d, a, x[10], S34, 0xbebfbc70); /* 40 */
-    HH(a, b, c, d, x[13], S31, 0x289b7ec6); /* 41 */
-    HH(d, a, b, c, x[0], S32, 0xeaa127fa);  /* 42 */
-    HH(c, d, a, b, x[3], S33, 0xd4ef3085);  /* 43 */
-    HH(b, c, d, a, x[6], S34, 0x4881d05);   /* 44 */
-    HH(a, b, c, d, x[9], S31, 0xd9d4d039);  /* 45 */
-    HH(d, a, b, c, x[12], S32, 0xe6db99e5); /* 46 */
-    HH(c, d, a, b, x[15], S33, 0x1fa27cf8); /* 47 */
-    HH(b, c, d, a, x[2], S34, 0xc4ac5665);  /* 48 */
-
-    /* Round 4 */
-    II(a, b, c, d, x[0], S41, 0xf4292244);  /* 49 */
-    II(d, a, b, c, x[7], S42, 0x432aff97);  /* 50 */
-    II(c, d, a, b, x[14], S43, 0xab9423a7); /* 51 */
-    II(b, c, d, a, x[5], S44, 0xfc93a039);  /* 52 */
-    II(a, b, c, d, x[12], S41, 0x655b59c3); /* 53 */
-    II(d, a, b, c, x[3], S42, 0x8f0ccc92);  /* 54 */
-    II(c, d, a, b, x[10], S43, 0xffeff47d); /* 55 */
-    II(b, c, d, a, x[1], S44, 0x85845dd1);  /* 56 */
-    II(a, b, c, d, x[8], S41, 0x6fa87e4f);  /* 57 */
-    II(d, a, b, c, x[15], S42, 0xfe2ce6e0); /* 58 */
-    II(c, d, a, b, x[6], S43, 0xa3014314);  /* 59 */
-    II(b, c, d, a, x[13], S44, 0x4e0811a1); /* 60 */
-    II(a, b, c, d, x[4], S41, 0xf7537e82);  /* 61 */
-    II(d, a, b, c, x[11], S42, 0xbd3af235); /* 62 */
-    II(c, d, a, b, x[2], S43, 0x2ad7d2bb);  /* 63 */
-    II(b, c, d, a, x[9], S44, 0xeb86d391);  /* 64 */
+    II(a, b, c, d, x[0], S41, 0xf4292244);
+    II(d, a, b, c, x[7], S42, 0x432aff97);
+    II(c, d, a, b, x[14], S43, 0xab9423a7);
+    II(b, c, d, a, x[5], S44, 0xfc93a039);
+    II(a, b, c, d, x[12], S41, 0x655b59c3);
+    II(d, a, b, c, x[3], S42, 0x8f0ccc92);
+    II(c, d, a, b, x[10], S43, 0xffeff47d);
+    II(b, c, d, a, x[1], S44, 0x85845dd1);
+    II(a, b, c, d, x[8], S41, 0x6fa87e4f);
+    II(d, a, b, c, x[15], S42, 0xfe2ce6e0);
+    II(c, d, a, b, x[6], S43, 0xa3014314);
+    II(b, c, d, a, x[13], S44, 0x4e0811a1);
+    II(a, b, c, d, x[4], S41, 0xf7537e82);
+    II(d, a, b, c, x[11], S42, 0xbd3af235);
+    II(c, d, a, b, x[2], S43, 0x2ad7d2bb);
+    II(b, c, d, a, x[9], S44, 0xeb86d391);
 
     state[0] += a;
     state[1] += b;
@@ -227,88 +108,25 @@ __device__ __host__ void MD5::transform(const uint1 block[blocksize])
     state[3] += d;
 }
 
-//////////////////////////////
-
-// MD5 block update operation. Continues an MD5 message-digest
-// operation, processing another message block
-__device__ __host__ void MD5::update(const unsigned char input[], size_type length)
+__device__ __host__ void md5(const uint8_t *data, const uint32_t size, uint8_t *result)
 {
-    // compute number of bytes mod 64
-    size_type index = count[0] / 8 % blocksize;
-
-    // Update number of bits
-    if ((count[0] += (length << 3)) < (length << 3))
-        count[1]++;
-    count[1] += (length >> 29);
-
-    // number of bytes we need to fill in buffer
-    size_type firstpart = 64 - index;
-
-    size_type i;
-
-    // transform as many times as possible.
-    if (length >= firstpart)
+    uint state[4] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476}, i;
+    printf("calculate on: %s\n", data);
+    for (i = 0; i + block_size <= size; i += block_size)
     {
-        // fill buffer first, transform
-        memcpy(&buffer[index], input, firstpart);
-        transform(buffer);
-
-        // transform chunks of blocksize (64 bytes)
-        for (i = firstpart; i + blocksize <= length; i += blocksize)
-            transform(&input[i]);
-
-        index = 0;
+        transform(state, data + i);
     }
-    else
-        i = 0;
 
-    // buffer remaining input
-    memcpy(&buffer[index], &input[i], length - i);
-}
+    uint size_in_bits = size << 3;
+    uchar buffer[block_size];
 
-//////////////////////////////
+    memcpy(buffer, data + i, size - i);
+    memcpy(buffer + size - i, padding, block_size - (size - i));
+    memcpy(buffer + block_size - (2 * sizeof(uint)), &size_in_bits, sizeof(uint));
 
-// for convenience provide a verson with signed char
-__device__ __host__ void MD5::update(const char input[], size_type length)
-{
-    update((const unsigned char *)input, length);
-}
+    transform(state, buffer);
 
-//////////////////////////////
-
-// MD5 finalization. Ends an MD5 message-digest operation, writing the
-// the message digest and zeroizing the context.
-__device__ __host__ MD5 &MD5::finalize()
-{
-    static unsigned char padding[64] = {0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-    if (!finalized)
-    {
-        // Save number of bits
-        unsigned char bits[8];
-        encode(bits, count, 8);
-
-        // pad out to 56 mod 64.
-        size_type index = count[0] / 8 % 64;
-        size_type padLen = (index < 56) ? (56 - index) : (120 - index);
-        update(padding, padLen);
-
-        // Append length (before padding)
-        update(bits, 8);
-
-        // Store state in digest
-        encode(digest, state, 16);
-
-        // Zeroize sensitive informationsize_t size
-    }
-    return *this;
-}
-
-__device__ __host__ void MD5::exportdigest(uint8_t *dataOut)
-{
-    memcpy(dataOut, this->digest, 16 * sizeof(uint8_t));
+    memcpy(result, state, 4 * sizeof(uint));
 }
 
 //////////////////////////////
@@ -317,49 +135,46 @@ __device__ __host__ void MD5::exportdigest(uint8_t *dataOut)
 
 ///////////////////////////////////////////////////////////
 
-__device__ __host__ void md5(const uint8_t *data, uint32_t size, uint8_t *result)
-{
-    MD5 converter = MD5(data, size);
-    converter.exportdigest(result);
-}
-
-__global__ void md5_call_gpu(const uint8_t **data, const uint32_t *sizes, uint8_t **result, uint32_t size)
+__global__ void md5_call_gpu(const uint8_t *data, const uint32_t *sizes, uint32_t *offsets, uint8_t *result,
+                             uint32_t size)
 {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < size)
-        md5(data[i], sizes[i], result[i]);
+        md5(data + offsets[i], sizes[i], result + i * sizeof(uint32_t) * 4);
 }
 
-static bool init = false;
-
-__host__ void md5_gpu(const uint8_t **data, const uint32_t *sizes, uint8_t **result, uint32_t size, int threads)
+__host__ void md5_gpu(const uint8_t *data, const uint32_t *sizes, uint8_t *result, uint32_t size, int threads)
 {
-    uint8_t **remoteData = nullptr, **remoteResults = nullptr;
-    uint32_t *remoteSizes = nullptr;
-    if (!init)
-    {
-        HandleError(cudaInitDevice(0, 0, 0));
-        init = true;
-    }
-    HandleError(GpuManagedMalloc(&remoteData, size));
-    HandleError(GpuManagedMalloc(&remoteResults, size));
-    HandleError(GpuManagedMalloc(&remoteSizes, size));
+    uint8_t *remoteData = nullptr, *remoteResults = nullptr;
+    uint32_t *remoteSizes = nullptr, *offsets = nullptr;
+    size_t grandTotal = 0;
+    HandleError(GpuManagedMalloc(&offsets, size * sizeof(uint32_t)));
     for (int i = 0; i < size; i++)
     {
-        HandleError(GpuManagedMalloc(&remoteResults[i], 16));
-        HandleError(GpuManagedMalloc(&remoteData[i], sizes[i]));
-        memcpy(remoteData[i], data[i], sizes[i]);
-        remoteSizes[i] = sizes[i];
+        offsets[i] = grandTotal;
+        grandTotal += sizes[i];
     }
+    HandleError(GpuMalloc(&remoteData, size * grandTotal));
+    HandleError(GpuMalloc(&remoteResults, size * sizeof(uint32_t) * 4));
+    HandleError(GpuMalloc(&remoteSizes, size * sizeof(uint32_t)));
+    HandleError(GpuCopy(remoteData, data, size * grandTotal, cudaMemcpyHostToDevice));
+    HandleError(GpuCopy(remoteSizes, sizes, size * sizeof(uint32_t), cudaMemcpyHostToDevice));
 
-    int blocks = ceil(size / threads);
-    md5_call_gpu<<<blocks, threads>>>((const uint8_t **)remoteData, remoteSizes, remoteResults,
-                                      size); // devi capire che farne di sta funzione
+    int blocks = ceil((float)size / threads);
+    md5_call_gpu<<<blocks, threads>>>(remoteData, remoteSizes,offsets, remoteResults, size);
+
     HandleError(cudaDeviceSynchronize());
-    for (int i = 0; i < size; i++)
-    {
-        HandleError(cudaFree(&remoteData[i]));
-        memcpy(remoteResults[i], result[i], 16);
-    }
+    HandleError(GpuCopy(result, remoteResults, size * sizeof(uint32_t) * 4, cudaMemcpyDeviceToHost));
+
+    HandleError(cudaFree(remoteData));
     HandleError(cudaFree(remoteSizes));
+    HandleError(cudaFree(remoteResults));
+}
+
+__host__ void CheckGpuCondition()
+{
+    static bool initialized = false;
+    CUresult result;
+    if (!initialized && (result = cuInit(0)) != CUDA_SUCCESS)
+        printf("Error on gpu initialization: %s\n", cudaGetErrorString((cudaError)result));
 }

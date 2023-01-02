@@ -1,3 +1,7 @@
 CompileFlags:                     # Tweak the parse settings
   Add: 
   - -xcuda
+
+Diagnostics:
+  Suppress:
+    - ovl_no_viable_function_in_call
