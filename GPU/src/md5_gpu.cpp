@@ -52,7 +52,6 @@ int md5_gpu(const std::vector<std::string> &chunk, int threads, std::string targ
 {
     CheckGpuCondition();
     size_t sum = 0;
-    std::vector<std::string> &resultsVector = *new std::vector<std::string>();
 
     uint32_t *sizes = new uint32_t[chunk.size()];
     for (size_t i = 0; i < chunk.size(); i++)

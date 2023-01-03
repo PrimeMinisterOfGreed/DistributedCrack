@@ -182,6 +182,7 @@ __host__ int md5_gpu(const uint8_t *data, const uint32_t *sizes, uint32_t size, 
     HandleError(cudaFree(remoteResults));
     uint32_t res = offsets[0] - 1;
     HandleError(cudaFree(offsets));
+    HandleError(cudaFree(remoteTarget));
     return res;
 }
 

@@ -75,9 +75,13 @@ void RunGpu()
     size_t computed = 0;
     while ( result == -1)
     {
-        result = md5_gpu(generator.generateChunk(chunk), threads, target);
+        auto &chunks = generator.generateChunk(chunk);
+        result = md5_gpu(chunks, threads, target);
         computed += chunk;
         printf("computed: %d\n", computed);
+        if(result != -1)
+            printf("password is %d\n", chunks.at(result).c_str());
+        chunks.clear();
     }
 }
 
