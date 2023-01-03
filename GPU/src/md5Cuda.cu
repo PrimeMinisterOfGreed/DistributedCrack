@@ -160,25 +160,23 @@ __host__ int md5_gpu(const uint8_t *data, const uint32_t *sizes, uint32_t size, 
     uint8_t *remoteData = nullptr, *remoteResults = nullptr, *remoteTarget = nullptr;
     uint32_t *remoteSizes = nullptr, *offsets = nullptr;
     size_t grandTotal = 0;
-    HandleError(GpuManagedMalloc(&offsets, size * sizeof(uint32_t)));
+    HandleError(GpuManagedMalloc(&offsets, size));
     for (int i = 0; i < size; i++)
     {
         offsets[i] = grandTotal;
         grandTotal += sizes[i];
     }
-    HandleError(GpuMalloc(&remoteData, size * grandTotal));
-    HandleError(GpuMalloc(&remoteResults, size * sizeof(uint32_t) * 4));
-    HandleError(GpuMalloc(&remoteSizes, size * sizeof(uint32_t)));
-    HandleError(GpuCopy(remoteData, data, size * grandTotal, cudaMemcpyHostToDevice));
-    HandleError(GpuCopy(remoteSizes, sizes, size * sizeof(uint32_t), cudaMemcpyHostToDevice));
+    HandleError(GpuMalloc(&remoteData,  grandTotal));
+    HandleError(GpuMalloc(&remoteResults, size * 4));
+    HandleError(GpuMalloc(&remoteSizes, size));
+    HandleError(GpuCopy(remoteData, data,  grandTotal, cudaMemcpyHostToDevice));
+    HandleError(GpuCopy(remoteSizes, sizes, size , cudaMemcpyHostToDevice));
     int blocks = ceil((float)size / threads);
     md5_call_gpu<<<blocks, threads>>>(remoteData, remoteSizes, offsets, remoteResults, size);
-
-    HandleError(GpuMalloc(&remoteTarget, 4 * sizeof(uint32_t)));
-    HandleError(GpuCopy(remoteTarget, targetDigest, 4 * sizeof(uint32_t), cudaMemcpyHostToDevice));
+    HandleError(GpuMalloc(&remoteTarget, 16));
+    HandleError(GpuCopy(remoteTarget, targetDigest, 16, cudaMemcpyHostToDevice));
     md5_gpu_comparer<<<blocks, threads>>>(remoteResults, remoteTarget, size, offsets);
     HandleError(cudaDeviceSynchronize());
-
     HandleError(cudaFree(remoteData));
     HandleError(cudaFree(remoteSizes));
     HandleError(cudaFree(remoteResults));
@@ -198,10 +196,10 @@ __host__ void md5_gpu(const uint8_t *data, const uint32_t *sizes, uint8_t *resul
         offsets[i] = grandTotal;
         grandTotal += sizes[i];
     }
-    HandleError(GpuMalloc(&remoteData, size * grandTotal));
+    HandleError(GpuMalloc(&remoteData,  grandTotal));
     HandleError(GpuMalloc(&remoteResults, size * sizeof(uint32_t) * 4));
     HandleError(GpuMalloc(&remoteSizes, size * sizeof(uint32_t)));
-    HandleError(GpuCopy(remoteData, data, size * grandTotal, cudaMemcpyHostToDevice));
+    HandleError(GpuCopy(remoteData, data, grandTotal, cudaMemcpyHostToDevice));
     HandleError(GpuCopy(remoteSizes, sizes, size * sizeof(uint32_t), cudaMemcpyHostToDevice));
 
     int blocks = ceil((float)size / threads);

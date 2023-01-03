@@ -64,15 +64,18 @@ void RunMPI(int argc, char *argv[])
 void RunGpu()
 {
     std::string target = optionsMap.at("target").as<std::string>();
-    bool result = false;
+    int result = -1;
     int chunk = 2000;
+    int threads = 256;
     if (optionsMap.count("chunk"))
         chunk = optionsMap.at("chunk").as<int>();
+    if (optionsMap.count("thread"))
+        threads = optionsMap.at("thread").as<int>();
     AssignedSequenceGenerator generator{4};
     size_t computed = 0;
-    while (!result)
+    while ( result == -1)
     {
-        result = md5_gpu(generator.generateChunk(chunk), 256, target);
+        result = md5_gpu(generator.generateChunk(chunk), threads, target);
         computed += chunk;
         printf("computed: %d\n", computed);
     }

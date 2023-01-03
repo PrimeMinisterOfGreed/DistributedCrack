@@ -51,15 +51,16 @@ std::vector<std::string> &hexdigest(const std::vector<std::string> &results)
 int md5_gpu(const std::vector<std::string> &chunk, int threads, std::string targetMd5)
 {
     CheckGpuCondition();
-    std::vector<std::string> &resultsVector = *new std::vector<std::string>();
     size_t sum = 0;
+    std::vector<std::string> &resultsVector = *new std::vector<std::string>();
+
     uint32_t *sizes = new uint32_t[chunk.size()];
     for (size_t i = 0; i < chunk.size(); i++)
     {
         sizes[i] = chunk[i].size();
         sum += chunk[i].size();
     }
-    uint8_t *data = new uint8_t[chunk.size() * sum];
+    uint8_t *data = new uint8_t[sum];
     uint8_t *results =
         new uint8_t[chunk.size() * sizeof(uint32_t) * 4]; // every state vector is 4 elements composed of 4 bytes
     size_t offset = 0;
@@ -72,7 +73,6 @@ int md5_gpu(const std::vector<std::string> &chunk, int threads, std::string targ
     }
     data[sum] = '\0';
     int result = md5_gpu(data, sizes, chunk.size(), threads,digesthex(targetMd5));
-
     delete[] sizes;
     delete[] data;
     delete[] results;
