@@ -1,4 +1,5 @@
 #include "md5_gpu.hpp"
+#include "DataTypes.cuh"
 #include "md5Cuda.cuh"
 #include <cstddef>
 #include <cstdint>
@@ -30,7 +31,7 @@ uint8_t *digesthex(std::string md5)
         unsigned char byte = (unsigned char)strtol(byte_string.c_str(), NULL, 16);
         digest.push_back(byte);
     }
-    uint8_t *result = new uint8_t[4*sizeof(uint32_t)];
+    uint8_t *result = new uint8_t[4 * sizeof(uint32_t)];
     for (int i = 0; i < 16; i++)
     {
         result[i] = digest[i];
@@ -71,7 +72,7 @@ int md5_gpu(const std::vector<std::string> &chunk, int threads, std::string targ
         offset += size;
     }
     data[sum] = '\0';
-    int result = md5_gpu(data, sizes, chunk.size(), threads,digesthex(targetMd5));
+    int result = md5_gpu(data, sizes, chunk.size(), threads, digesthex(targetMd5));
     delete[] sizes;
     delete[] data;
     delete[] results;
@@ -110,4 +111,9 @@ std::vector<std::string> &md5_gpu(const std::vector<std::string> &chunk, int thr
     delete[] data;
     delete[] results;
     return resultsVector;
+}
+
+std::string md5_gpu(size_t start, size_t end)
+{
+    return std::string();
 }

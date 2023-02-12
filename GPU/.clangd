@@ -2,6 +2,11 @@ CompileFlags:                     # Tweak the parse settings
   Add: 
   - -xcuda
 
+  Compiler:
+  - nvcc 
+
 Diagnostics:
   Suppress:
     - ovl_no_viable_function_in_call
+    - undeclared_var_use_suggest
+    - typename_invalid_functionspec

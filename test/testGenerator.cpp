@@ -70,3 +70,4 @@ TEST(testMd5, test_md5_comparer)
     ASSERT_EQ(md5_gpu(chunk, 3, targetFalse),-1);
 }
 
+

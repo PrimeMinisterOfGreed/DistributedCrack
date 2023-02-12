@@ -66,5 +66,6 @@
             "editor.suggest.insertMode": "replace",
             "editor.semanticHighlighting.enabled": true,
             "editor.inlayHints.enabled": "on"
-      }
+      },
+      "C_Cpp.intelliSenseEngine": "disabled"
 }

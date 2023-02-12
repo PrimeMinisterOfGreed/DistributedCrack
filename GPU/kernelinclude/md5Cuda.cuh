@@ -63,15 +63,17 @@
 	}
 
 __device__ __host__ uint byteswap(uint word);
-
 __device__ __host__ void transform(uint state[4], const uchar block[block_size]);
-
 __device__ __host__ void md5(const uchar* data, const uint size, uint result[4]);
-
 __host__ __device__ void md5(const uint8_t *data, uint32_t size, uint8_t *result);
+
+
 __host__ void md5_gpu(const uint8_t *data, const uint32_t *sizes, uint8_t *result, uint32_t size, int threads);
 __host__ int md5_gpu(const uint8_t *data, const uint32_t *sizes, uint32_t size, int threads, uint8_t * targetDigest);
 __host__ void CheckGpuCondition();
+
+
+
 
 template <typename T> cudaError_t GpuMalloc(T **pointer, size_t size)
 {

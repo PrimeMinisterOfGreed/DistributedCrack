@@ -2,6 +2,7 @@
 #include <boost/exception/exception.hpp>
 #include <cstdint>
 #include <exception>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -72,4 +73,17 @@ std::string AssignedSequenceGenerator::nextSequence()
 {
     _currentSequenceIndex++;
     return SequentialGenerator::nextSequence();
+}
+
+MultiThreadStringGenerator::MultiThreadStringGenerator(int initialSequenceLength)
+    : AssignedSequenceGenerator(initialSequenceLength)
+{
+}
+
+std::vector<std::string> &MultiThreadStringGenerator::SafeGenerateChunk(int num)
+{
+    _guard.lock();
+    auto &result = SequentialGenerator::generateChunk(num);
+    _guard.unlock();
+    return result;
 }

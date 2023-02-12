@@ -2,8 +2,11 @@
 #include <cstdint>
 #include <exception>
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <vector>
+
+
 
 constexpr int minCharInt = 33;
 constexpr int maxCharint = 126;
@@ -44,7 +47,7 @@ class SequentialGenerator
     {
         return _currentSequenceLength;
     }
-    std::vector<std::string> &generateChunk(int num);
+    virtual std::vector<std::string> &generateChunk(int num);
 };
 
 class AssignedSequenceGenerator : public SequentialGenerator
@@ -56,4 +59,13 @@ class AssignedSequenceGenerator : public SequentialGenerator
     AssignedSequenceGenerator(int initialSequenceLength);
     std::string nextSequence() override;
     void AssignAddress(uint64_t address);
+};
+
+class MultiThreadStringGenerator : public AssignedSequenceGenerator
+{
+  private:
+    std::mutex& _guard = *new std::mutex();
+  public:
+    MultiThreadStringGenerator(int initialSequenceLength);
+    std::vector<std::string> & SafeGenerateChunk(int num);
 };
