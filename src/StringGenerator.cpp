@@ -37,7 +37,7 @@ std::string SequentialGenerator::nextSequence()
     return result;
 };
 
-std::vector<std::string> &SequentialGenerator::generateChunk(int num)
+std::vector<std::string> &ISequenceGenerator::generateChunk(int num)
 {
     std::vector<std::string> &result = *new std::vector<std::string>{};
     for (int i = 0; i < num; i++)
@@ -75,15 +75,3 @@ std::string AssignedSequenceGenerator::nextSequence()
     return SequentialGenerator::nextSequence();
 }
 
-MultiThreadStringGenerator::MultiThreadStringGenerator(int initialSequenceLength)
-    : AssignedSequenceGenerator(initialSequenceLength)
-{
-}
-
-std::vector<std::string> &MultiThreadStringGenerator::SafeGenerateChunk(int num)
-{
-    _guard.lock();
-    auto &result = SequentialGenerator::generateChunk(num);
-    _guard.unlock();
-    return result;
-}

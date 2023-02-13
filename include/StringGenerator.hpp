@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <cstdint>
 #include <exception>
 #include <iostream>
@@ -32,7 +33,20 @@ class GeneratorException : std::exception
     }
 };
 
-class SequentialGenerator
+class ISequenceGenerator
+{
+  public:
+    virtual std::string nextSequence() = 0;
+    virtual std::vector<std::string>& generateChunk(int num);
+};
+
+class IAddressableGenerator
+{
+    public:
+  virtual void AssignAddress(size_t address);  
+};
+
+class SequentialGenerator : public ISequenceGenerator
 {
   protected:
     std::string &_current;
@@ -47,10 +61,10 @@ class SequentialGenerator
     {
         return _currentSequenceLength;
     }
-    virtual std::vector<std::string> &generateChunk(int num);
+    
 };
 
-class AssignedSequenceGenerator : public SequentialGenerator
+class AssignedSequenceGenerator : public SequentialGenerator, public IAddressableGenerator
 {
   private:
     uint64_t _currentSequenceIndex;
@@ -58,14 +72,6 @@ class AssignedSequenceGenerator : public SequentialGenerator
   public:
     AssignedSequenceGenerator(int initialSequenceLength);
     std::string nextSequence() override;
-    void AssignAddress(uint64_t address);
+    void AssignAddress(uint64_t address) override;
 };
 
-class MultiThreadStringGenerator : public AssignedSequenceGenerator
-{
-  private:
-    std::mutex& _guard = *new std::mutex();
-  public:
-    MultiThreadStringGenerator(int initialSequenceLength);
-    std::vector<std::string> & SafeGenerateChunk(int num);
-};
