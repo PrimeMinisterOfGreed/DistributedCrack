@@ -3,7 +3,8 @@
 class ThreadNode : public Node
 {
   public:
-    ThreadNode();
     void Initialize() override;
     void Routine() override;
+    void OnBeginRoutine() override;
+    void OnEndRoutine() override;
 };

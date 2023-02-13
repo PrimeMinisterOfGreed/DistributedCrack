@@ -51,23 +51,23 @@ bool compute(std::vector<std::string> &chunk, std::string target, std::string *f
 
 
 
-SimpleMasterWorker::SimpleMasterWorker(int chunkSize, std::string &target) : _chunkSize(chunkSize), _target(target)
+SimpleMasterWorker::SimpleMasterWorker(int chunkSize, std::string &target, boost::mpi::communicator& comm) : MpiSchema(comm), _chunkSize(chunkSize), _target(target)
 {
 }
 
-void SimpleMasterWorker::ExecuteSchema(boost::mpi::communicator& comm)
+void SimpleMasterWorker::ExecuteSchema()
 {
     try
     {
-        int rank = comm.rank();
+        int rank = _comm.rank();
         if (rank == 0)
         {
-            SimpleMaster master{ comm,_target };
+            SimpleMaster master{ _comm,_target };
             master.Execute();
         }
         else
         {
-            SimpleWorker worker{ comm };
+            SimpleWorker worker{ _comm };
             worker.Execute();
         }
     }
@@ -78,23 +78,23 @@ void SimpleMasterWorker::ExecuteSchema(boost::mpi::communicator& comm)
 }
 
 
-MasterWorkerDistributedGenerator::MasterWorkerDistributedGenerator(int chunkSize, std::string &target)
-    : _chunkSize(chunkSize), _target(target)
+MasterWorkerDistributedGenerator::MasterWorkerDistributedGenerator(int chunkSize, std::string &target, boost::mpi::communicator& comm)
+    : MpiSchema(comm), _chunkSize(chunkSize), _target(target)
 {
 }
 
-void MasterWorkerDistributedGenerator::ExecuteSchema(boost::mpi::communicator &comm)
+void MasterWorkerDistributedGenerator::ExecuteSchema()
 {
     try
     {
-        if (comm.rank() == 0)
+        if (_comm.rank() == 0)
         {
-            SchedulerMaster master(comm, _target);
+            SchedulerMaster master(_comm, _target);
             master.Execute();
         }
         else
         {
-            AddressableWorker worker(comm);
+            AddressableWorker worker(_comm);
             worker.Execute();
         }
     }

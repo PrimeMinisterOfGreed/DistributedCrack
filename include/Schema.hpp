@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 #include "Functions.hpp"
+
+
 enum
 {
     MESSAGE,
@@ -20,27 +22,36 @@ enum
 class ISchema
 {
   public:
-    virtual void ExecuteSchema(boost::mpi::communicator &comm) = 0;
+    virtual void ExecuteSchema() = 0;
+    virtual void Initialize(){}
 };
 
-class SimpleMasterWorker : ISchema
+class MpiSchema : ISchema
+{
+  protected:
+    boost::mpi::communicator &_comm;
+
+  public:
+    MpiSchema(boost::mpi::communicator & comm);
+};
+
+class SimpleMasterWorker : public MpiSchema
 {
   private:
     int _chunkSize;
     std::string &_target;
-
   public:
-    SimpleMasterWorker(int chunkSize, std::string &target);
-    void ExecuteSchema(boost::mpi::communicator &comm) override;
+    SimpleMasterWorker(int chunkSize, std::string &target, boost::mpi::communicator& comm);
+    void ExecuteSchema() override;
 };
 
-class MasterWorkerDistributedGenerator : ISchema
+class MasterWorkerDistributedGenerator : public MpiSchema
 {
   private:
     int _chunkSize;
     std::string &_target;
-
   public:
-    MasterWorkerDistributedGenerator(int chunkSize, std::string &target);
-    void ExecuteSchema(boost::mpi::communicator &comm) override;
+    MasterWorkerDistributedGenerator(int chunkSize, std::string &target, boost::mpi::communicator& comm);
+    void ExecuteSchema() override;
 };
+

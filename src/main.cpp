@@ -51,11 +51,11 @@ void RunMPI(int argc, char *argv[])
     switch (schema)
     {
     case 0:
-        SimpleMasterWorker(chunk, target).ExecuteSchema(comm);
+        SimpleMasterWorker(chunk, target,comm).ExecuteSchema();
         break;
 
     case 1:
-        MasterWorkerDistributedGenerator(chunk, target).ExecuteSchema(comm);
+        MasterWorkerDistributedGenerator(chunk, target,comm).ExecuteSchema();
         break;
     }
     MPI_Finalize();
@@ -84,6 +84,8 @@ void RunGpu()
         chunks.clear();
     }
 }
+
+
 
 int main(int argc, char *argv[])
 {
