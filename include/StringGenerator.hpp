@@ -43,7 +43,7 @@ class ISequenceGenerator
 class IAddressableGenerator
 {
     public:
-  virtual void AssignAddress(size_t address);  
+  virtual void AssignAddress(size_t address) = 0;  
 };
 
 class SequentialGenerator : public ISequenceGenerator

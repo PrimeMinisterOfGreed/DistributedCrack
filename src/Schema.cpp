@@ -103,3 +103,9 @@ void MasterWorkerDistributedGenerator::ExecuteSchema()
         std::cout << "Fatal Exception" << std::endl;
     }
 }
+
+MpiSchema::MpiSchema(boost::mpi::communicator & comm):
+    _comm(comm)
+{
+  
+}

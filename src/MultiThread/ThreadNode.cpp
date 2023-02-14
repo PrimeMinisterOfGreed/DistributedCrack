@@ -6,21 +6,21 @@ ThreadNode::ThreadNode(ISequenceGenerator &generator) : Node(), _generator(gener
 
 void ThreadNode::Initialize()
 {
-    Node::Initialize();
+    
 }
 
 void ThreadNode::Routine()
 {
-    Node::Routine();
+    
     
 }
 
 void ThreadNode::OnBeginRoutine()
 {
-    Node::OnBeginRoutine();
+   
 }
 
 void ThreadNode::OnEndRoutine()
 {
-    Node::OnEndRoutine();
+   
 }
