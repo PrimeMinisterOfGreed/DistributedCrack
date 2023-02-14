@@ -68,7 +68,7 @@
             "editor.inlayHints.enabled": "on"
       },
       "C_Cpp.intelliSenseEngine": "disabled",
-      "gcovViewer.buildDirectories": [
-            "/home/drfaust/Scrivania/uni/Magistrale/SCPD/Project/DistributedCrack/build/CMakeFiles/tests.dir/test"
+      "coverage-gutters.coverageFileNames": [
+            "build/distcrack_lcov.info"
       ]
 }

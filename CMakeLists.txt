@@ -48,7 +48,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     force_flag("--coverage")
     force_flag("-fprofile-abs-path")
     include(./cmake/Coverage.cmake)
-    setup_target_for_coverage_lcov(NAME distcrack_coverage EXECUTABLE tests DEPENDENCIES tests BASE_DIRECTORY ./coverage)
+    setup_target_for_coverage_lcov(NAME distcrack_lcov EXECUTABLE tests DEPENDENCIES tests BASE_DIRECTORY ./coverage)
 
 endif() 
 
