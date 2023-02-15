@@ -1,7 +1,7 @@
 project(DistributedCrack.GPU LANGUAGES CUDA CXX)
 enable_language(CUDA)
 find_package(CUDA REQUIRED)
-include(../cmake/TestProjectGenerator.cmake)
+include(../../cmake/TestProjectGenerator.cmake)
 file(GLOB_RECURSE SRC_FILES src/*.cpp src/*.cu)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_ARCHITECTURES 75)

@@ -69,6 +69,6 @@
       },
       "C_Cpp.intelliSenseEngine": "disabled",
       "coverage-gutters.coverageFileNames": [
-            "build/distcrack_lcov.info"
+            "build/DistributedCrack_lcov.info"
       ]
 }

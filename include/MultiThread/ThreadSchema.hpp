@@ -8,8 +8,9 @@ class ThreadMultiSchema : public ISchema
     int _threads;
     MultiThreadStringGenerator& _mtGenerator;
     std::vector<ThreadNode> _nodes;
+    std::string _target;
   public:
-    ThreadMultiSchema(int threads, int initialSequenceLength);
+    ThreadMultiSchema(int threads, int initialSequenceLength, std::string target);
     void Initialize() override;
     void ExecuteSchema() override;
 };
