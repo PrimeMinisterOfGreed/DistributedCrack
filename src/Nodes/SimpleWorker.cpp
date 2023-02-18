@@ -38,9 +38,6 @@ void SimpleWorker::Routine()
 		default:
 			break;
 		}
-
-		if (_processor.ToCompute() > 100)
-			_processor.ComputeStatistics();
 	}
 }
 

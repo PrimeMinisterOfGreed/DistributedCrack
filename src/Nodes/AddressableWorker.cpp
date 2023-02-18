@@ -47,12 +47,6 @@ void AddressableWorker::Routine()
 		_logger->TraceTransfer( "Deleting old request");
 		_requests.erase(_requests.begin() + 1);
 		computations++;
-		if (computations > 10)
-		{
-			_logger->TraceTransfer("Executing statistics retrieval: {0}",_processor.ToCompute());
-			_processor.ComputeStatistics();
-			computations = 0;
-		}
 	}
 	_logger->TraceTransfer("Termination processed");
 }
@@ -76,7 +70,7 @@ void AddressableWorker::OnBeginRoutine()
 
 void AddressableWorker::OnEndRoutine()
 {
-	_logger->TraceTransfer("Computing data on:{0} events ", _processor.ToCompute());
+	_logger->TraceTransfer("Computing data");
 	auto& ev = _processor.ComputeStatistics();
 	_logger->TraceTransfer("Sending computed statistics to root");
 	_communicator.send(0, MESSAGE, ev);

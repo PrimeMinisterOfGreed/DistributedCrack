@@ -1,3 +1,4 @@
+#pragma once
 #include "StringGenerator.hpp"
 
 class MultiThreadStringGenerator : public AssignedSequenceGenerator

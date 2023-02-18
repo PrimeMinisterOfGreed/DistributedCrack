@@ -1,12 +1,9 @@
 #pragma once
 #include "Statistics/Event.hpp"
-#include <boost/accumulators/accumulators.hpp>
-#include <boost/accumulators/statistics.hpp>
-#include <boost/serialization/serialization.hpp>
+#include "Statistics/Measure.hpp"
+#include <cstddef>
 #include <vector>
 using namespace boost::accumulators;
-
-using Accumulator = accumulator_set<double, features<tag::mean, tag::max, tag::min, tag::variance>>;
 
 struct Statistics
 {
@@ -14,6 +11,8 @@ struct Statistics
     double meanServiceTime;
     double maxInterArrival;
     double maxServiceTime;
+    double varianceInterArrival;
+    double varianceServiceTime;
     double arrivalRate;
     double throughput;
     double serviceRate;
@@ -28,6 +27,8 @@ struct Statistics
                << "Mean service time: " << meanServiceTime << "ms" << std::endl
                << "Max interval: " << maxInterArrival << "ms" << std::endl
                << "Max service time: " << maxServiceTime << "ms" << std::endl
+               << "variace service time: " << varianceServiceTime << "ms" << std::endl
+               << "variance inter arrival time: " << varianceInterArrival << "ms" << std::endl
                << "Arrival rate: " << arrivalRate << "job/ms" << std::endl
                << "Throughput: " << throughput << "job/ms" << std::endl
                << "Service rate: " << serviceRate << "job/ms" << std::endl
@@ -42,25 +43,16 @@ struct Statistics
 class EventProcessor
 {
   private:
-    Accumulator _arrivalTimes;
-    Accumulator _interArrivals;
-    Accumulator _serviceTimes;
-    Statistics &_actual = *new Statistics();
-    std::vector<Event> &_events = *new std::vector<Event>();
+    double _clock = 0.0;
+    double _busyTime = 0.0;
+    size_t _completions = 0;
+    Measure<> _interArrivals;
+    Measure<> _serviceTimes;
 
   public:
     virtual Statistics &ComputeStatistics();
-    virtual void AddEvent(Event &e) const
-    {
-        _events.push_back(e);
-    }
-    int ToCompute() const
-    {
-        return _events.size();
-    }
-    EventProcessor(std::vector<Event> &events) : _events{events}
-    {
-    }
+    virtual void AddEvent(Event &e);
+    EventProcessor(std::vector<Event> &events);
     EventProcessor()
     {
     }
@@ -74,6 +66,8 @@ template <class Archive> void serialize(Archive &ar, Statistics &stat, const uns
     ar &stat.meanServiceTime;
     ar &stat.maxInterArrival;
     ar &stat.maxServiceTime;
+    ar &stat.varianceInterArrival;
+    ar &stat.varianceServiceTime;
     ar &stat.arrivalRate;
     ar &stat.throughput;
     ar &stat.serviceRate;

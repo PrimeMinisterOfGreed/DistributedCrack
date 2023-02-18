@@ -57,9 +57,7 @@ class NodeProcessMock : public MPINode
     {
         SequentialGenerator generator{4};
         std::string result;
-        while (!Compute(generator.generateChunk(2000), &result))
-        {
-        }
+        while (!Compute(generator.generateChunk(2000), &result));
     }
 
     virtual void Initialize() override
@@ -87,6 +85,6 @@ class NodeProcessMock : public MPINode
 TEST(TestNode, test_processor_node)
 {
     auto value = std::pair<std::string, std::string>("stat", "test.csv");
-    NodeProcessMock mock{md5("!!%!")};
+    NodeProcessMock mock{md5("%!!!")};
     mock.Execute();
 }

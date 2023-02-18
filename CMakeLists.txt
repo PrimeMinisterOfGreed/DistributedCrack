@@ -17,7 +17,6 @@ find_package(GTest REQUIRED)
 get_filename_component(_CWD ./ ABSOLUTE)
 set(CMAKE_SUPPORT_DIR ${_CWD}/cmake)
 add_subdirectory("./libs/GPU")
-add_subdirectory("./libs/NESLib")
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 include(./cmake/FlagManager.cmake)

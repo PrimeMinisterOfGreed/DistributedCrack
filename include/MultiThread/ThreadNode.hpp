@@ -1,19 +1,19 @@
+#pragma once
 #include "Nodes/Node.hpp"
 #include "Statistics/EventProcessor.hpp"
+#include "Statistics/TimeMachine.hpp"
 #include "StringGenerator.hpp"
 #include <string>
 #include <vector>
-#include "Statistics/TimeMachine.hpp"
-class ThreadNode : public Node
+
+class ThreadMultiSchema;
+class ThreadNode : public NodeHasher
 {
   private:
-    EventProcessor & _processor = *new EventProcessor();
-    StopWatch & _stopWatch;
-    std::string _target;
-    ISequenceGenerator &_generator;
-    bool Compute(std::vector<std::string>& chunk, std::string target, std::string * value);
+    ThreadMultiSchema & _schema;
+
   public:
-    ThreadNode(ISequenceGenerator& generator, std::string target);
+    ThreadNode(ThreadMultiSchema& schema, std::string target);
     void Initialize() override;
     void Routine() override;
     void OnBeginRoutine() override;

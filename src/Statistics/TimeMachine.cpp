@@ -26,7 +26,6 @@ std::chrono::microseconds executeMicroTimeComparison(std::function<void()> lambd
 Event& StopWatch::RecordEvent(std::function<void(Event& e)> function)
 {
 	auto startTime = Now();
-	double interarrival = (startTime - _lastTime).count();
 	Event& newEvent = *new Event();
 	newEvent.arrivalTime = startTime.count();
 	function(newEvent);

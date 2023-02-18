@@ -90,8 +90,8 @@ void MPINode::DeleteRequest(boost::mpi::request &request)
     _requests.erase(_requests.begin() + index);
 }
 
-bool MPINode::Compute(const std::vector<std::string> &chunk, std::string *result,
-                      std::function<std::string(std::string)> hashFnc)
+bool NodeHasher::Compute(const std::vector<std::string> &chunk, std::string *result,
+                         std::function<std::string(std::string)> hashFnc)
 {
     bool comp = false;
     auto ev = _stopWatch.RecordEvent([&](Event &e) {
@@ -114,8 +114,8 @@ bool MPINode::Compute(const std::vector<std::string> &chunk, std::string *result
     return comp;
 }
 
-std::future<bool> MPINode::ComputeAsync(const std::vector<std::string> &chunk,
-                                        std::function<void(std::string)> callback)
+std::future<bool> NodeHasher::ComputeAsync(const std::vector<std::string> &chunk,
+                                           std::function<void(std::string)> callback)
 {
     return std::async([&]() -> bool {
         std::string result = "";
@@ -130,4 +130,9 @@ std::future<bool> MPINode::ComputeAsync(const std::vector<std::string> &chunk,
             return false;
         }
     });
+}
+
+Statistics &NodeHasher::GetNodeStats() const
+{
+    return _processor.ComputeStatistics();
 }
