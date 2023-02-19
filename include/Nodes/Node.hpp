@@ -29,6 +29,7 @@ class Node : public INode
     void AddResult(Statistics &statistic, int process, std::string method);
 
   public:
+    Node(ILogEngine* logger): _logger(logger){}
     virtual void Execute() override;
 };
 
@@ -43,7 +44,7 @@ class NodeHasher : public Node
     virtual std::future<bool> ComputeAsync(const std::vector<std::string> &chunk,
                                            std::function<void(std::string)> callback);
     public:
-    NodeHasher(std::string target) : _target(target)
+    NodeHasher(std::string target, ILogEngine * logger) : _target(target),Node(logger)
     {
     }
     Statistics& GetNodeStats() const;
@@ -57,8 +58,8 @@ class MPINode : public NodeHasher
     boost::mpi::communicator _communicator;
 
   public:
-    MPINode(boost::mpi::communicator comm, std::string target = "NOTARGET") : _communicator{comm}, NodeHasher(target)
+    MPINode(boost::mpi::communicator comm, std::string target = "NOTARGET") : _communicator{comm}, NodeHasher(target, MPILogEngine::Instance())
     {
-        _logger = MPILogEngine::Instance();
+        
     };
 };

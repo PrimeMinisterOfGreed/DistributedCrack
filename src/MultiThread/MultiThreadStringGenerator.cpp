@@ -1,5 +1,6 @@
 #include "MultiThread/MultiThreadStringGenerator.hpp"
 #include "StringGenerator.hpp"
+#include <mutex>
 
 MultiThreadStringGenerator::MultiThreadStringGenerator(int initialSequenceLength)
     : AssignedSequenceGenerator(initialSequenceLength)
@@ -8,8 +9,7 @@ MultiThreadStringGenerator::MultiThreadStringGenerator(int initialSequenceLength
 
 std::vector<std::string> &MultiThreadStringGenerator::SafeGenerateChunk(int num)
 {
-    _guard.lock();
+    std::lock_guard<std::mutex> l(_guard);
     auto &result = ISequenceGenerator::generateChunk(num);
-    _guard.unlock();
     return result;
 }

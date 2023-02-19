@@ -73,5 +73,6 @@ class AssignedSequenceGenerator : public SequentialGenerator, public IAddressabl
     AssignedSequenceGenerator(int initialSequenceLength);
     std::string nextSequence() override;
     void AssignAddress(uint64_t address) override;
+    uint64_t GetCurrentIndex()const{return _currentSequenceIndex;}
 };
 

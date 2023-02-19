@@ -1,4 +1,6 @@
 #pragma once
+#include "LogEngine.hpp"
+#include "MultiThread/IThreadSchema.hpp"
 #include "Nodes/Node.hpp"
 #include "Statistics/EventProcessor.hpp"
 #include "Statistics/TimeMachine.hpp"
@@ -6,16 +8,22 @@
 #include <string>
 #include <vector>
 
-class ThreadMultiSchema;
 class ThreadNode : public NodeHasher
 {
   private:
-    ThreadMultiSchema & _schema;
+    IThreadSchema *_schema;
+    bool _end = false;
 
-  public:
-    ThreadNode(ThreadMultiSchema& schema, std::string target);
+  protected:
     void Initialize() override;
     void Routine() override;
     void OnBeginRoutine() override;
     void OnEndRoutine() override;
+  public:
+    ThreadNode(IThreadSchema *schema, std::string target, ILogEngine* logger);
+    virtual void Execute() override;
+    void ForceEnd()
+    {
+        _end = true;
+    };
 };
