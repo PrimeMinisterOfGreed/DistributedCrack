@@ -19,6 +19,8 @@ set(CMAKE_SUPPORT_DIR ${_CWD}/cmake)
 add_subdirectory("./libs/GPU")
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
+add_compile_definitions("VERSION=0.2")
+
 include(./cmake/FlagManager.cmake)
 include(./cmake/TestProjectGenerator.cmake)
 

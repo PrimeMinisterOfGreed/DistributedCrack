@@ -1,18 +1,21 @@
 #include "MultiThread/ThreadSchema.hpp"
+#include "DataContainer.hpp"
 #include "LogEngine.hpp"
 #include "Nodes/Node.hpp"
 #include <future>
 #include <vector>
 
-ThreadMultiSchema::ThreadMultiSchema(int threads, int initialSequenceLength, std::string target, int initialChunkSize, ILogEngine * logger)
-    : _threads(threads), _mtGenerator(*new MultiThreadStringGenerator(initialSequenceLength)), _target(target), _logger(logger), _initialChunkSize(initialChunkSize)
+ThreadMultiSchema::ThreadMultiSchema(int threads, int initialSequenceLength, std::string target, int initialChunkSize,
+                                     ILogEngine *logger)
+    : _threads(threads), _mtGenerator(*new MultiThreadStringGenerator(initialSequenceLength)), _target(target),
+      _logger(logger), _initialChunkSize(initialChunkSize)
 {
 }
 
 void ThreadMultiSchema::Initialize()
 {
     for (int i = 0; i < _threads; i++)
-        _nodes.push_back(*new ThreadNode(this, _target,_logger));
+        _nodes.push_back(*new ThreadNode(this, _target, _logger,i));
 }
 
 void ThreadMultiSchema::ExecuteSchema()
@@ -34,9 +37,9 @@ std::vector<std::string> &ThreadMultiSchema::RequireNextSequence(ThreadNode *req
             auto &prevStat = _lastRunStat.at(requiringNode);
             auto &actualStat = requiringNode->GetNodeStats();
             double strainCoeff = actualStat.throughput - prevStat.throughput;
-            chunkSize += strainCoeff>=0? 1:-1;
+            chunkSize += strainCoeff >= 0 ? 1 : -1;
         }
-            _lastRunStat[requiringNode] = Statistics(requiringNode->GetNodeStats());
+        _lastRunStat[requiringNode] = Statistics(requiringNode->GetNodeStats());
     }
     _logger->TraceInformation("Current Index{}", _mtGenerator.GetCurrentIndex());
     return _mtGenerator.SafeGenerateChunk(chunkSize);

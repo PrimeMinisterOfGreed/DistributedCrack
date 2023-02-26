@@ -1,4 +1,5 @@
 #pragma once
+#include "DataContainer.hpp"
 #include "LogEngine.hpp"
 #include "Schema.hpp"
 #include "MultiThread/ThreadNode.hpp"
@@ -18,6 +19,7 @@ class ThreadMultiSchema : public IThreadSchema
     MultiThreadStringGenerator &_mtGenerator;
     AutoResetEvent _waitEnd{false};
     std::vector<ThreadNode> _nodes;
+    DataContainer& _container = *new DataContainer();
     ILogEngine * _logger;
     std::string _target;
     std::string _result;

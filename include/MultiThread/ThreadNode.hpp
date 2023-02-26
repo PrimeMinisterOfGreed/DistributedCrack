@@ -13,14 +13,14 @@ class ThreadNode : public NodeHasher
   private:
     IThreadSchema *_schema;
     bool _end = false;
-
+    int _nodeNum = 0;
   protected:
     void Initialize() override;
     void Routine() override;
     void OnBeginRoutine() override;
     void OnEndRoutine() override;
   public:
-    ThreadNode(IThreadSchema *schema, std::string target, ILogEngine* logger);
+    ThreadNode(IThreadSchema *schema, std::string target, ILogEngine* logger, int process);
     virtual void Execute() override;
     void ForceEnd()
     {

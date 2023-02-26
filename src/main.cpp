@@ -1,3 +1,4 @@
+#include "CompileMacro.hpp"
 #include "LogEngine.hpp"
 #include "OptionsBag.hpp"
 #include "RingSchema.hpp"
@@ -16,6 +17,7 @@
 #include <filesystem>
 #include <iostream>
 #include <mpi.h>
+#include <ostream>
 #include <sstream>
 #include <string>
 
@@ -119,6 +121,7 @@ int main(int argc, char *argv[])
     if (map.count("help"))
     {
         cout << desc << endl;
+        cout <<"Version:" <<VERSION << endl;
         return 1;
     }
     if (!map.count("target"))

@@ -1,4 +1,5 @@
 #include "MultiThread/ThreadNode.hpp"
+#include "DataContainer.hpp"
 #include "LogEngine.hpp"
 #include "MultiThread/IThreadSchema.hpp"
 #include "Nodes/Node.hpp"
@@ -11,7 +12,7 @@
 #include <string>
 #include <thread>
 
-ThreadNode::ThreadNode(IThreadSchema *schema, std::string target, ILogEngine * logger) : NodeHasher(target,logger), _schema(schema)
+ThreadNode::ThreadNode(IThreadSchema *schema, std::string target, ILogEngine * logger, int process) : NodeHasher(target,logger), _schema(schema),_nodeNum(process)
 {
 }
 
@@ -42,4 +43,6 @@ void ThreadNode::OnBeginRoutine()
 
 void ThreadNode::OnEndRoutine()
 {
+    _container->AddResult(*new ExecutionResult{_nodeNum, "MultiThread", GetNodeStats()});
+
 }
