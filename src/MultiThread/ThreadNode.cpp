@@ -44,5 +44,4 @@ void ThreadNode::OnBeginRoutine()
 void ThreadNode::OnEndRoutine()
 {
     _container->AddResult(*new ExecutionResult{_nodeNum, "MultiThread", GetNodeStats()});
-
 }

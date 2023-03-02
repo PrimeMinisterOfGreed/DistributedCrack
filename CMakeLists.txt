@@ -33,6 +33,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
       force_flag("-fprofile-abs-path")
 endif()
 
+enable_cxx_compiler_flag_if_supported("-fopenmp")
+enable_cxx_compiler_flag_if_supported("-fopenacc")
+
 file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS test/*.cpp src/*.cpp)
 file(GLOB_RECURSE SRC_LIST CONFIGURE_DEPENDS src/*.cpp)
 

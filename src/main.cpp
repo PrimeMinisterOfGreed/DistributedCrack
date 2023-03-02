@@ -103,7 +103,10 @@ int main(int argc, char *argv[])
         "dynamic_chunks", value<bool>(), "specify if use or not dynamic chunking")(
         "verbosity", value<int>(), "specify verbosity for logger")("schema", value<int>(),
                                                                    "specify a certain schema to use with MPI")(
-        "stat", value<std::string>(), "save a csv file with stat from the program");
+        "stat", value<std::string>(),
+        "save a csv file with stat from the program")("restore", value<std::string>()->default_value("state.state"),
+                                                      "restore a previously saved state (default file state.state)")
+        ("savefile",value<std::string>()->default_value("state.state"),"Indicates the file to use in case of SIGINT capture in order to save the state");
     variables_map map;
     store(parse_command_line(argc, argv, desc), map);
     if (map.contains("config") || filesystem::exists("dcrack.config"))

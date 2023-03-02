@@ -1,0 +1,14 @@
+\documentclass{article}
+
+\begin{document}
+
+\section*{Introduction}
+Distributed crack is an MPI, MultiThreaded and GPU enabled software that let the user to try different password combination on a single hash using all the power of the distributed computing. The program is thinked as an extensible example of how implement a distributed hash calculator alongside various string generators.
+
+\subsection*{Hashing algorithm}
+An hashing algorithm is a function that takes as input some bytes, usually divided in blocks of fixed length, and returns an array of bytes of fixed length. Examples of those functions are MD4/5 (a.k.a Message Digests algorithms), SHA-1/2/256/512. Those functions are used in databases in order to maintain privacy, suppose we have a web application that takes username and password in order to authenticate user, if we are interested in avoid to store those data as clear string then hashing is a good way to obfscate those data. That's why the existence of tools like jhontheripper, hydra and distributedcrack shall be taken in consideration, also if we use an hash to obfuscate a password if the input is not long enough is relatively easy to "invert" the function by trying all the different ascii combinations. Nowadays there are strict policy around password due to those tools, you need to supply a 12 char password with some special character for that password, prevent inversion by bruteforcing. Unfortunately this length will grow in time, since the release of new hardware will let hackers to use much more "muscles" in order to calculate the original password. As always hacking something is just a matter of time.
+
+\subsection*{MD5}
+MD5 is a fast, efficient but not reliable hashing algorithm. Since any hashing algorithm is modeled around the statement that: "we want a function such that for all input exist just one output" if this statement is demonstrated , with many trials, that is invalid for the developed function then a new one is needed. MD5 is deprecated due to this phenomena , 2 input produced the same output and then md5 was disbanded. Also if much more "modern" hashing algorithm exists this was chosen because of his easy of integration, use and theorical explanation. 
+
+\end{document}
