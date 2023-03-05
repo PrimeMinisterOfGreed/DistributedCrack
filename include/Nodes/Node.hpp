@@ -8,9 +8,9 @@
 #include "Statistics/EventProcessor.hpp"
 #include "TaskProvider/TaskProvider.hpp"
 #include "md5.hpp"
+#include <functional>
 #include <future>
 #include <string>
-
 
 class INode
 {
@@ -47,6 +47,9 @@ class ComputeNode : public Node
     AutoResetEvent _taskReceived{false};
     AutoResetEvent _onAbortRequested{false};
     ITaskProvider &_taskProvider;
+
+    ITask *_currentTask = nullptr;
+
   protected:
     DataContainer *_container = new DataContainer();
     EventProcessor &_processor = *new EventProcessor();
@@ -55,11 +58,15 @@ class ComputeNode : public Node
     void AddResult(Statistics &statistic, int process, std::string method);
     void OnEndRoutine() override;
     virtual void WaitTask();
+
   public:
     Statistics &GetNodeStats() const;
     ComputeNode(ITaskProvider &provider, ILogEngine *logEngine) : Node(logEngine), _taskProvider(provider)
     {
-        
+        provider.onTaskReceived += new FunctionHandler<std::function<void(ITask&task)>,ITask>([this](ITask &task) {
+            _taskReceived.Set();
+            _currentTask = &task;
+        });
     }
 };
 

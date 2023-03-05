@@ -13,17 +13,18 @@ template<typename ...Args>
     public:
         virtual void operator()(Args...) = 0;
         virtual bool compare(const IHandler<Args...>& oth) = 0;
-    };
+    } ;
 
-template<typename ...Args>
+template<typename FncHandler,typename ...Args> requires Handler<FncHandler, Args...>
     class FunctionHandler : public IHandler<Args...>
     {
-    private:
-        std::function<void(Args...)> _handler;
+      private:
+        
+        FncHandler _handler;
         static size_t _generated;
         size_t _ordType = -1;
     public:
-        FunctionHandler(std::function<void(Args...)> handler): _handler(handler){
+        FunctionHandler(FncHandler handler): _handler(handler){
             _ordType = _generated;
             _generated++;
             _generated %= INT64_MAX; // i don't think you'll need this, but i agree that people that do this jobs are mad mans so just in case....
@@ -43,8 +44,8 @@ template<typename ...Args>
 
     };
 
-template<typename ...Args>
-    size_t FunctionHandler<Args...>::_generated = 0;
+template<typename FncPtr,typename ...Args> requires Handler<FncPtr, Args...>
+    size_t FunctionHandler<FncPtr,Args...>::_generated = 0;
 
 /**
  * EventHandler in C# style, use FunctionHandler to implement lambda type handlers
