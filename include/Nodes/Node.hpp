@@ -1,10 +1,16 @@
 #pragma once
+#include "Compute.hpp"
+#include "Concepts.hpp"
 #include "DataContainer.hpp"
+#include "EventHandler.hpp"
 #include "LogEngine.hpp"
+#include "MultiThread/AutoResetEvent.hpp"
 #include "Statistics/EventProcessor.hpp"
+#include "TaskProvider/TaskProvider.hpp"
 #include "md5.hpp"
 #include <future>
 #include <string>
+
 
 class INode
 {
@@ -18,36 +24,56 @@ class Node : public INode
     void BeginRoutine();
     void EndRoutine();
     void ExecuteRoutine();
+    bool _end = false;
 
   protected:
     ILogEngine *_logger;
-    DataContainer *_container = new DataContainer();
     virtual void Routine() = 0;
     virtual void Initialize() = 0;
     virtual void OnBeginRoutine() = 0;
     virtual void OnEndRoutine() = 0;
-    void AddResult(Statistics &statistic, int process, std::string method);
 
   public:
-    Node(ILogEngine* logger): _logger(logger){}
+    Node(ILogEngine *logger) : _logger(logger)
+    {
+    }
     virtual void Execute() override;
+    void Stop();
+};
+
+class ComputeNode : public Node
+{
+  private:
+    AutoResetEvent _taskReceived{false};
+    AutoResetEvent _onAbortRequested{false};
+    ITaskProvider &_taskProvider;
+  protected:
+    DataContainer *_container = new DataContainer();
+    EventProcessor &_processor = *new EventProcessor();
+    StopWatch &_stopWatch = *new StopWatch();
+    void Routine() override;
+    void AddResult(Statistics &statistic, int process, std::string method);
+    void OnEndRoutine() override;
+    virtual void WaitTask();
+  public:
+    Statistics &GetNodeStats() const;
+    ComputeNode(ITaskProvider &provider, ILogEngine *logEngine) : Node(logEngine), _taskProvider(provider)
+    {
+        
+    }
 };
 
 class NodeHasher : public Node
 {
   protected:
-    EventProcessor &_processor = *new EventProcessor();
-    StopWatch &_stopWatch = *new StopWatch();
     std::string _target;
-    virtual bool Compute(const std::vector<std::string> &chunk, std::string *result,
-                         std::function<std::string(std::string)> hashFnc = md5);
-    virtual std::future<bool> ComputeAsync(const std::vector<std::string> &chunk,
-                                           std::function<void(std::string)> callback);
-    public:
-    NodeHasher(std::string target, ILogEngine * logger) : _target(target),Node(logger)
+    IHashComparer &_computeFnc;
+
+  public:
+    NodeHasher(std::string target, ILogEngine *logger, IHashComparer &computeFnc)
+        : _target(target), Node(logger), _computeFnc(computeFnc)
     {
     }
-    Statistics& GetNodeStats() const;
 };
 
 class MPINode : public NodeHasher
@@ -58,8 +84,8 @@ class MPINode : public NodeHasher
     boost::mpi::communicator _communicator;
 
   public:
-    MPINode(boost::mpi::communicator comm, std::string target = "NOTARGET") : _communicator{comm}, NodeHasher(target, MPILogEngine::Instance())
-    {
-        
-    };
+    MPINode(boost::mpi::communicator comm, std::string target, IHashComparer &computeFnc)
+        : _communicator{comm}, NodeHasher(target, MPILogEngine::Instance(), computeFnc){
+
+                               };
 };

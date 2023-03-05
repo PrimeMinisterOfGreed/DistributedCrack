@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include "Concepts.hpp"
 #include <functional>
 #include <cstdint>
 

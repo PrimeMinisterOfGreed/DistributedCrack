@@ -7,13 +7,33 @@
 #include <string>
 #include <thread>
 
-void Node::AddResult(Statistics &statistic, int process, std::string method)
+void ComputeNode::Routine()
+{
+    WaitTask();
+}
+
+void ComputeNode::AddResult(Statistics &statistic, int process, std::string method)
 {
     ExecutionResult result{};
     result.process = process;
     result.method = method;
     result.statistics = statistic;
     _container->AddResult(result);
+}
+
+void ComputeNode::OnEndRoutine()
+{
+    Node::OnEndRoutine();
+    _logger->TraceInformation("Routine end done, saving results if any");
+    if (_container->HasDataToSave() && optionsMap.contains("stat"))
+    {
+        _container->SaveToFile(optionsMap.at("stat").as<std::string>().c_str());
+    }
+}
+
+void ComputeNode::WaitTask()
+{
+    _taskReceived.WaitOne();
 }
 
 void Node::Execute()
@@ -30,6 +50,11 @@ void Node::Execute()
         _logger->TraceException(ex.what());
         _logger->Finalize();
     }
+}
+
+void Node::Stop()
+{
+    _end = true;
 }
 
 void Node::BeginRoutine()
@@ -52,17 +77,13 @@ void Node::EndRoutine()
     _logger->TraceInformation("Ending Routine");
     try
     {
-        OnEndRoutine();
+        while (!_end)
+            OnEndRoutine();
     }
     catch (const std::exception &e)
     {
         _logger->TraceException("Exception during routine ending:{0}", e.what());
         throw;
-    }
-    _logger->TraceInformation("Routine end done, saving results if any");
-    if (_container->HasDataToSave() && optionsMap.contains("stat"))
-    {
-        _container->SaveToFile(optionsMap.at("stat").as<std::string>().c_str());
     }
 }
 
@@ -90,49 +111,7 @@ void MPINode::DeleteRequest(boost::mpi::request &request)
     _requests.erase(_requests.begin() + index);
 }
 
-bool NodeHasher::Compute(const std::vector<std::string> &chunk, std::string *result,
-                         std::function<std::string(std::string)> hashFnc)
-{
-    bool comp = false;
-    auto ev = _stopWatch.RecordEvent([&](Event &e) {
-        size_t completions = 0;
-        for (auto &string : chunk)
-        {
-            completions++;
-            if (hashFnc(string) == _target)
-            {
-                _logger->TraceInformation("Founded password: ", string);
-                *result = string;
-                comp = true;
-                e.completitions = completions;
-                break;
-            }
-        }
-        e.completitions = completions;
-    });
-    _processor.AddEvent(ev);
-    return comp;
-}
-
-std::future<bool> NodeHasher::ComputeAsync(const std::vector<std::string> &chunk,
-                                           std::function<void(std::string)> callback)
-{
-    return std::async([&]() -> bool {
-        std::string result = "";
-        if (Compute(chunk, &result))
-        {
-            callback(result);
-            return true;
-        }
-        else
-        {
-            callback("NULL");
-            return false;
-        }
-    });
-}
-
-Statistics &NodeHasher::GetNodeStats() const
+Statistics &ComputeNode::GetNodeStats() const
 {
     return _processor.ComputeStatistics();
 }
