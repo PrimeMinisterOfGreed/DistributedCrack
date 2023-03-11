@@ -7,12 +7,8 @@
 #include <string>
 #include <thread>
 
-void ComputeNode::Routine()
-{
-    WaitTask();
-}
 
-void ComputeNode::AddResult(Statistics &statistic, int process, std::string method)
+void BaseComputeNode::AddResult(Statistics &statistic, int process, std::string method)
 {
     ExecutionResult result{};
     result.process = process;
@@ -21,7 +17,7 @@ void ComputeNode::AddResult(Statistics &statistic, int process, std::string meth
     _container->AddResult(result);
 }
 
-void ComputeNode::OnEndRoutine()
+void BaseComputeNode::OnEndRoutine()
 {
     Node::OnEndRoutine();
     _logger->TraceInformation("Routine end done, saving results if any");
@@ -31,7 +27,7 @@ void ComputeNode::OnEndRoutine()
     }
 }
 
-void ComputeNode::WaitTask()
+void BaseComputeNode::WaitTask()
 {
     _taskReceived.WaitOne();
 }
@@ -102,16 +98,10 @@ void Node::ExecuteRoutine()
     _logger->TraceInformation("Routine execution done");
 }
 
-void MPINode::DeleteRequest(boost::mpi::request &request)
-{
-    int index = indexOf<boost::mpi::request>(_requests.begin(), _requests.end(),
-                                             [&](boost::mpi::request val) -> bool { return &val == &request; });
-    if (index == -1)
-        throw std::invalid_argument("Index of request is not existent");
-    _requests.erase(_requests.begin() + index);
-}
 
-Statistics &ComputeNode::GetNodeStats() const
+
+Statistics &BaseComputeNode::GetNodeStats() const
 {
     return _processor.ComputeStatistics();
 }
+

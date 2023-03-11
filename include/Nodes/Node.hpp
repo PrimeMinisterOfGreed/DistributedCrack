@@ -6,10 +6,11 @@
 #include "LogEngine.hpp"
 #include "MultiThread/AutoResetEvent.hpp"
 #include "Statistics/EventProcessor.hpp"
-#include "TaskProvider/TaskProvider.hpp"
+#include "TaskProvider/Tasks.hpp"
 #include "md5.hpp"
 #include <functional>
 #include <future>
+#include <queue>
 #include <string>
 
 class INode
@@ -41,36 +42,52 @@ class Node : public INode
     void Stop();
 };
 
-class ComputeNode : public Node
+class BaseComputeNode : public Node
 {
-  private:
+  protected:
+    BaseComputeNode(ILogEngine *logEngine) : Node(logEngine)
+    {
+    }
     AutoResetEvent _taskReceived{false};
     AutoResetEvent _onAbortRequested{false};
-    ITaskProvider &_taskProvider;
-
-    ITask *_currentTask = nullptr;
-
-  protected:
     DataContainer *_container = new DataContainer();
     EventProcessor &_processor = *new EventProcessor();
     StopWatch &_stopWatch = *new StopWatch();
-    void Routine() override;
     void AddResult(Statistics &statistic, int process, std::string method);
     void OnEndRoutine() override;
     virtual void WaitTask();
 
   public:
     Statistics &GetNodeStats() const;
-    ComputeNode(ITaskProvider &provider, ILogEngine *logEngine) : Node(logEngine), _taskProvider(provider)
+    virtual void Abort();
+};
+
+template <typename Task = ITask> class ComputeNode : public BaseComputeNode
+{
+  protected:
+    std::queue<Task> _taskList{};
+    void Enqueue(Task &task);
+    virtual void FireTaskReceived(Task &task);
+    virtual void Routine() override;
+  public:
+    ComputeNode(ILogEngine *logEngine) : BaseComputeNode(logEngine)
     {
-        provider.onTaskReceived += new FunctionHandler<std::function<void(ITask&task)>,ITask>([this](ITask &task) {
-            _taskReceived.Set();
-            _currentTask = &task;
-        });
     }
 };
 
-class NodeHasher : public Node
+template <typename Task> inline void ComputeNode<Task>::Enqueue(Task &task)
+{
+    _taskList.push(task);
+    FireTaskReceived(task);
+}
+
+template <typename Task> inline void ComputeNode<Task>::FireTaskReceived(Task &task)
+{
+    _logger->TraceInformation("Arrived task");
+    _taskReceived.Set();
+}
+
+template <typename Task = ITask> class NodeHasher : public ComputeNode<Task>
 {
   protected:
     std::string _target;
@@ -78,21 +95,7 @@ class NodeHasher : public Node
 
   public:
     NodeHasher(std::string target, ILogEngine *logger, IHashComparer &computeFnc)
-        : _target(target), Node(logger), _computeFnc(computeFnc)
+        : _target(target), ComputeNode<Task>(logger), _computeFnc(computeFnc)
     {
     }
-};
-
-class MPINode : public NodeHasher
-{
-  protected:
-    virtual void DeleteRequest(boost::mpi::request &request);
-    std::vector<boost::mpi::request> &_requests = *new std::vector<boost::mpi::request>{};
-    boost::mpi::communicator _communicator;
-
-  public:
-    MPINode(boost::mpi::communicator comm, std::string target, IHashComparer &computeFnc)
-        : _communicator{comm}, NodeHasher(target, MPILogEngine::Instance(), computeFnc){
-
-                               };
 };

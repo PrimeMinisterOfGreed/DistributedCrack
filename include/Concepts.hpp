@@ -32,6 +32,5 @@ concept ComputeAsyncFunction =
     ComputeFunction<ComputeFnc>;
 
 template <typename FncPtr, typename... Args>
-concept Handler = requires(FncPtr fnc, Args... args) {
-                      fnc(args...);
-                  };
+concept Handler = requires(FncPtr fnc, Args... args) { fnc(args...); };
+
