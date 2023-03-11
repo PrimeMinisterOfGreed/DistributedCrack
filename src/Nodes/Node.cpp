@@ -7,7 +7,6 @@
 #include <string>
 #include <thread>
 
-
 void BaseComputeNode::AddResult(Statistics &statistic, int process, std::string method)
 {
     ExecutionResult result{};
@@ -98,10 +97,13 @@ void Node::ExecuteRoutine()
     _logger->TraceInformation("Routine execution done");
 }
 
-
-
 Statistics &BaseComputeNode::GetNodeStats() const
 {
     return _processor.ComputeStatistics();
 }
 
+void BaseComputeNode::Abort()
+{
+    Stop();
+    _onAbortRequested.Set();
+}

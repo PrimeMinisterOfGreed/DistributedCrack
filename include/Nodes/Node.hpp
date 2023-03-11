@@ -8,6 +8,7 @@
 #include "Statistics/EventProcessor.hpp"
 #include "TaskProvider/Tasks.hpp"
 #include "md5.hpp"
+#include <cstddef>
 #include <functional>
 #include <future>
 #include <queue>
@@ -66,9 +67,12 @@ template <typename Task = ITask> class ComputeNode : public BaseComputeNode
 {
   protected:
     std::queue<Task> _taskList{};
+    Task *_taskUnderProcess;
     void Enqueue(Task &task);
     virtual void FireTaskReceived(Task &task);
     virtual void Routine() override;
+    virtual void ProcessTask(Task &task);
+
   public:
     ComputeNode(ILogEngine *logEngine) : BaseComputeNode(logEngine)
     {
@@ -87,15 +91,18 @@ template <typename Task> inline void ComputeNode<Task>::FireTaskReceived(Task &t
     _taskReceived.Set();
 }
 
-template <typename Task = ITask> class NodeHasher : public ComputeNode<Task>
+template <typename Task> inline void ComputeNode<Task>::Routine()
 {
-  protected:
-    std::string _target;
-    IHashComparer &_computeFnc;
-
-  public:
-    NodeHasher(std::string target, ILogEngine *logger, IHashComparer &computeFnc)
-        : _target(target), ComputeNode<Task>(logger), _computeFnc(computeFnc)
+    WaitTask();
+    while (_taskList.size() > 0)
     {
+        _taskUnderProcess = _taskList.front();
+        _taskList.pop();
+        ProcessTask(_taskUnderProcess);
+        _taskUnderProcess = nullptr;
     }
-};
+}
+
+
+
+
