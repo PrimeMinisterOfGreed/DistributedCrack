@@ -32,3 +32,4 @@ int main(int argc, char **argv)
     fillOptionsMap();
     return RUN_ALL_TESTS();
 }
+

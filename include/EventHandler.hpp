@@ -83,5 +83,8 @@ template<typename ...Args>
             }
         }
 
-        virtual ~EventHandler() = default;
+        virtual ~EventHandler()
+        {
+            _handlers.clear();
+        };
     };

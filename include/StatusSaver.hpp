@@ -6,9 +6,8 @@
 #include <boost/serialization/serialization.hpp>
 #include <fstream>
 #include <string>
+#include "Concepts.hpp"
 
-template <typename Archive, typename T>
-concept Serializable = requires(T t, Archive &a, const unsigned int v) { a.serialize(t, v); };
 
 template <typename Archive, Serializable<Archive> Status> class IStatusSaver
 {

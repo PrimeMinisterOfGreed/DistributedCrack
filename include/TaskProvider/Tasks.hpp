@@ -1,6 +1,8 @@
 #pragma once
 
 
+#include <string>
+#include <vector>
 class ITask
 {
   private:
@@ -16,3 +18,4 @@ class ITask
         _used = true;
     }
 };
+

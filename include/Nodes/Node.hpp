@@ -6,6 +6,7 @@
 #include "LogEngine.hpp"
 #include "MultiThread/AutoResetEvent.hpp"
 #include "Statistics/EventProcessor.hpp"
+#include "TaskProvider/HashTask.hpp"
 #include "TaskProvider/Tasks.hpp"
 #include "md5.hpp"
 #include <cstddef>
@@ -41,6 +42,10 @@ class Node : public INode
     }
     virtual void Execute() override;
     void Stop();
+    bool ShouldEnd() const
+    {
+        return _end;
+    }
 };
 
 class BaseComputeNode : public Node
@@ -72,8 +77,8 @@ template <typename Task = ITask> class ComputeNode : public BaseComputeNode
     virtual void FireTaskReceived(Task &task);
     virtual void Routine() override;
     virtual void ProcessTask(Task &task);
-
   public:
+    EventHandler<Task&> OnTaskCompleted;
     ComputeNode(ILogEngine *logEngine) : BaseComputeNode(logEngine)
     {
     }
@@ -94,7 +99,7 @@ template <typename Task> inline void ComputeNode<Task>::FireTaskReceived(Task &t
 template <typename Task> inline void ComputeNode<Task>::Routine()
 {
     WaitTask();
-    while (_taskList.size() > 0)
+    while (_taskList.size() > 0 && !ShouldEnd())
     {
         _taskUnderProcess = _taskList.front();
         _taskList.pop();
@@ -103,6 +108,27 @@ template <typename Task> inline void ComputeNode<Task>::Routine()
     }
 }
 
+template <typename Hash, ComputeFunction<Hash> HashFunction> class HashNode : public ComputeNode<HashTask>
+{
+  protected:
+    HashFunction _functor;
+    Hash _hash;
 
+  public:
+    HashNode(HashFunction functor, Hash hash) : _functor(functor), _hash(hash)
+    {
+    }
+    void ProcessTask(HashTask &task) override;
+};
 
+template <typename Hash, ComputeFunction<Hash> HashFunction>
+inline void HashNode<Hash, HashFunction>::ProcessTask(HashTask &task)
+{
+    auto res = _stopWatch.RecordEvent([this, task](Event &ev) {
+        _functor(task.chunk, task.target, task.result, _hash);
+        ev.completitions = task.chunk.size();
+    });
+    _processor.AddEvent(res);
+    OnTaskCompleted.Invoke(task);
+}
 
