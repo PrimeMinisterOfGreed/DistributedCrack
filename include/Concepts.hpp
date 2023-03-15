@@ -8,6 +8,14 @@
 
 template <typename Archive, typename T>
 concept Serializable = requires(T t, Archive &a, const unsigned int v) { a.serialize(t, v); };
+
+template <typename T, typename Ret ,typename... Args>
+concept Callable = requires(T a, Args... args) {
+                       {a(args...)}->std::convertible_to<Ret>;
+};
+
+
+
 template <typename T>
 concept HashFunction = requires(T a, std::string input) {
                            {
@@ -15,23 +23,20 @@ concept HashFunction = requires(T a, std::string input) {
                                } -> std::convertible_to<std::string>;
                        };
 
-template <typename T, typename Hasher>
-concept ComputeFunction = requires(T a, std::vector<std::string> chunk, std::string target, std::string *result,
-                                   Hasher hashFnc) {
+template <typename T>
+concept ComputeFunction = requires(T a, std::vector<std::string> chunk, std::string target, std::string *result) {
                               {
-                                  a(chunk, target, result, hashFnc)
+                                  a(chunk, target, result)
                                   } -> std::convertible_to<bool>;
-                          } && HashFunction<Hasher>;
+                          };
 
-template <typename T, typename Hasher>
+template <typename T>
 concept ComputeAsyncFunction =
-    requires(T a, std::vector<std::string> chunk, std::string target, std::string *result,
-             Hasher hashFnc) {
+    requires(T a, std::vector<std::string> chunk, std::string target, std::string *result) {
         {
-            a(chunk, target, result, hashFnc)
+            a(chunk, target, result)
             } -> std::convertible_to<std::future<bool>>;
-    } &&
-    HashFunction<Hasher>;
+    };
 
 template <typename FncPtr, typename... Args>
 concept Handler = requires(FncPtr fnc, Args... args) {

@@ -17,3 +17,4 @@ TEST(TestHandler, test_event_handler)
     EventHandler<> handler{};
     handler += new FunctionHandler([]() {});
 }
+

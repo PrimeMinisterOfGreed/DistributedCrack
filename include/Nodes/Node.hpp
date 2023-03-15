@@ -108,24 +108,22 @@ template <typename Task> inline void ComputeNode<Task>::Routine()
     }
 }
 
-template <typename Hash, ComputeFunction<Hash> HashFunction> class HashNode : public ComputeNode<HashTask>
+template <typename Hash, ComputeFunction HashFunction> class HashNode : public ComputeNode<HashTask>
 {
   protected:
     HashFunction _functor;
-    Hash _hash;
-
   public:
-    HashNode(HashFunction functor, Hash hash) : _functor(functor), _hash(hash)
+    HashNode(HashFunction functor, Hash hash) : _functor(HashFunction(hash))
     {
     }
     void ProcessTask(HashTask &task) override;
 };
 
-template <typename Hash, ComputeFunction<Hash> HashFunction>
+template <typename Hash, ComputeFunction HashFunction>
 inline void HashNode<Hash, HashFunction>::ProcessTask(HashTask &task)
 {
     auto res = _stopWatch.RecordEvent([this, task](Event &ev) {
-        _functor(task.chunk, task.target, task.result, _hash);
+        _functor(task.chunk, task.target, task.result);
         ev.completitions = task.chunk.size();
     });
     _processor.AddEvent(res);

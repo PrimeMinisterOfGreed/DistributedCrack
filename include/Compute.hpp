@@ -2,6 +2,7 @@
 #include "Concepts.hpp"
 #include <cmath>
 #include <cstddef>
+#include <fmt/core.h>
 #include <functional>
 #include <future>
 #include <regex.h>
@@ -9,67 +10,77 @@
 #include <thread>
 #include <vector>
 
-class IHashComparer
+template <HashFunction Fnc> struct Compute
 {
+  protected:
+    Fnc _fnc;
+
   public:
-    virtual bool Compute(const std::vector<std::string> &chunk, std::string target, std::string *result, std::function<std::string(std::string)> hashFnc) = 0;
-};
-
-class IAsyncHashComparer: public IHashComparer
-{
-  public:
-   virtual std::future<bool> ComputeAsync(const std::vector<std::string> &chunk, std::string target, std::string *result,
-                               std::function<std::string(std::string)> hashFnc) = 0;
-};
-
-
-
-
-
-template <HashFunction Fnc>
-bool Compute(const std::vector<std::string> &chunk, std::string target, std::string *result, Fnc hashFnc)
-{
-    for (auto &val : chunk)
+    Compute(Fnc fnc) : _fnc(fnc)
     {
-        if (hashFnc(val) == target)
+    }
+    virtual bool operator()(const std::vector<std::string> &chunk, std::string target, std::string *result)
+    {
+        for (auto &val : chunk)
         {
-            *result = val;
-            return true;
-        }
-    }
-    return false;
-}
-
-template <HashFunction Fnc>
-std::future<bool> ComputeAsync(const std::vector<std::string> &chunk, std::string target, std::string *result,
-                               Fnc hashFnc)
-{
-    return std::async([chunk, target, result, hashFnc]() -> bool { Compute(chunk, result, hashFnc); });
-}
-
-template <HashFunction Fnc>
-bool MTCompute(const std::vector<std::string> &chunk, std::string target, std::string *result, Fnc hashFnc,
-               int threads = 16)
-{
-    size_t perSizeDivision = std::ceil(chunk.size() / threads);
-    std::thread threadArray[threads];
-    bool forceEnd = false;
-    size_t currentPtr = 0;
-    for (int i = 0; i < threads; i++)
-    {
-        threadArray[i] = std::thread([&forceEnd, hashFnc, currentPtr, perSizeDivision, chunk, target,result]() {
-            for (size_t i = currentPtr; i < currentPtr + perSizeDivision && i < chunk.size() && !forceEnd; i++)
+            if (_fnc(val) == target)
             {
-                if (hashFnc(chunk.at(i)) == target)
-                {
-                    *result = chunk.at(i);
-                    forceEnd = true;
-                }
+                *result = val;
+                return true;
             }
-        });
+        }
+        return false;
     }
-    for (int i = 0; i < threads; i++)
-        threadArray[i].join();
-}
+};
 
+template <HashFunction Fnc> struct AsyncCompute
+{
+  protected:
+    Compute<Fnc> _compute;
+
+  public:
+    AsyncCompute(Fnc fnc) : _compute(Compute<Fnc>(fnc))
+    {
+    }
+    virtual std::future<bool> operator()(const std::vector<std::string> &chunk, std::string target, std::string *result)
+    {
+        return std::async(_compute);
+    };
+};
+
+template <HashFunction Fnc> struct MTCompute : public Compute<Fnc>
+{
+  protected:
+    int _threads;
+
+  public:
+    MTCompute(Fnc fnc, int threads = 16) : _threads(threads), Compute<Fnc>(fnc)
+    {
+    }
+    virtual bool operator()(const std::vector<std::string> &chunk, std::string target, std::string *result) override
+    {
+        size_t perSizeDivision = std::ceil(chunk.size() / _threads);
+        std::thread threadArray[_threads];
+        bool forceEnd = false;
+        size_t currentPtr = 0;
+        auto fncPtr = Compute<Fnc>::_fnc;
+
+        for (int i = 0; i < _threads; i++)
+        {
+            threadArray[i] = std::thread([&forceEnd, currentPtr, perSizeDivision, chunk, target, result,fncPtr]() {
+                for (size_t i = currentPtr; i < currentPtr + perSizeDivision && i < chunk.size() && !forceEnd; i++)
+                {
+                    if (fncPtr(chunk.at(i)) == target)
+                    {
+                        *result = chunk.at(i);
+                        forceEnd = true;
+                    }
+                }
+            });
+        }
+        for (int i = 0; i < _threads; i++)
+            threadArray[i].join();
+        return forceEnd;
+    }
+};
 
