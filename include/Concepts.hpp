@@ -44,3 +44,8 @@ concept Handler = requires(FncPtr fnc, Args... args) {
                       {fnc == fnc}-> std::convertible_to<bool>;
                       };
 
+
+template <typename Task, typename FncGen>
+concept TaskGenerator = requires(FncGen a) {
+{a()}-> std::convertible_to<Task>;
+};

@@ -13,11 +13,10 @@ template <typename Task> class BaseTaskRunner
 };
 
 
-template <typename Task> class LocalTaskRunner : public BaseTaskRunner<Task>
+template <typename Task, TaskGenerator<Task> Generator> class LocalTaskRunner : public BaseTaskRunner<Task>
 {
-
   protected:
-    
+    Generator _generator;
   public:
-    
+    LocalTaskRunner(Generator generator):_generator(generator){}
 };
