@@ -6,6 +6,7 @@
 #include "LogEngine.hpp"
 #include "MultiThread/AutoResetEvent.hpp"
 #include "Statistics/EventProcessor.hpp"
+#include "StringGenerator.hpp"
 #include "TaskProvider/HashTask.hpp"
 #include "TaskProvider/Tasks.hpp"
 #include "md5.hpp"
@@ -66,37 +67,40 @@ class BaseComputeNode : public Node
   public:
     Statistics &GetNodeStats() const;
     virtual void Abort();
+    
 };
 
-template <typename Task = ITask> class ComputeNode : public BaseComputeNode
+template <typename Task, TaskProvider<Task> Provider, NodeSignaler Signaler> class ComputeNode : public BaseComputeNode
 {
   protected:
     std::queue<Task> _taskList{};
     Task *_taskUnderProcess;
+    Provider _provider;
     void Enqueue(Task &task);
     virtual void FireTaskReceived(Task &task);
     virtual void Routine() override;
     virtual void ProcessTask(Task &task);
   public:
     EventHandler<Task&> OnTaskCompleted;
-    ComputeNode(ILogEngine *logEngine) : BaseComputeNode(logEngine)
+    ComputeNode(ILogEngine *logEngine, Provider& provider, Signaler signaler) : BaseComputeNode(logEngine), _provider(provider)
     {
+        signaler.RegisterNode(this);
     }
 };
 
-template <typename Task> inline void ComputeNode<Task>::Enqueue(Task &task)
+template <typename Task, TaskProvider<Task> Provider, NodeSignaler Signaler> inline void ComputeNode<Task,Provider,Signaler>::Enqueue(Task &task)
 {
     _taskList.push(task);
     FireTaskReceived(task);
 }
 
-template <typename Task> inline void ComputeNode<Task>::FireTaskReceived(Task &task)
+template <typename Task, TaskProvider<Task> Provider, NodeSignaler Signaler> inline void ComputeNode<Task,Provider,Signaler>::FireTaskReceived(Task &task)
 {
     _logger->TraceInformation("Arrived task");
     _taskReceived.Set();
 }
 
-template <typename Task> inline void ComputeNode<Task>::Routine()
+template <typename Task, TaskProvider<Task> Provider, NodeSignaler Signaler> inline void ComputeNode<Task,Provider,Signaler>::Routine()
 {
     WaitTask();
     while (_taskList.size() > 0 && !ShouldEnd())
@@ -106,27 +110,31 @@ template <typename Task> inline void ComputeNode<Task>::Routine()
         ProcessTask(_taskUnderProcess);
         _taskUnderProcess = nullptr;
     }
+    _provider.RequestTask(this);
 }
 
-template <typename Hash, ComputeFunction HashFunction> class HashNode : public ComputeNode<HashTask>
+template <typename Hash, ComputeFunction HashFunction, TaskProvider<HashTask> Provider, NodeSignaler Signaler> class HashNode : public ComputeNode<HashTask,Provider,Signaler>
 {
   protected:
     HashFunction _functor;
   public:
-    HashNode(HashFunction functor, Hash hash) : _functor(HashFunction(hash))
+    HashNode(HashFunction functor, Hash hash, Provider & provider ,ILogEngine* logger) : _functor(HashFunction(hash)), ComputeNode<HashTask, Provider,Signaler>(logger,provider)
     {
     }
     void ProcessTask(HashTask &task) override;
 };
 
-template <typename Hash, ComputeFunction HashFunction>
-inline void HashNode<Hash, HashFunction>::ProcessTask(HashTask &task)
+template <typename Hash, ComputeFunction HashFunction, TaskProvider<HashTask> Provider, NodeSignaler Signaler>
+inline void HashNode<Hash, HashFunction,Provider,Signaler>::ProcessTask(HashTask &task)
 {
-    auto res = _stopWatch.RecordEvent([this, task](Event &ev) {
-        _functor(task.chunk, task.target, task.result);
-        ev.completitions = task.chunk.size();
+    auto res = BaseComputeNode::_stopWatch.RecordEvent([this, task](Event &ev) {
+        AssignedSequenceGenerator generator{task._startSequence};
+        auto chunkSize = task._boundaries[1] - task._boundaries[0];
+        generator.AssignAddress(task._boundaries[0]);
+        _functor(generator.generateChunk(chunkSize), task.target, task.result);
+        ev.completitions = chunkSize;
     });
-    _processor.AddEvent(res);
-    OnTaskCompleted.Invoke(task);
+    BaseComputeNode::_processor.AddEvent(res);
+    ComputeNode<HashTask,Provider,Signaler>::OnTaskCompleted.Invoke(task);
 }
 

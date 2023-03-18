@@ -3,15 +3,14 @@
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/vector.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
 struct HashTask : public ITask
 {
-    std::vector<std::string> &chunk;
+    int64_t _boundaries[2];
+    int _startSequence;
     std::string target;
     std::string * result = nullptr;
-    HashTask(std::vector<std::string> &chunk, std::string target) : chunk(chunk), target(target)
-    {
-    }
 };

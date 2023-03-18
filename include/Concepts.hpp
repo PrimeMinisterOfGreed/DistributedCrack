@@ -47,5 +47,22 @@ concept Handler = requires(FncPtr fnc, Args... args) {
 
 template <typename Task, typename FncGen>
 concept TaskGenerator = requires(FncGen a) {
-{a()}-> std::convertible_to<Task>;
+                            {
+                                a()
+                                } -> std::convertible_to<Task>;
+                        };
+
+
+class BaseComputeNode;
+
+template <typename Task, typename Provider>
+concept TaskProvider = requires(Provider p, BaseComputeNode &node, Task &task) {
+                           p.RequestTask(&node);
+                           p.CheckResult(task);
+                       };
+
+
+template <typename SignalProvider>
+concept NodeSignaler = requires(SignalProvider provider, BaseComputeNode& node) {
+                           provider.RegisterNode(node);
 };

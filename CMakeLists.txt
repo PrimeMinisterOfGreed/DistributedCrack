@@ -37,7 +37,7 @@ enable_cxx_compiler_flag_if_supported("-fopenmp")
 enable_cxx_compiler_flag_if_supported("-fopenacc")
 
 file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS test/*.cpp src/*.cpp)
-file(GLOB_RECURSE SRC_LIST CONFIGURE_DEPENDS src/*.cpp)
+file(GLOB_RECURSE SRC_LIST CONFIGURE_DEPENDS src/*.cpp src/*.hpp)
 
 list(REMOVE_ITEM TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 
