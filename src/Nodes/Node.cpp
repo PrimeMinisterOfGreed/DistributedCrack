@@ -18,12 +18,19 @@ void BaseComputeNode::AddResult(Statistics &statistic, int process, std::string 
 
 void BaseComputeNode::OnEndRoutine()
 {
-    Node::OnEndRoutine();
     _logger->TraceInformation("Routine end done, saving results if any");
     if (_container->HasDataToSave() && optionsMap.contains("stat"))
     {
         _container->SaveToFile(optionsMap.at("stat").as<std::string>().c_str());
     }
+}
+
+void BaseComputeNode::OnBeginRoutine()
+{
+}
+
+void BaseComputeNode::Initialize()
+{
 }
 
 void BaseComputeNode::WaitTask()

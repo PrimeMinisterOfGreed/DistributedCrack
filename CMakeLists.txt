@@ -35,6 +35,7 @@ endif()
 
 enable_cxx_compiler_flag_if_supported("-fopenmp")
 enable_cxx_compiler_flag_if_supported("-fopenacc")
+enable_cxx_compiler_flag_if_supported("-fconcepts-diagnostics-depth=2")
 
 file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS test/*.cpp src/*.cpp)
 file(GLOB_RECURSE SRC_LIST CONFIGURE_DEPENDS src/*.cpp src/*.hpp)

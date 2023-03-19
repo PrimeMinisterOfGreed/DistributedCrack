@@ -10,7 +10,7 @@
 #include <thread>
 #include <vector>
 
-template <HashFunction Fnc> struct Compute
+template <HashFunction Fnc = std::function<std::string(std::string)>> struct Compute
 {
   protected:
     Fnc _fnc;
@@ -33,7 +33,7 @@ template <HashFunction Fnc> struct Compute
     }
 };
 
-template <HashFunction Fnc> struct AsyncCompute
+template <HashFunction Fnc = std::function<std::string(std::string)>> struct AsyncCompute
 {
   protected:
     Compute<Fnc> _compute;
@@ -48,7 +48,7 @@ template <HashFunction Fnc> struct AsyncCompute
     };
 };
 
-template <HashFunction Fnc> struct MTCompute : public Compute<Fnc>
+template <HashFunction Fnc = std::function<std::string(std::string)>> struct MTCompute : public Compute<Fnc>
 {
   protected:
     int _threads;

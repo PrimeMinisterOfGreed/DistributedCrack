@@ -14,3 +14,4 @@ class HashTaskGenerator
     HashTaskGenerator(int32_t chunkSize, std::string targetHash): _chunkSize(chunkSize){}
     HashTask &operator()();
 };
+

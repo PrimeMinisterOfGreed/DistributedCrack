@@ -1,8 +1,6 @@
 #include "CompileMacro.hpp"
 #include "LogEngine.hpp"
 #include "OptionsBag.hpp"
-#include "RingSchema.hpp"
-#include "Schema.hpp"
 #include "StringGenerator.hpp"
 #include "md5.hpp"
 #include "md5_gpu.hpp"
@@ -53,11 +51,11 @@ void RunMPI(int argc, char *argv[])
     switch (schema)
     {
     case 0:
-        SimpleMasterWorker(chunk, target,comm).ExecuteSchema();
+        
         break;
 
     case 1:
-        MasterWorkerDistributedGenerator(chunk, target,comm).ExecuteSchema();
+        
         break;
     }
     MPI_Finalize();

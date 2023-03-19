@@ -60,81 +60,87 @@ class BaseComputeNode : public Node
     DataContainer *_container = new DataContainer();
     EventProcessor &_processor = *new EventProcessor();
     StopWatch &_stopWatch = *new StopWatch();
-    void AddResult(Statistics &statistic, int process, std::string method);
-    void OnEndRoutine() override;
+    virtual void AddResult(Statistics &statistic, int process, std::string method);
+    virtual void OnEndRoutine() override;
+    virtual void OnBeginRoutine() override;
+    virtual void Initialize() override;
     virtual void WaitTask();
 
   public:
     Statistics &GetNodeStats() const;
     virtual void Abort();
-    
 };
 
-template <typename Task, TaskProvider<Task> Provider, NodeSignaler Signaler> class ComputeNode : public BaseComputeNode
+template <typename Task> class ComputeNode : public BaseComputeNode, public IComputeObject<Task>
 {
   protected:
     std::queue<Task> _taskList{};
     Task *_taskUnderProcess;
-    Provider _provider;
-    void Enqueue(Task &task);
-    virtual void FireTaskReceived(Task &task);
-    virtual void Routine() override;
-    virtual void ProcessTask(Task &task);
-  public:
-    EventHandler<Task&> OnTaskCompleted;
-    ComputeNode(ILogEngine *logEngine, Provider& provider, Signaler signaler) : BaseComputeNode(logEngine), _provider(provider)
+    ITaskProvider<IComputeObject<Task>, Task> &_provider;
+
+    void Abort() override
     {
-        signaler.RegisterNode(this);
+        BaseComputeNode::Abort();
+    }
+    virtual void Enqueue(Task &task) override
+    {
+        _taskList.push(task);
+        FireTaskReceived(task);
+    }
+
+    virtual void FireTaskReceived(Task &task)
+    {
+        _logger->TraceInformation("Arrived task");
+        _taskReceived.Set();
+    }
+
+    virtual void Routine() override
+    {
+        _provider.RequestTask(*this);
+        WaitTask();
+        while (_taskList.size() > 0 && !ShouldEnd())
+        {
+            _taskUnderProcess = &_taskList.front();
+            _taskList.pop();
+            ProcessTask(*_taskUnderProcess);
+            _taskUnderProcess = nullptr;
+        }
+    }
+
+    virtual void ProcessTask(Task &task) = 0;
+
+  public:
+    EventHandler<Task &> OnTaskCompleted;
+    ComputeNode(ILogEngine *logEngine, ITaskProvider<IComputeObject<Task>, Task> &provider,
+                ISignalProvider<IComputeObject<Task>>& signaler)
+        : BaseComputeNode(logEngine), _provider(provider)
+    {
+        signaler.RegisterNode(*this);
     }
 };
 
-template <typename Task, TaskProvider<Task> Provider, NodeSignaler Signaler> inline void ComputeNode<Task,Provider,Signaler>::Enqueue(Task &task)
-{
-    _taskList.push(task);
-    FireTaskReceived(task);
-}
+template <ComputeFunction Hasher>
 
-template <typename Task, TaskProvider<Task> Provider, NodeSignaler Signaler> inline void ComputeNode<Task,Provider,Signaler>::FireTaskReceived(Task &task)
-{
-    _logger->TraceInformation("Arrived task");
-    _taskReceived.Set();
-}
-
-template <typename Task, TaskProvider<Task> Provider, NodeSignaler Signaler> inline void ComputeNode<Task,Provider,Signaler>::Routine()
-{
-    WaitTask();
-    while (_taskList.size() > 0 && !ShouldEnd())
-    {
-        _taskUnderProcess = _taskList.front();
-        _taskList.pop();
-        ProcessTask(_taskUnderProcess);
-        _taskUnderProcess = nullptr;
-    }
-    _provider.RequestTask(this);
-}
-
-template <typename Hash, ComputeFunction HashFunction, TaskProvider<HashTask> Provider, NodeSignaler Signaler> class HashNode : public ComputeNode<HashTask,Provider,Signaler>
+class HashNode : public ComputeNode<HashTask>
 {
   protected:
-    HashFunction _functor;
+    Hasher _functor;
+    virtual void ProcessTask(HashTask &task) override
+    {
+        auto res = BaseComputeNode::_stopWatch.RecordEvent([this, task](Event &ev) {
+            AssignedSequenceGenerator generator{task._startSequence};
+            auto chunkSize = task._boundaries[1] - task._boundaries[0];
+            generator.AssignAddress(task._boundaries[0]);
+            _functor(generator.generateChunk(chunkSize), task.target, task.result);
+            ev.completitions = chunkSize;
+        });
+        BaseComputeNode::_processor.AddEvent(res);
+        ComputeNode<HashTask>::OnTaskCompleted.Invoke(task);
+    }
+
   public:
-    HashNode(HashFunction functor, Hash hash, Provider & provider ,ILogEngine* logger) : _functor(HashFunction(hash)), ComputeNode<HashTask, Provider,Signaler>(logger,provider)
+    HashNode(Hasher functor, ITaskProvider<IComputeObject<HashTask>, HashTask> &provider, ISignalProvider<IComputeObject<HashTask>>& signaler ,ILogEngine *logger)
+        : _functor(functor), ComputeNode<HashTask>(logger, provider,signaler)
     {
     }
-    void ProcessTask(HashTask &task) override;
 };
-
-template <typename Hash, ComputeFunction HashFunction, TaskProvider<HashTask> Provider, NodeSignaler Signaler>
-inline void HashNode<Hash, HashFunction,Provider,Signaler>::ProcessTask(HashTask &task)
-{
-    auto res = BaseComputeNode::_stopWatch.RecordEvent([this, task](Event &ev) {
-        AssignedSequenceGenerator generator{task._startSequence};
-        auto chunkSize = task._boundaries[1] - task._boundaries[0];
-        generator.AssignAddress(task._boundaries[0]);
-        _functor(generator.generateChunk(chunkSize), task.target, task.result);
-        ev.completitions = chunkSize;
-    });
-    BaseComputeNode::_processor.AddEvent(res);
-    ComputeNode<HashTask,Provider,Signaler>::OnTaskCompleted.Invoke(task);
-}
-

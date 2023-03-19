@@ -15,7 +15,7 @@ template<typename ...Args>
         virtual bool compare(const IHandler<Args...>& oth) = 0;
     } ;
 
-template<typename FncHandler,typename ...Args> requires Handler<FncHandler, Args...>
+template<typename FncHandler,typename ...Args> requires Callable<FncHandler, void, Args...>
     class FunctionHandler : public IHandler<Args...>
     {
       private:
@@ -37,14 +37,14 @@ template<typename FncHandler,typename ...Args> requires Handler<FncHandler, Args
 
         bool compare(const IHandler<Args...>& oth) override
         {
-            const auto* othH= dynamic_cast<const FunctionHandler<Args...>*>(&oth);
+            const auto* othH= static_cast<const FunctionHandler<FncHandler, Args...>*>(&oth);
             return othH != nullptr && othH->_ordType == _ordType;
         }
 
 
     };
 
-template<typename FncPtr,typename ...Args> requires Handler<FncPtr, Args...>
+template<typename FncPtr,typename ...Args> requires Callable<FncPtr, void, Args...>
     size_t FunctionHandler<FncPtr,Args...>::_generated = 0;
 
 /**
