@@ -71,12 +71,15 @@ class BaseComputeNode : public Node
     virtual void Abort();
 };
 
-template <typename Task> class ComputeNode : public BaseComputeNode, public IComputeObject<Task>
+template <typename Task, typename Provider = ITaskProvider<IComputeObject<Task>, Task>,
+          typename Signaler = ISignalProvider<IComputeObject<Task>>>
+    requires TaskProvider<IComputeObject<Task>, Task, Provider> && NodeSignaler<IComputeObject<Task>, Signaler>
+    class ComputeNode : public BaseComputeNode, public IComputeObject<Task>
 {
   protected:
     std::queue<Task> _taskList{};
     Task *_taskUnderProcess;
-    ITaskProvider<IComputeObject<Task>, Task> &_provider;
+    Provider &_provider;
 
     void Abort() override
     {
@@ -111,17 +114,18 @@ template <typename Task> class ComputeNode : public BaseComputeNode, public ICom
 
   public:
     EventHandler<Task &> OnTaskCompleted;
-    ComputeNode(ILogEngine *logEngine, ITaskProvider<IComputeObject<Task>, Task> &provider,
-                ISignalProvider<IComputeObject<Task>>& signaler)
+    ComputeNode(ILogEngine *logEngine, Provider &provider,
+                Signaler& signaler)
         : BaseComputeNode(logEngine), _provider(provider)
     {
         signaler.RegisterNode(*this);
     }
 };
 
-template <ComputeFunction Hasher>
+template <ComputeFunction Hasher, typename Provider = ITaskProvider<IComputeObject<HashTask>, HashTask>,
+          typename Signaler = ISignalProvider<IComputeObject<HashTask>>>
 
-class HashNode : public ComputeNode<HashTask>
+class HashNode : public ComputeNode<HashTask,Provider,Signaler>
 {
   protected:
     Hasher _functor;
@@ -135,12 +139,12 @@ class HashNode : public ComputeNode<HashTask>
             ev.completitions = chunkSize;
         });
         BaseComputeNode::_processor.AddEvent(res);
-        ComputeNode<HashTask>::OnTaskCompleted.Invoke(task);
+        ComputeNode<HashTask,Provider,Signaler>::OnTaskCompleted.Invoke(task);
     }
 
   public:
-    HashNode(Hasher functor, ITaskProvider<IComputeObject<HashTask>, HashTask> &provider, ISignalProvider<IComputeObject<HashTask>>& signaler ,ILogEngine *logger)
-        : _functor(functor), ComputeNode<HashTask>(logger, provider,signaler)
+    HashNode(Hasher functor, Provider &provider, Signaler& signaler ,ILogEngine *logger)
+        : _functor(functor), ComputeNode<HashTask,Provider,Signaler>(logger, provider,signaler)
     {
     }
 };
