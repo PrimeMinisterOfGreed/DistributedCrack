@@ -63,5 +63,9 @@ int WaitAny(std::vector<WaitHandle *> &handles)
     wakeup.WaitOne();
     int constResult = result;
     lock.unlock();
+    for (auto handle : handles)
+    {
+        handle->UnsetWakeupFunction();
+    }
     return constResult;
 };
