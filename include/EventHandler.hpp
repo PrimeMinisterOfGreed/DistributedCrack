@@ -88,3 +88,4 @@ template<typename ...Args>
             _handlers.clear();
         };
     };
+

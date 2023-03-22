@@ -23,8 +23,10 @@ template <HashFunction Fnc = std::function<std::string(std::string)>> struct Com
     {
         for (auto &val : chunk)
         {
-            if (_fnc(val) == target)
+            auto hash = _fnc(val);
+            if ( hash == target)
             {
+                
                 *result = val;
                 return true;
             }

@@ -5,9 +5,10 @@
 #include "Nodes/Node.hpp"
 #include <list>
 #include <mutex>
+#include <thread>
 
 template <typename Task>
-class BaseTaskRunner: public ISignalProvider<IComputeObject<Task>>, public ITaskProvider<IComputeObject<Task>, Task>
+class BaseTaskRunner : public ISignalProvider<IComputeObject<Task>>, public ITaskProvider<IComputeObject<Task>, Task>
 {
   private:
     std::queue<IComputeObject<Task> *> _requests;
@@ -27,6 +28,7 @@ class BaseTaskRunner: public ISignalProvider<IComputeObject<Task>>, public ITask
             _queueLock.lock();
         }
         auto &request = _requests.front();
+        _requests.pop();
         _queueLock.unlock();
         return request;
     }
@@ -64,8 +66,8 @@ class BaseTaskRunner: public ISignalProvider<IComputeObject<Task>>, public ITask
     }
 };
 
-template <typename Task, typename Generator,typename Predicate = std::function<bool(Task&)>>
-    requires Callable<Predicate, bool, Task&> && TaskGenerator<Task, Generator>
+template <typename Task, typename Generator, typename Predicate = std::function<bool(Task &)>>
+    requires Callable<Predicate, bool, Task &> && TaskGenerator<Task, Generator>
 class TaskRunner : public BaseTaskRunner<Task>
 {
   protected:
@@ -77,18 +79,21 @@ class TaskRunner : public BaseTaskRunner<Task>
   public:
     EventHandler<Task &> OnResultAcquired;
 
-    TaskRunner(Generator generator, Predicate stopCondition) : _generator(generator),_stopCondition(stopCondition)
+    TaskRunner(Generator generator, Predicate stopCondition) : _generator(generator), _stopCondition(stopCondition)
     {
     }
 
     void Execute()
     {
-        while (!_end)
-        {
-            auto &request = BaseTaskRunner<Task>::PullRequestFromQueue();
-            auto &task = _generator();
-            request->Enqueue(task);
-        }
+        auto executeThread = std::thread{[this]() {
+            while (!_end)
+            {
+                auto &request = BaseTaskRunner<Task>::PullRequestFromQueue();
+                auto &task = _generator();
+                request->Enqueue(task);
+            }
+        }};
+        executeThread.detach();
     }
 
     inline void Abort()
@@ -102,7 +107,7 @@ class TaskRunner : public BaseTaskRunner<Task>
             _end = true;
             BaseTaskRunner<Task>::StopNodes();
             OnResultAcquired.Invoke(task);
+            Abort();
         }
     }
 };
-

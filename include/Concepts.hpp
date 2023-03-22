@@ -82,3 +82,4 @@ template <typename Task> class IComputeObject
     virtual void Enqueue(Task &task) = 0;
     virtual void Abort() = 0;
 };
+

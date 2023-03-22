@@ -8,7 +8,7 @@
 
 SequentialGenerator::SequentialGenerator(int initialSequenceLength) : _current(*new std::string())
 {
-    for (int i = 0; i < initialSequenceLength; i++)
+    for (int i = 0; i < (initialSequenceLength>0?initialSequenceLength:1); i++)
     {
         _current += minCharInt;
     }
