@@ -38,7 +38,6 @@ int WaitAny(std::vector<WaitHandle *> handles)
     WaitHandle *result = nullptr;
     std::mutex lock{};
     AutoResetEvent onResult{false};
-    std::vector<std::thread*> waitThreads{};
     for (auto &handle : handles)
     {
         auto t = std::thread([&handle, &result, &onResult, &lock] {
@@ -50,7 +49,7 @@ int WaitAny(std::vector<WaitHandle *> handles)
                 onResult.Set();
             }
         });
-        waitThreads.push_back(&t);
+        t.detach();
     }
     int index = 0;
     onResult.WaitOne();
@@ -66,8 +65,6 @@ int WaitAny(std::vector<WaitHandle *> handles)
     lock.unlock();
     for (auto &handle : handles)
         handle->Set();
-    for (auto &t : waitThreads)
-        t->join();
     for (auto &handle : handles)
         handle->Reset();
     return index;
