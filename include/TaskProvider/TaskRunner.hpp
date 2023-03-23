@@ -6,28 +6,46 @@
 #include <list>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 template <typename Task>
 class BaseTaskRunner : public ISignalProvider<IComputeObject<Task>>, public ITaskProvider<IComputeObject<Task>, Task>
 {
+    using Node = IComputeObject<Task>;
   private:
     std::queue<IComputeObject<Task> *> _requests;
     AutoResetEvent _onTaskRequested{false};
+    AutoResetEvent _abortRequest{false};
     std::mutex _queueLock;
     std::vector<IComputeObject<Task> *> _dependentNodes;
+    bool _end = false;
 
   protected:
-    auto &PullRequestFromQueue()
+    inline bool ShouldEnd() const
+    {
+        return _end;
+    }
+    inline virtual void Abort()
+    {
+        _abortRequest.Set();
+        _end = true;
+    }
+
+    Node* PullRequestFromQueue()
     {
         _queueLock.lock();
         if (_requests.size() == 0)
         {
             _onTaskRequested.Reset();
             _queueLock.unlock();
-            _onTaskRequested.WaitOne();
+            if (WaitAny({&_onTaskRequested, &_abortRequest}))
+            {
+                _queueLock.unlock();
+                return nullptr;
+            }
             _queueLock.lock();
         }
-        auto &request = _requests.front();
+        auto request = _requests.front();
         _requests.pop();
         _queueLock.unlock();
         return request;
@@ -70,11 +88,11 @@ template <typename Task, typename Generator, typename Predicate = std::function<
     requires Callable<Predicate, bool, Task &> && TaskGenerator<Task, Generator>
 class TaskRunner : public BaseTaskRunner<Task>
 {
+    using Super = BaseTaskRunner<Task>;
+
   protected:
     Generator _generator;
     Predicate _stopCondition;
-    AutoResetEvent _onAbortRequested{false};
-    bool _end = false;
 
   public:
     EventHandler<Task &> OnResultAcquired;
@@ -86,28 +104,27 @@ class TaskRunner : public BaseTaskRunner<Task>
     void Execute()
     {
         auto executeThread = std::thread{[this]() {
-            while (!_end)
+            while (!Super::ShouldEnd())
             {
-                auto &request = BaseTaskRunner<Task>::PullRequestFromQueue();
-                auto &task = _generator();
-                request->Enqueue(task);
+                auto request = Super::PullRequestFromQueue();
+                if (request != nullptr)
+                {
+                    auto &task = _generator();
+                    request->Enqueue(task);
+                }
+                else return;
             }
         }};
         executeThread.detach();
     }
 
-    inline void Abort()
-    {
-        _onAbortRequested.Set();
-    }
     virtual void CheckResult(Task &task) override
     {
         if (_stopCondition(task))
         {
-            _end = true;
-            BaseTaskRunner<Task>::StopNodes();
+            Super::StopNodes();
             OnResultAcquired.Invoke(task);
-            Abort();
+            Super::Abort();
         }
     }
 };

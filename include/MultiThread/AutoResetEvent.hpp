@@ -8,11 +8,12 @@
 
 class WaitHandle
 {
-    friend int WaitAny(std::vector<WaitHandle *> &handles);
+    friend int WaitAny(std::vector<WaitHandle *> handles);
 
   protected:
-    virtual void SetWakeupFunction(std::function<void()> function) = 0;
-    virtual void UnsetWakeupFunction() = 0;
+    virtual void Reset() = 0;
+    virtual void Set() = 0;
+    virtual std::mutex& GetMutex() = 0;
 
   public:
     virtual void WaitOne() = 0;
@@ -25,17 +26,18 @@ class ResettableEvent : public WaitHandle
     std::condition_variable _var;
     bool _flag;
     bool _autoreset = false;
-    std::function<void()> *_wakeUpFunction = nullptr;
 
   protected:
-    void SetWakeupFunction(std::function<void()> function) final;
-    void UnsetWakeupFunction() final;
-
+    virtual std::mutex& GetMutex() override {return _lock;}
   public:
-    void Set();
-    void Reset();
-    virtual void WaitOne();
+    virtual void Set() override;
+    virtual void Reset() override;
+    virtual void WaitOne() override;
     ResettableEvent(bool Autoreset, bool initialState);
+    ~ResettableEvent()
+    {
+        Set();
+    }
 };
 
 class ManualResetEvent : public ResettableEvent
@@ -54,4 +56,4 @@ class AutoResetEvent : public ResettableEvent
     }
 };
 
-int WaitAny(std::vector<WaitHandle *> &handles);
+int WaitAny(std::vector<WaitHandle *> handles);

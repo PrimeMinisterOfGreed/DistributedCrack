@@ -1,27 +1,13 @@
 #include "MultiThread/AutoResetEvent.hpp"
 #include <mutex>
+#include <thread>
 #include <vector>
-
-void ResettableEvent::SetWakeupFunction(std::function<void()> function)
-{
-    _wakeUpFunction = &function;
-}
-
-void ResettableEvent::UnsetWakeupFunction()
-{
-    _wakeUpFunction = nullptr;
-}
 
 void ResettableEvent::Set()
 {
     std::lock_guard<std::mutex> l(_lock);
     _flag = true;
     _var.notify_one();
-    if (_wakeUpFunction != nullptr)
-    {
-        auto fnc = *_wakeUpFunction;
-        fnc();
-    }
 }
 
 void ResettableEvent::Reset()
@@ -47,25 +33,42 @@ ResettableEvent::ResettableEvent(bool Autoreset, bool initialState)
     _flag = initialState;
 }
 
-int WaitAny(std::vector<WaitHandle *> &handles)
+int WaitAny(std::vector<WaitHandle *> handles)
 {
-    AutoResetEvent wakeup{false};
-    std::unique_lock<std::mutex> lock{};
-    int result = -1;
+    WaitHandle *result = nullptr;
+    std::mutex lock{};
+    AutoResetEvent onResult{false};
+    std::vector<std::thread*> waitThreads{};
+    for (auto &handle : handles)
+    {
+        auto t = std::thread([&handle, &result, &onResult, &lock] {
+            handle->WaitOne();
+            lock.lock();
+            if (result == nullptr)
+            {
+                result = handle;
+                onResult.Set();
+            }
+        });
+        waitThreads.push_back(&t);
+    }
+    int index = 0;
+    onResult.WaitOne();
     for (int i = 0; i < handles.size(); i++)
     {
-        handles[i]->SetWakeupFunction([&result, i, &wakeup, &lock]() {
-            lock.lock();
-            result = i;
-            wakeup.Set();
-        });
+        if (result == handles[i])
+        {
+            index = i;
+            break;
+        }
     }
-    wakeup.WaitOne();
-    int constResult = result;
+
     lock.unlock();
-    for (auto handle : handles)
-    {
-        handle->UnsetWakeupFunction();
-    }
-    return constResult;
+    for (auto &handle : handles)
+        handle->Set();
+    for (auto &t : waitThreads)
+        t->join();
+    for (auto &handle : handles)
+        handle->Reset();
+    return index;
 };
