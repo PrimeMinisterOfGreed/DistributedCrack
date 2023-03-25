@@ -145,7 +145,7 @@ class HashNode : public ComputeNode<HashTask, Provider, Signaler>
                 task.result = result;
                 this->_provider.CheckResult(task);
             }
-            ev.completitions = chunkSize;
+             ev.completitions = chunkSize;
         });
         BaseComputeNode::_processor.AddEvent(res);
         Super::OnTaskCompleted.Invoke(task);

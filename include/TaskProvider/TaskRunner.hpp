@@ -12,6 +12,7 @@ template <typename Task>
 class BaseTaskRunner : public ISignalProvider<IComputeObject<Task>>, public ITaskProvider<IComputeObject<Task>, Task>
 {
     using Node = IComputeObject<Task>;
+
   private:
     std::queue<IComputeObject<Task> *> _requests;
     AutoResetEvent _onTaskRequested{false};
@@ -31,18 +32,14 @@ class BaseTaskRunner : public ISignalProvider<IComputeObject<Task>>, public ITas
         _end = true;
     }
 
-    Node* PullRequestFromQueue()
+    Node *PullRequestFromQueue()
     {
         _queueLock.lock();
         if (_requests.size() == 0)
         {
             _onTaskRequested.Reset();
             _queueLock.unlock();
-            if (WaitAny({&_onTaskRequested, &_abortRequest}))
-            {
-                _queueLock.unlock();
-                return nullptr;
-            }
+            _onTaskRequested.WaitOne();
             _queueLock.lock();
         }
         auto request = _requests.front();
@@ -112,7 +109,8 @@ class TaskRunner : public BaseTaskRunner<Task>
                     auto &task = _generator();
                     request->Enqueue(task);
                 }
-                else return;
+                else
+                    return;
             }
         }};
         executeThread.detach();

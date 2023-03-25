@@ -30,7 +30,7 @@ bool NullPredicate(HashTask& task){return task.result != nullptr;}
 TEST(TestRunner, test_local_runner)
 {
     auto engine = new ConsoleLogEngine(3);
-    auto targetHash = md5("!!!%");
+    auto targetHash = md5("!!!!");
     HashTaskGenerator gen(2000, targetHash ,4);
     TaskRunner<HashTask, HashTaskGenerator> tasker(gen, [](HashTask &task) { return task.result != nullptr; });
     auto &node = *new HashNode(Compute(md5), tasker, tasker, engine);
