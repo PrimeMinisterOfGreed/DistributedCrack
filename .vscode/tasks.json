@@ -10,9 +10,9 @@
 
             ],
             "presentation": {
-                "reveal": "always"
+                "reveal": "silent"
             },
-            "group": "none"
+            "group": "test"
         },
         {
             "label": "RUN MPI Valgrind",
@@ -23,9 +23,9 @@
 
             ],
             "presentation": {
-                "reveal": "always"
+                "reveal": "silent"
             },
-            "group": "none"
+            "group": "test"
         }
     ]
 }
