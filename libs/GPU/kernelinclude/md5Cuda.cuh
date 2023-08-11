@@ -8,7 +8,6 @@
 #include <cuda_runtime.h>
 #include <driver_types.h>
 
-
 #define uint uint32_t
 #define uchar uint8_t
 
@@ -68,63 +67,84 @@
 
 __device__ __host__ uint byteswap(uint word);
 __device__ __host__ void transform(uint state[4], const uchar block[block_size]);
-__device__ __host__ void md5(const uchar* data, const uint size, uint result[4]);
+__device__ __host__ void md5(const uchar *data, const uint size, uint result[4]);
 __host__ __device__ void md5(const uint8_t *data, uint32_t size, uint8_t *result);
-
 
 __host__ int md5_gpu(const char **data, uint32_t chunkSize, int threads, const char *targetDigest);
 __host__ void CheckGpuCondition();
 
-
 __host__ inline void LogError(cudaError_t cudaError)
 {
-    if (cudaError != cudaSuccess)
-    {
-        printf("Error on cuda execution: %s\n", cudaGetErrorString(cudaError));
-    }
+	if (cudaError != cudaSuccess)
+	{
+		//printf("Error on cuda execution: %s\n", cudaGetErrorString(cudaError));
+	}
 }
 
-template <typename T> void GpuMalloc(T **pointer, size_t size)
+template <typename T>
+void GpuMalloc(T **pointer, size_t size)
 {
-    LogError(cudaMalloc(pointer, sizeof(T) * size));
+	LogError(cudaMalloc(pointer, sizeof(T) * size));
 }
 
-template <typename T> void GpuCopy(T *dst, const T *src, size_t size, cudaMemcpyKind kind)
+template <typename T>
+void GpuCopy(T *dst, const T *src, size_t size, cudaMemcpyKind kind)
 {
-    LogError(cudaMemcpy(dst, src, sizeof(T) * size, kind));
+	LogError(cudaMemcpy(dst, src, sizeof(T) * size, kind));
 }
 
-template <typename T> void GpuManagedMalloc(T **pointer, size_t size)
+template <typename T>
+void GpuManagedMalloc(T **pointer, size_t size)
 {
-    LogError(cudaMallocManaged(pointer, sizeof(T) * size));
+	LogError(cudaMallocManaged(pointer, sizeof(T) * size));
 }
 
-template<typename T> void GpuFree(T** devPtr){
+template <typename T>
+void GpuFree(T **devPtr)
+{
 	LogError(cudaFree(devPtr));
 }
 
+void GpuMemSet(void *ptr, int value, size_t size);
 
+template <typename T>
+class GpuPtr
+{
+	T **ptr;
+	size_t size;
 
-template<typename T> class GpuPtr{
-	T ** ptr;
-	public:
-	GpuPtr(size_t size){
-		ptr = GpuMalloc(ptr, size);
+public:
+	GpuPtr(size_t size) : size{size}
+	{
+		GpuMalloc(ptr, size);
 	}
 
-	~GpuPtr(){
+	~GpuPtr()
+	{
 		GpuFree(ptr);
 	}
 
-	T** operator()(){return ptr;}
+	T* operator()(){return *ptr;}
+
+	void copyTo(T *hostPtr)
+	{
+		GpuCopy(hostPtr, *ptr, size, cudaMemcpyKind::cudaMemcpyDeviceToHost);
+	}
+
+	void copyFrom(T *hostPtr)
+	{
+		GpuCopy(*ptr, hostPtr, size, cudaMemcpyKind::cudaMemcpyHostToDevice);
+	}
 };
 
-class GpuStringArray{
-	GpuPtr<char>* ptr;
-	size_t * hostSizes;
-	GpuStringArray(const char ** hostArray, size_t hostSize);
-
-	~GpuStringArray(){
+class GpuStringArray
+{
+	GpuPtr<char> *ptr;
+	size_t *hostSizes;
+	GpuStringArray(const char **hostArray, size_t hostSize);
+	GpuStringArray(size_t stringSize, size_t arraySize);
+	~GpuStringArray()
+	{
 		free(hostSizes);
 		free(ptr);
 	}

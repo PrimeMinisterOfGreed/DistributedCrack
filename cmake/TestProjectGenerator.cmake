@@ -3,7 +3,7 @@ include(${CMAKE_SUPPORT_DIR}/FlagManager.cmake)
 
 function(generate_gtest)
     set(oneValueArgs SRC_DIR TEST_DIR INCLUDE_DIR MAIN_SRC_NAME)
-    set(multiValueArgs ADDITIONAL_TARGET_LIBS)
+    set(multiValueArgs ADDITIONAL_TARGET_LIBS TEST_INCLUDE_FOLDERS)
     set(options OPTIONAL COVERAGE)
     cmake_parse_arguments(G "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -32,7 +32,7 @@ endfunction()
 
 function(generate_gtest_cuda)
     set(oneValueArgs SRC_DIR TEST_DIR INCLUDE_DIR MAIN_SRC_NAME KERNEL_INCLUDE_DIR)
-    set(multiValueArgs ADDITIONAL_TARGET_LIBS)
+    set(multiValueArgs ADDITIONAL_TARGET_LIBS TEST_INCLUDE_FOLDERS)
     set(options OPTIONAL NONE)
     cmake_parse_arguments(G "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -41,7 +41,7 @@ function(generate_gtest_cuda)
     list(FILTER _SRC_MAIN EXCLUDE REGEX ${G_MAIN_SRC_NAME})
     add_executable(${PROJECT_NAME}_test ${_TEST_SRC} ${_SRC_MAIN})
     target_link_libraries(${PROJECT_NAME}_test PRIVATE GTest::gtest GTest::gtest_main ${G_ADDITIONAL_TARGET_LIBS})
-    target_include_directories(${PROJECT_NAME}_test PRIVATE ${G_INCLUDE_DIR} ${G_KERNEL_INCLUDE_DIR})
+    target_include_directories(${PROJECT_NAME}_test PRIVATE ${G_INCLUDE_DIR} ${G_KERNEL_INCLUDE_DIR} ${G_TEST_INCLUDE_FOLDERS})
     target_compile_options(${PROJECT_NAME}_test PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
         -g
         -G

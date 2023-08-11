@@ -3,7 +3,8 @@ enable_language(CUDA)
 find_package(CUDA REQUIRED)
 include(../../cmake/TestProjectGenerator.cmake)
 file(GLOB_RECURSE SRC_FILES src/*.cpp src/*.cu)
-set(CMAKE_CXX_STANDARD 17)
+
+
 set(CMAKE_CUDA_ARCHITECTURES 75)
 add_library(DistributedCrack.GPU SHARED ${SRC_FILES})
 target_include_directories(DistributedCrack.GPU PRIVATE  ./kernelinclude PUBLIC ${Boost_INCLUDE_DIRS} ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ./include)

@@ -2,7 +2,7 @@ CompileFlags:                     # Tweak the parse settings
   Add: 
   - -xcuda
 
-  Compiler: nvcc 
+  Compiler: gcc
 
 Diagnostics:
   Suppress:

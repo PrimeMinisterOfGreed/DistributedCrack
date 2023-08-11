@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <gtest/gtest.h>
 #include <string.h>
 #include <string>
 #include <sys/types.h>
@@ -54,5 +55,8 @@ int md5_gpu(const char ** chunk, int threads, const char* targetMd5, size_t chun
 {
     CheckGpuCondition();
     return md5_gpu(chunk, chunkSize, threads, targetMd5);
+    
 }
+
+
 
