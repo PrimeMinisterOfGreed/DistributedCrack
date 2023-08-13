@@ -77,7 +77,7 @@ __host__ inline void LogError(cudaError_t cudaError)
 {
 	if (cudaError != cudaSuccess)
 	{
-		//printf("Error on cuda execution: %s\n", cudaGetErrorString(cudaError));
+		// printf("Error on cuda execution: %s\n", cudaGetErrorString(cudaError));
 	}
 }
 
@@ -110,12 +110,13 @@ void GpuMemSet(void *ptr, int value, size_t size);
 template <typename T>
 class GpuPtr
 {
-	T **ptr;
+	T **ptr = nullptr;
 	size_t size;
 
 public:
 	GpuPtr(size_t size) : size{size}
 	{
+		ptr=NULL;
 		GpuMalloc(ptr, size);
 	}
 
@@ -124,28 +125,22 @@ public:
 		GpuFree(ptr);
 	}
 
-	T* operator()(){return *ptr;}
+	T *operator()() { return *ptr; }
 
 	void copyTo(T *hostPtr)
 	{
 		GpuCopy(hostPtr, *ptr, size, cudaMemcpyKind::cudaMemcpyDeviceToHost);
 	}
 
-	void copyFrom(T *hostPtr)
+	void copyFrom(const T *hostPtr)
 	{
 		GpuCopy(*ptr, hostPtr, size, cudaMemcpyKind::cudaMemcpyHostToDevice);
 	}
 };
 
-class GpuStringArray
+class GpuString
 {
-	GpuPtr<char> *ptr;
-	size_t *hostSizes;
-	GpuStringArray(const char **hostArray, size_t hostSize);
-	GpuStringArray(size_t stringSize, size_t arraySize);
-	~GpuStringArray()
-	{
-		free(hostSizes);
-		free(ptr);
-	}
+	GpuPtr<char> ptr;
+	public:
+	
 };

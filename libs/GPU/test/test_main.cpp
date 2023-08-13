@@ -7,6 +7,7 @@
 int main(int argc, char **argv)
 {
     testing::InitGoogleTest(&argc, argv);
+    CheckGpuCondition();
     return RUN_ALL_TESTS();
 }
 

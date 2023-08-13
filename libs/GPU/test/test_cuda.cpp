@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 #include <cuda.h>
 #include <md5Cuda.cuh>
-#include <support.cuh>
+
+template<typename T>
+extern void diff(T *a, T *b, T *c, size_t size);
 
 TEST(testGPU, test_ptr)
 {
@@ -14,7 +16,7 @@ TEST(testGPU, test_ptr)
 
 TEST(testGPU, test_ptr_compare)
 {
-    uint8_t buffer[100]{};
+    auto buffer = new uint8_t[100]{}; 
     for (uint8_t i = 0; i < 100; i++)
         buffer[i] = i;
     auto a = GpuPtr<uint8_t>{100};

@@ -200,26 +200,5 @@ void GpuMemSet(void *ptr, int value, size_t size)
     LogError(cudaMemset(ptr,value,size));
 }
 
-GpuStringArray::GpuStringArray(const char **data, size_t size)
-{
-    hostSizes = (size_t*)malloc(size * sizeof(size_t));
-    for (size_t i = 0; i < size; i++)
-    {
-        hostSizes[i] = strlen(data[i]);
-    }
     
-}
 
-
-GpuStringArray::GpuStringArray(size_t stringSize, size_t arraySize){
-    hostSizes = (size_t*)malloc(arraySize*sizeof(size_t));
-        for (size_t i = 0; i < arraySize; i++)
-    {
-        hostSizes[i] = stringSize;
-    }
-
-    
-   
-    
-    
-}
