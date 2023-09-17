@@ -24,7 +24,7 @@ function(generate_gtest)
     file(GLOB_RECURSE _SRC_MAIN ${G_SRC_DIR}/*.cpp)
     list(FILTER _SRC_MAIN EXCLUDE REGEX ${G_MAIN_SRC_NAME})
     add_executable(${PROJECT_NAME}_test ${_TEST_SRC} ${_SRC_MAIN})
-
+    target_compile_definitions(${PROJECT_NAME}_test PRIVATE UNITTEST)
     target_link_libraries(${PROJECT_NAME}_test PRIVATE GTest::gtest GTest::gtest_main ${G_ADDITIONAL_TARGET_LIBS} gcov)
     target_include_directories(${PROJECT_NAME}_test PRIVATE ${G_INCLUDE_DIR})
     gtest_discover_tests(${PROJECT_NAME}_test)
