@@ -13,18 +13,19 @@
 
 enum AsyncType { START, THEN, RESULT };
 
-template <typename T = void, typename... Args> class BasePromise : public Task {
+template <typename T = void, typename... Args> class Executable : public Task {
 
 protected:
   std::function<T(Args...)> _fnc;
   AsyncType type = START;
   std::tuple<Args...> _args;
-  BasePromise(std::function<T(Args...)> fnc, AsyncType type, Args... args)
+  Executable(std::function<T(Args...)> fnc, AsyncType type, Args... args)
       : type(type), _fnc(fnc), _args(args...) {}
+  Task *_father;
 
 public:
-  BasePromise(std::function<T(Args...)> fnc, Args... args)
-      : BasePromise<T, Args...>{fnc, START, args...} {}
+  Executable(std::function<T(Args...)> fnc, Args... args)
+      : Executable<T, Args...>{fnc, START, args...} {}
 
   void operator()() {
     using ret = T;
@@ -36,22 +37,18 @@ public:
   }
 };
 
-template <typename T = void, typename... Args>
-class Promise : public BasePromise<T, Args...> {
-
+template <typename T = void, typename... Args> class Promise {
   using F = std::function<T(Args...)>;
 
-protected:
-  AsyncType _type = START;
-  Task *_father = nullptr;
-
-  Promise(Task *father, F fnc, Args... args)
-      : Promise<T, Args...>(fnc, args...) {
-    _father = father;
-  }
+private:
+  Task *lastTask;
 
 public:
-  Promise(F fnc, Args... args) : BasePromise<T, Args...>(fnc, args...) {
-    Scheduler::main().schedule(this);
+  Promise(F fnc) {
+    auto alloc = new Executable<T, Args...>{fnc};
+    lastTask = alloc;
+    Scheduler::main().schedule(alloc);
   }
+
+  template <typename K = void> Promise &&then(std::function<K(T)> fnc) {}
 };

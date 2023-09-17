@@ -18,12 +18,6 @@
 #include <thread>
 #include <utility>
 
-template <typename... Args> struct Executable : public Task {
-  std::function<void(Args...)> _fnc;
-  Executable(std::function<void(Args...)> fnc) : _fnc(fnc) {}
-  void operator()() override { _fnc(); }
-};
-
 TEST(TestHandler, test_event_handler) {
   EventHandler<> handler{};
   handler += new FunctionHandler([]() {});
@@ -31,20 +25,20 @@ TEST(TestHandler, test_event_handler) {
 
 TEST(TestPromise, test_promise_execution) {
   int a = 0;
-  auto p = BasePromise<>([&a]() mutable { a = 1; });
+  auto p = Executable<>([&a]() mutable { a = 1; });
   p();
   ASSERT_EQ(a, 1);
 }
 
 TEST(TestPromise, test_argumented_promise) {
   int a = 0;
-  auto p = BasePromise<void, int &>([](int &a) { a = 10; }, a);
+  auto p = Executable<void, int &>([](int &a) { a = 10; }, a);
   p();
   ASSERT_EQ(a, 10);
 }
 
 TEST(TestPromise, test_return) {
-  auto p = BasePromise<int>([] { return 10; });
+  auto p = Executable<int>([] { return 10; });
   p();
   auto value = p.result().reintepret<int>();
   ASSERT_EQ(value, 10);
