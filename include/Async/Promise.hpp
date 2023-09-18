@@ -24,14 +24,14 @@ protected:
   std::tuple<Args...> _args;
   Executable(std::function<T(Args...)> fnc, AsyncType type, Args... args)
       : type(type), _fnc(fnc), _args(args...) {}
-  Task *_father = nullptr;
 
 public:
   Executable(std::function<T(Args...)> fnc, Args... args)
       : Executable<T, Args...>{fnc, START, args...} {}
 
-  Executable(std::function<T(Args...)> fnc, Task *father)
-      : _fnc(fnc), _father(father) {}
+  Executable(std::function<T(Args...)> fnc, Task *father) : _fnc(fnc) {
+    _father = father;
+  }
 
   void operator()() {
     using ret = T;
@@ -54,6 +54,13 @@ public:
       this->_result.emplace(std::apply(_fnc, _args));
     }
     _state = RESOLVED;
+    _executed.Set();
+  }
+  virtual ~Executable() {
+    if (_father != nullptr) {
+      delete _father;
+    }
+    Task::~Task();
   }
 };
 
@@ -67,6 +74,7 @@ public:
   Promise(F fnc, Task *last) {
     auto alloc = new Executable<T, Args...>{fnc, last};
     Scheduler::main().schedule(alloc);
+    lastTask->set_children(alloc);
     last = alloc;
   }
 
@@ -77,13 +85,13 @@ public:
   }
 
   template <typename K = void>
-  Promise<K, T> &&then(auto fnc)
+  Promise<K, T> then(auto fnc)
     requires(!std::is_void_v<T>)
   {
     return Promise<K, T>{fnc, lastTask};
   }
 
-  template <typename K = void> Promise<K> &&then(std::function<K(void)> fnc) {
+  template <typename K = void> Promise<K> then(std::function<K(void)> fnc) {
     return Promise<K>{fnc};
   }
 };

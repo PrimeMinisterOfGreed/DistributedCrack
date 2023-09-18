@@ -11,6 +11,14 @@ void Scheduler::start() {}
 
 void Scheduler::stop() {}
 
+void Scheduler::reset() {
+  while (!mq.empty()) {
+    auto *t = mq.front();
+    delete t;
+    mq.pop();
+  }
+}
+
 Scheduler &Scheduler::main() { return *_instance; }
 
 Executor::Executor() {}
@@ -23,6 +31,9 @@ void Executor::assign(Task *task) {
         Task *t = mq.front();
         status = PROCESSING;
         (*t)();
+        if (t->_children == nullptr) {
+          delete t;
+        }
         mq.pop();
         status = WAITING_EXECUTION;
       }

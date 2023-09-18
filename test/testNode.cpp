@@ -19,6 +19,16 @@
 #include <type_traits>
 #include <utility>
 
+class TestPromise : testing::Test {
+public:
+  virtual void SetUp() { Scheduler::main().start(); }
+
+  virtual void TearDown() {
+    Scheduler::main().stop();
+    Scheduler::main().reset();
+  }
+};
+
 TEST(TestHandler, test_event_handler) {
   EventHandler<> handler{};
   handler += new FunctionHandler([]() {});

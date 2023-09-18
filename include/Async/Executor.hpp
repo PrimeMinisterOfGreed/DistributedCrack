@@ -1,4 +1,6 @@
 #pragma once
+#include "MultiThread/AutoResetEvent.hpp"
+#include <condition_variable>
 #include <cstring>
 #include <memory>
 #include <queue>
@@ -30,18 +32,27 @@ public:
   }
 };
 
+class Executor;
 class Task {
+  friend class Executor;
+
 protected:
   enum AsyncType { START, THEN, RESULT };
   enum AsyncState { WAITING_EXECUTION, RESOLVED };
   AsyncState _state = WAITING_EXECUTION;
   DynData _result;
+  ManualResetEvent _executed{false};
+  Task *_father = nullptr;
+  Task *_children = nullptr;
 
 public:
   virtual void operator()() = 0;
   virtual ~Task() = default;
   AsyncState state() const { return _state; }
   DynData &result() { return this->_result; }
+  void wait() { _executed.WaitOne(); }
+  void set_children(Task *task) { _children = task; }
+  void set_father(Task *task) { _father = task; }
 };
 
 class Executor {
@@ -61,11 +72,15 @@ public:
 };
 
 class Scheduler {
+private:
+  std::vector<Executor> _executors{};
+  int _previousCount = 0;
 
 public:
   void schedule(Task *task);
   void start();
   void stop();
+  void reset();
   static Scheduler &main();
 #ifndef UNITTEST
 protected:
