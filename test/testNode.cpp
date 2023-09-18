@@ -33,7 +33,7 @@ TEST(TestPromise, test_promise_execution) {
 
 TEST(TestPromise, test_argumented_promise) {
   int a = 0;
-  auto p = Executable<void, int &>([](int &a) { a = 10; }, a);
+  auto p = Executable<void, int>([&a](int b) { a = b; }, 10);
   p();
   ASSERT_EQ(a, 10);
 }
@@ -82,3 +82,17 @@ TEST(TestPromise, test_then) {
   t();
   ASSERT_EQ(2, a);
 };
+
+TEST(TestPromise, test_promise_return) {
+  int a = 0;
+  Promise<int>{[]() { return 1; }}.then<int>([&a](int ns) {
+    a = ns;
+    return 0;
+  });
+  Task &p = *Scheduler::main().mq.front();
+  p();
+  Scheduler::main().mq.pop();
+  Task &t = *Scheduler::main().mq.front();
+  t();
+  ASSERT_EQ(1, a);
+}

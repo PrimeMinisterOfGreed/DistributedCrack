@@ -1,6 +1,8 @@
 
 #pragma once
 #include "Async/Executor.hpp"
+#include <bits/utility.h>
+#include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdlib>
@@ -10,8 +12,6 @@
 #include <optional>
 #include <tuple>
 #include <type_traits>
-
-enum AsyncType { START, THEN, RESULT };
 
 template <typename T, typename... Args> class Promise;
 
@@ -24,19 +24,36 @@ protected:
   std::tuple<Args...> _args;
   Executable(std::function<T(Args...)> fnc, AsyncType type, Args... args)
       : type(type), _fnc(fnc), _args(args...) {}
-  Task *_father;
+  Task *_father = nullptr;
 
 public:
   Executable(std::function<T(Args...)> fnc, Args... args)
       : Executable<T, Args...>{fnc, START, args...} {}
 
+  Executable(std::function<T(Args...)> fnc, Task *father)
+      : _fnc(fnc), _father(father) {}
+
   void operator()() {
     using ret = T;
+    if (_father != nullptr) {
+      if (_father->state() != RESOLVED) {
+        (*_father)();
+      }
+      if constexpr (sizeof...(Args) > 0) {
+        if constexpr (std::is_void_v<T>) {
+          _fnc(_father->result().reintepret<Args...>());
+        } else {
+          _result.emplace(_fnc(_father->result().reintepret<Args...>()));
+        }
+        return;
+      }
+    }
     if constexpr (std::is_void_v<ret>) {
       std::apply(_fnc, _args);
     } else {
       this->_result.emplace(std::apply(_fnc, _args));
     }
+    _state = RESOLVED;
   }
 };
 
@@ -46,13 +63,13 @@ template <typename T = void, typename... Args> class Promise {
 private:
   Task *lastTask;
 
+public:
   Promise(F fnc, Task *last) {
-    auto alloc = new Executable<T, Args...>{fnc};
-    alloc->_father = last;
+    auto alloc = new Executable<T, Args...>{fnc, last};
     Scheduler::main().schedule(alloc);
+    last = alloc;
   }
 
-public:
   Promise(F fnc) {
     auto alloc = new Executable<T, Args...>{fnc};
     lastTask = alloc;
@@ -67,6 +84,6 @@ public:
   }
 
   template <typename K = void> Promise<K> &&then(std::function<K(void)> fnc) {
-    return Promise<K>{fnc, lastTask};
+    return Promise<K>{fnc};
   }
 };

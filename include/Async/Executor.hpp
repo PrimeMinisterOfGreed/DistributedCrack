@@ -32,11 +32,15 @@ public:
 
 class Task {
 protected:
+  enum AsyncType { START, THEN, RESULT };
+  enum AsyncState { WAITING_EXECUTION, RESOLVED };
+  AsyncState _state = WAITING_EXECUTION;
   DynData _result;
 
 public:
   virtual void operator()() = 0;
   virtual ~Task() = default;
+  AsyncState state() const { return _state; }
   DynData &result() { return this->_result; }
 };
 
