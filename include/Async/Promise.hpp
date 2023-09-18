@@ -13,7 +13,10 @@
 
 enum AsyncType { START, THEN, RESULT };
 
+template <typename T, typename... Args> class Promise;
+
 template <typename T = void, typename... Args> class Executable : public Task {
+  friend class Promise<T, Args...>;
 
 protected:
   std::function<T(Args...)> _fnc;
@@ -43,6 +46,12 @@ template <typename T = void, typename... Args> class Promise {
 private:
   Task *lastTask;
 
+  Promise(F fnc, Task *last) {
+    auto alloc = new Executable<T, Args...>{fnc};
+    alloc->_father = last;
+    Scheduler::main().schedule(alloc);
+  }
+
 public:
   Promise(F fnc) {
     auto alloc = new Executable<T, Args...>{fnc};
@@ -50,5 +59,14 @@ public:
     Scheduler::main().schedule(alloc);
   }
 
-  template <typename K = void> Promise &&then(std::function<K(T)> fnc) {}
+  template <typename K = void>
+  Promise<K, T> &&then(auto fnc)
+    requires(!std::is_void_v<T>)
+  {
+    return Promise<K, T>{fnc, lastTask};
+  }
+
+  template <typename K = void> Promise<K> &&then(std::function<K(void)> fnc) {
+    return Promise<K>{fnc, lastTask};
+  }
 };

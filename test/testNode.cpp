@@ -16,6 +16,7 @@
 #include <md5.hpp>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <utility>
 
 TEST(TestHandler, test_event_handler) {
@@ -46,7 +47,7 @@ TEST(TestPromise, test_return) {
 
 TEST(TestPromise, test_promise) {
   int a = 10;
-  Promise<> promise{[&a]() { a = 11; }};
+  Promise<>{[&a]() { a++; }};
   Task &p = *Scheduler::main().mq.front();
   p();
   ASSERT_EQ(11, a);
@@ -70,3 +71,14 @@ TEST(TestExecutor, test_deferred_execution) {
   event.WaitOne();
   ASSERT_EQ(a, 20);
 }
+
+TEST(TestPromise, test_then) {
+  int a = 0;
+  Promise<>{[&a] { a++; }}.then<void>([&a]() { a++; });
+  Task &p = *Scheduler::main().mq.front();
+  p();
+  Scheduler::main().mq.pop();
+  Task &t = *Scheduler::main().mq.front();
+  t();
+  ASSERT_EQ(2, a);
+};
