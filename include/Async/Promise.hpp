@@ -74,8 +74,8 @@ public:
   Promise(F fnc, Task *last) {
     auto alloc = new Executable<T, Args...>{fnc, last};
     Scheduler::main().schedule(alloc);
-    lastTask->set_children(alloc);
-    last = alloc;
+    last->set_children(alloc);
+    lastTask = alloc;
   }
 
   Promise(F fnc) {
@@ -94,4 +94,6 @@ public:
   template <typename K = void> Promise<K> then(std::function<K(void)> fnc) {
     return Promise<K>{fnc};
   }
+
+  void wait() { lastTask->wait(); }
 };

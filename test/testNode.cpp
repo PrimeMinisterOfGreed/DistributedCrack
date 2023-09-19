@@ -19,7 +19,7 @@
 #include <type_traits>
 #include <utility>
 
-class TestPromise : testing::Test {
+class TestPromise : public testing::Test {
 public:
   virtual void SetUp() { Scheduler::main().start(); }
 
@@ -34,28 +34,28 @@ TEST(TestHandler, test_event_handler) {
   handler += new FunctionHandler([]() {});
 }
 
-TEST(TestPromise, test_promise_execution) {
+TEST(TestExecutable, test_promise_execution) {
   int a = 0;
   auto p = Executable<>([&a]() mutable { a = 1; });
   p();
   ASSERT_EQ(a, 1);
 }
 
-TEST(TestPromise, test_argumented_promise) {
+TEST(TestExecutable, test_argumented_promise) {
   int a = 0;
   auto p = Executable<void, int>([&a](int b) { a = b; }, 10);
   p();
   ASSERT_EQ(a, 10);
 }
 
-TEST(TestPromise, test_return) {
+TEST(TestExecutable, test_return) {
   auto p = Executable<int>([] { return 10; });
   p();
   auto value = p.result().reintepret<int>();
   ASSERT_EQ(value, 10);
 }
 
-TEST(TestPromise, test_promise) {
+TEST(TestExecutable, test_promise) {
   int a = 10;
   Promise<>{[&a]() { a++; }};
   Task &p = *Scheduler::main().mq.front();
@@ -82,7 +82,7 @@ TEST(TestExecutor, test_deferred_execution) {
   ASSERT_EQ(a, 20);
 }
 
-TEST(TestPromise, test_then) {
+TEST(TestExecutable, test_then) {
   int a = 0;
   Promise<>{[&a] { a++; }}.then<void>([&a]() { a++; });
   Task &p = *Scheduler::main().mq.front();
@@ -93,7 +93,7 @@ TEST(TestPromise, test_then) {
   ASSERT_EQ(2, a);
 };
 
-TEST(TestPromise, test_promise_return) {
+TEST(TestExecutable, test_promise_return) {
   int a = 0;
   Promise<int>{[]() { return 1; }}.then<int>([&a](int ns) {
     a = ns;
@@ -105,4 +105,10 @@ TEST(TestPromise, test_promise_return) {
   Task &t = *Scheduler::main().mq.front();
   t();
   ASSERT_EQ(1, a);
+}
+
+TEST_F(TestPromise, test_auto_execution) {
+  int a = 0;
+  Promise<int>{[]() { return 10; }}.then([&a](int b) { a = b; }).wait();
+  ASSERT_EQ(a, 10);
 }

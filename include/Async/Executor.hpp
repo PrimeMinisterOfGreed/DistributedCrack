@@ -1,8 +1,10 @@
 #pragma once
 #include "MultiThread/AutoResetEvent.hpp"
 #include <condition_variable>
+#include <cstddef>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <queue>
 #include <thread>
 #include <vector>
@@ -28,6 +30,7 @@ public:
   ~DynData() {
     if (ptr != nullptr) {
       free(ptr);
+      ptr = nullptr;
     }
   }
 };
@@ -56,11 +59,12 @@ public:
 };
 
 class Executor {
+public:
   enum State { IDLE, PROCESSING, WAITING_EXECUTION };
 #ifndef UNITTEST
 protected:
 #endif
-  std::thread _executingThread{};
+  std::thread *_executingThread = nullptr;
   std::queue<Task *> mq{};
   State status = IDLE;
   bool _end = false;
@@ -68,24 +72,34 @@ protected:
 public:
   Executor();
   void assign(Task *task);
+  int count() const { return mq.size(); }
+  State state() const { return status; }
   ~Executor();
 };
 
 class Scheduler {
 private:
-  std::vector<Executor> _executors{};
+  std::vector<Executor *> _executors{};
   int _previousCount = 0;
+  bool _end = false;
+  std::thread *_executionThread = nullptr;
 
 public:
   void schedule(Task *task);
   void start();
   void stop();
   void reset();
+
   static Scheduler &main();
+  bool AssignToIdle(Task *task);
+  bool AssignToLowerCharged(Task *task);
 #ifndef UNITTEST
 protected:
 #endif
   std::queue<Task *> mq{};
-  Scheduler() {}
+  Scheduler();
+  ~Scheduler();
   static Scheduler *_instance;
+
+  void routine();
 };
