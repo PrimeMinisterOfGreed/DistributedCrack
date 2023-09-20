@@ -2,11 +2,25 @@
 #include "Macro.hpp"
 #include <cstddef>
 #include <exception>
+#include <mutex>
+#include <optional>
 #include <thread>
 
 Scheduler *Scheduler::_instance = new Scheduler();
 
-void Scheduler::schedule(Task *task) { mq.push(task); }
+void Scheduler::schedule(Task *task) {
+  std::lock_guard lock{schedLock};
+  mq.push(task);
+}
+
+std::optional<Task *> Scheduler::take() {
+  std::lock_guard lock{schedLock};
+  if (mq.size() == 0)
+    return {};
+  auto *v = mq.front();
+  mq.pop();
+  return {v};
+}
 
 void Scheduler::start() {
   if (_executionThread == nullptr) {
@@ -21,16 +35,15 @@ void Scheduler::routine() {
     // executors
     if (_executors.size() == 0) {
       _executors.push_back(new Executor());
+      _executors.at(0)->start();
     }
-    auto task = mq.front();
-    if (task == nullptr)
+    auto task = take();
+    if (!task.has_value())
       continue;
-    if (AssignToIdle(task)) {
-      mq.pop();
+    if (AssignToIdle(task.value())) {
       continue;
     }
-    if (AssignToLowerCharged(task)) {
-      mq.pop();
+    if (AssignToLowerCharged(task.value())) {
       continue;
     }
 
@@ -41,6 +54,7 @@ void Scheduler::routine() {
 void Scheduler::stop() {}
 
 void Scheduler::reset() {
+  std::lock_guard lock{schedLock};
   while (!mq.empty()) {
     auto *t = mq.front();
     delete t;
@@ -53,7 +67,7 @@ void Scheduler::reset() {
 
 Scheduler &Scheduler::main() { return *_instance; }
 
-Scheduler::Scheduler() { _executors.push_back(new Executor{}); }
+Scheduler::Scheduler() {}
 
 Scheduler::~Scheduler() {
   _end = true;
@@ -70,34 +84,47 @@ bool Scheduler::AssignToIdle(Task *task) {
   return false;
 }
 
-bool Scheduler::AssignToLowerCharged(Task *task) {}
+bool Scheduler::AssignToLowerCharged(Task *task) { return false; }
+
+std::optional<Task *> Executor::take() {
+  std::lock_guard<std::mutex> lock{queueLock};
+  if (mq.size() > 0) {
+    auto v = mq.front();
+    mq.pop();
+    return {v};
+  }
+  return {};
+}
+
+void Executor::push(Task *task) {
+  std::lock_guard<std::mutex> lock{queueLock};
+  mq.push(task);
+}
 
 Executor::Executor() {}
 
-void Executor::assign(Task *task) {
-  if (status == IDLE) {
-    if (_executingThread != nullptr) {
-      delete _executingThread;
-      _executingThread = nullptr;
-    }
-    mq.push(task);
-    _executingThread = new std::thread{[this]() {
-      while (!_end && mq.size() > 0) {
-        Task *t = mq.front();
-        status = PROCESSING;
-        (*t)();
-        if (t->_children == nullptr) {
-          delete t;
-        }
-        mq.pop();
-        status = WAITING_EXECUTION;
+void Executor::assign(Task *task) { push(task); }
+
+void Executor::start() {
+  if (_executingThread != nullptr)
+    return;
+  _executingThread = new std::thread{[this]() {
+    while (!_end) {
+      auto v = take();
+      if (!v.has_value())
+        continue;
+      auto t = v.value();
+      status = PROCESSING;
+      (*t)();
+      if (t->_children == nullptr) {
+        delete t;
       }
-      status = IDLE;
-    }};
-    _executingThread->detach();
-  } else {
-    mq.push(task);
-  }
+
+      status = WAITING_EXECUTION;
+    }
+    status = IDLE;
+  }};
+  _executingThread->detach();
 }
 
 Executor::~Executor() { _end = true; }

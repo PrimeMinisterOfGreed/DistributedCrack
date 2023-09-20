@@ -45,6 +45,8 @@ public:
         } else {
           _result.emplace(_fnc(_father->result().reintepret<Args...>()));
         }
+        _state = RESOLVED;
+        _executed.Set();
         return;
       }
     }
@@ -84,14 +86,14 @@ public:
     Scheduler::main().schedule(alloc);
   }
 
-  template <typename K = void>
+  template <typename K>
   Promise<K, T> then(auto fnc)
     requires(!std::is_void_v<T>)
   {
     return Promise<K, T>{fnc, lastTask};
   }
 
-  template <typename K = void> Promise<K> then(std::function<K(void)> fnc) {
+  template <typename K> Promise<K> then(std::function<K(void)> fnc) {
     return Promise<K>{fnc};
   }
 

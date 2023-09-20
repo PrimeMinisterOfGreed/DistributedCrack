@@ -109,7 +109,7 @@ TEST(TestExecutable, test_promise_return) {
 
 TEST_F(TestPromise, test_auto_execution) {
   int a = 0;
-  Promise<int>{[]() { return 10; }}.then([&a](int b) { a = b; }).wait();
+  Promise<int>{[]() { return 10; }}.then<void>([&a](int b) { a = b; }).wait();
   ASSERT_EQ(a, 10);
 }
 
@@ -118,7 +118,7 @@ TEST_F(TestPromise, test_complex_execution) {
   Promise<int>{[]() { return 1 + 2; }}
       .then<int>([](auto a) { return a + 3; })
       .then<int>([](auto c) { return c + 3; })
-      .then([&a](auto d) { a = d; })
+      .then<void>([&a](auto d) { a = d; })
       .wait();
   ASSERT_EQ(a, 9);
 }

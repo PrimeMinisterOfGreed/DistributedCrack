@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstring>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <queue>
 #include <thread>
@@ -68,10 +69,14 @@ protected:
   std::queue<Task *> mq{};
   State status = IDLE;
   bool _end = false;
+  std::mutex queueLock{};
+  std::optional<Task *> take();
+  void push(Task *task);
 
 public:
   Executor();
   void assign(Task *task);
+  void start();
   int count() const { return mq.size(); }
   State state() const { return status; }
   ~Executor();
@@ -83,6 +88,7 @@ private:
   int _previousCount = 0;
   bool _end = false;
   std::thread *_executionThread = nullptr;
+  std::mutex schedLock{};
 
 public:
   void schedule(Task *task);
@@ -93,6 +99,7 @@ public:
   static Scheduler &main();
   bool AssignToIdle(Task *task);
   bool AssignToLowerCharged(Task *task);
+  std::optional<Task *> take();
 #ifndef UNITTEST
 protected:
 #endif
