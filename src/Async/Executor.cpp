@@ -5,6 +5,7 @@
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <utility>
 
 Scheduler *Scheduler::_instance = new Scheduler();
 
@@ -40,14 +41,14 @@ void Scheduler::routine() {
     auto task = take();
     if (!task.has_value())
       continue;
-    if (AssignToIdle(task.value())) {
+    else if (AssignToIdle(task.value()) || AssignToLowerCharged(task.value())) {
       continue;
+    } else {
+      auto executor = new Executor();
+      executor->start();
+      _executors.push_back(executor);
+      executor->assign(task.value());
     }
-    if (AssignToLowerCharged(task.value())) {
-      continue;
-    }
-
-    // measure and spawn a new thread
   }
 }
 
@@ -84,7 +85,23 @@ bool Scheduler::AssignToIdle(Task *task) {
   return false;
 }
 
-bool Scheduler::AssignToLowerCharged(Task *task) { return false; }
+bool Scheduler::AssignToLowerCharged(Task *task) {
+  std::pair<int, int> minQueue = {_executors[0]->count(), 0};
+  int k = 0;
+  for (auto ex : _executors) {
+    if (ex->count() < minQueue.first) {
+      minQueue.first = ex->count();
+      minQueue.second = k;
+    }
+    k++;
+  }
+
+  if (minQueue.first < _maxEnqueueDegree) {
+    _executors.at(minQueue.second)->assign(task);
+    return true;
+  }
+  return false;
+}
 
 std::optional<Task *> Executor::take() {
   std::lock_guard<std::mutex> lock{queueLock};

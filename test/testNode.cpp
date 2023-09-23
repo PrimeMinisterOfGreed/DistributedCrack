@@ -122,3 +122,21 @@ TEST_F(TestPromise, test_complex_execution) {
       .wait();
   ASSERT_EQ(a, 9);
 }
+
+TEST_F(TestPromise, test_nested_promise) {
+  int a = 0;
+  AutoResetEvent evt{false};
+  Promise<>{[&a, &evt] {
+    for (int i = 0; i < 100; i++) {
+      if (i == 99) {
+        Promise<>{[&a, &evt]() {
+          a++;
+          evt.Set();
+        }};
+      } else {
+        Promise<>{[&a]() { a++; }};
+      }
+    }
+  }};
+  evt.WaitOne();
+}

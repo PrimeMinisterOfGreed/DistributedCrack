@@ -89,13 +89,14 @@ private:
   bool _end = false;
   std::thread *_executionThread = nullptr;
   std::mutex schedLock{};
+  int _maxEnqueueDegree = 10;
 
 public:
   void schedule(Task *task);
   void start();
   void stop();
   void reset();
-
+  void setMaxEnqueueDegree(int maxdegree) { _maxEnqueueDegree = maxdegree; }
   static Scheduler &main();
   bool AssignToIdle(Task *task);
   bool AssignToLowerCharged(Task *task);
