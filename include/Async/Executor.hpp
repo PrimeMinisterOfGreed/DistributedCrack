@@ -3,6 +3,7 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -39,15 +40,24 @@ public:
 class Executor;
 class Task {
   friend class Executor;
+  ManualResetEvent _executed{false};
 
 protected:
   enum AsyncType { START, THEN, RESULT };
   enum AsyncState { WAITING_EXECUTION, RESOLVED };
   AsyncState _state = WAITING_EXECUTION;
   DynData _result;
-  ManualResetEvent _executed{false};
   Task *_father = nullptr;
   Task *_children = nullptr;
+  std::optional<std::function<void(Task *)>> onCompleted{};
+  void resolve() {
+    _state = RESOLVED;
+    _executed.Set();
+    if (onCompleted.has_value()) {
+      onCompleted.value()(this);
+      onCompleted.reset();
+    }
+  }
 
 public:
   virtual void operator()() = 0;
@@ -57,6 +67,9 @@ public:
   void wait() { _executed.WaitOne(); }
   void set_children(Task *task) { _children = task; }
   void set_father(Task *task) { _father = task; }
+  void set_resolve_handler(std::function<void(Task *)> fnc) {
+    onCompleted.emplace(fnc);
+  }
 };
 
 class Executor {

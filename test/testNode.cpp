@@ -6,6 +6,7 @@
 #include "LogEngine.hpp"
 #include "MultiThread/AutoResetEvent.hpp"
 #include "OptionsBag.hpp"
+#include "TestEnvironment.hpp"
 #include <StringGenerator.hpp>
 #include <boost/mpi.hpp>
 #include <boost/program_options/variables_map.hpp>
@@ -19,15 +20,7 @@
 #include <type_traits>
 #include <utility>
 
-class TestPromise : public testing::Test {
-public:
-  virtual void SetUp() { Scheduler::main().start(); }
-
-  virtual void TearDown() {
-    Scheduler::main().stop();
-    Scheduler::main().reset();
-  }
-};
+class TestPromise : public TestEnvironment {};
 
 TEST(TestHandler, test_event_handler) {
   EventHandler<> handler{};

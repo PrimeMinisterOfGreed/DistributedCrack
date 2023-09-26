@@ -46,7 +46,7 @@ public:
           _result.emplace(_fnc(_father->result().reintepret<Args...>()));
         }
         _state = RESOLVED;
-        _executed.Set();
+        resolve();
         return;
       }
     }
@@ -56,7 +56,7 @@ public:
       this->_result.emplace(std::apply(_fnc, _args));
     }
     _state = RESOLVED;
-    _executed.Set();
+    resolve();
   }
   virtual ~Executable() {
     if (_father != nullptr) {
