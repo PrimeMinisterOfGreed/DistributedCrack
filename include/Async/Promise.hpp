@@ -2,6 +2,7 @@
 #pragma once
 #include "Async/Executor.hpp"
 #include <bits/utility.h>
+#include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <cassert>
 #include <concepts>
 #include <cstddef>
@@ -29,7 +30,8 @@ public:
   Executable(std::function<T(Args...)> fnc, Args... args)
       : Executable<T, Args...>{fnc, START, args...} {}
 
-  Executable(std::function<T(Args...)> fnc, Task *father) : _fnc(fnc) {
+  Executable(std::function<T(Args...)> fnc, boost::intrusive_ptr<Task> father)
+      : _fnc(fnc) {
     _father = father;
   }
 
@@ -37,7 +39,8 @@ public:
     using ret = T;
     if (_father != nullptr) {
       if (_father->state() != RESOLVED) {
-        (*_father)();
+        Scheduler::main().schedule(boost::intrusive_ptr<Task>{this});
+        return;
       }
       if constexpr (sizeof...(Args) > 0) {
         if constexpr (std::is_void_v<T>) {
@@ -58,30 +61,25 @@ public:
     _state = RESOLVED;
     resolve();
   }
-  virtual ~Executable() {
-    if (_father != nullptr) {
-      delete _father;
-    }
-    Task::~Task();
-  }
 };
 
 template <typename T = void, typename... Args> class Promise {
   using F = std::function<T(Args...)>;
 
 private:
-  Task *lastTask;
+  boost::intrusive_ptr<Task> lastTask{};
 
 public:
-  Promise(F fnc, Task *last) {
-    auto alloc = new Executable<T, Args...>{fnc, last};
+  Promise(F fnc, boost::intrusive_ptr<Task> last) {
+    auto alloc =
+        boost::intrusive_ptr<Task>{new Executable<T, Args...>{fnc, last}};
     Scheduler::main().schedule(alloc);
     last->set_children(alloc);
     lastTask = alloc;
   }
 
   Promise(F fnc) {
-    auto alloc = new Executable<T, Args...>{fnc};
+    auto alloc = boost::intrusive_ptr<Task>{new Executable<T, Args...>{fnc}};
     lastTask = alloc;
     Scheduler::main().schedule(alloc);
   }

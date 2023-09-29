@@ -1,7 +1,9 @@
 #include "Async/Executor.hpp"
 #include "Macro.hpp"
+#include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <cstddef>
 #include <exception>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -9,16 +11,21 @@
 
 Scheduler *Scheduler::_instance = new Scheduler();
 
-void Scheduler::schedule(Task *task) {
+void Scheduler::post(std::function<void()> f) {
+  std::lock_guard lock{schedLock};
+  mq.push(boost::intrusive_ptr<Task>{new PostableTask{f}});
+}
+
+void Scheduler::schedule(boost::intrusive_ptr<Task> task) {
   std::lock_guard lock{schedLock};
   mq.push(task);
 }
 
-std::optional<Task *> Scheduler::take() {
+std::optional<boost::intrusive_ptr<Task>> Scheduler::take() {
   std::lock_guard lock{schedLock};
   if (mq.size() == 0)
     return {};
-  auto *v = mq.front();
+  auto v = mq.front();
   mq.pop();
   return {v};
 }
@@ -57,8 +64,6 @@ void Scheduler::stop() {}
 void Scheduler::reset() {
   std::lock_guard lock{schedLock};
   while (!mq.empty()) {
-    auto *t = mq.front();
-    delete t;
     mq.pop();
   }
   for (auto ex : _executors) {
@@ -75,7 +80,7 @@ Scheduler::~Scheduler() {
   reset();
 }
 
-bool Scheduler::AssignToIdle(Task *task) {
+bool Scheduler::AssignToIdle(boost::intrusive_ptr<Task> task) {
   for (auto ex : this->_executors) {
     if (ex->state() == Executor::IDLE) {
       ex->assign(task);
@@ -85,7 +90,7 @@ bool Scheduler::AssignToIdle(Task *task) {
   return false;
 }
 
-bool Scheduler::AssignToLowerCharged(Task *task) {
+bool Scheduler::AssignToLowerCharged(boost::intrusive_ptr<Task> task) {
   std::pair<int, int> minQueue = {_executors[0]->count(), 0};
   int k = 0;
   for (auto ex : _executors) {
@@ -103,7 +108,7 @@ bool Scheduler::AssignToLowerCharged(Task *task) {
   return false;
 }
 
-std::optional<Task *> Executor::take() {
+std::optional<boost::intrusive_ptr<Task>> Executor::take() {
   std::lock_guard<std::mutex> lock{queueLock};
   if (mq.size() > 0) {
     auto v = mq.front();
@@ -113,14 +118,19 @@ std::optional<Task *> Executor::take() {
   return {};
 }
 
-void Executor::push(Task *task) {
+void Executor::push(boost::intrusive_ptr<Task> task) {
   std::lock_guard<std::mutex> lock{queueLock};
   mq.push(task);
 }
 
 Executor::Executor() {}
 
-void Executor::assign(Task *task) { push(task); }
+void Executor::assign(boost::intrusive_ptr<Task> task) { push(task); }
+
+void Executor::post(std::function<void()> f) {
+  std::lock_guard lock{queueLock};
+  mq.push(boost::intrusive_ptr<Task>{new PostableTask{f}});
+}
 
 void Executor::start() {
   if (_executingThread != nullptr)
@@ -133,10 +143,6 @@ void Executor::start() {
       auto t = v.value();
       status = PROCESSING;
       (*t)();
-      if (t->_children == nullptr) {
-        delete t;
-      }
-
       status = WAITING_EXECUTION;
     }
     status = IDLE;
@@ -145,3 +151,7 @@ void Executor::start() {
 }
 
 Executor::~Executor() { _end = true; }
+
+void intrusive_ptr_add_ref(Task *p) {}
+
+void intrusive_ptr_release(Task *p) {}

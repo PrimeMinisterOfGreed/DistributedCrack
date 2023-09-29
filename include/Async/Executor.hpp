@@ -1,5 +1,7 @@
 #pragma once
 #include "MultiThread/AutoResetEvent.hpp"
+#include <boost/intrusive_ptr.hpp>
+#include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <condition_variable>
 #include <cstddef>
 #include <cstring>
@@ -47,8 +49,8 @@ protected:
   enum AsyncState { WAITING_EXECUTION, RESOLVED };
   AsyncState _state = WAITING_EXECUTION;
   DynData _result;
-  Task *_father = nullptr;
-  Task *_children = nullptr;
+  boost::intrusive_ptr<Task> _father{};
+  boost::intrusive_ptr<Task> _children{};
   std::optional<std::function<void(Task *)>> onCompleted{};
   void resolve() {
     _state = RESOLVED;
@@ -65,10 +67,22 @@ public:
   AsyncState state() const { return _state; }
   DynData &result() { return this->_result; }
   void wait() { _executed.WaitOne(); }
-  void set_children(Task *task) { _children = task; }
-  void set_father(Task *task) { _father = task; }
+  void set_children(boost::intrusive_ptr<Task> task) { _children = task; }
+  void set_father(boost::intrusive_ptr<Task> task) { _father = task; }
   void set_resolve_handler(std::function<void(Task *)> fnc) {
     onCompleted.emplace(fnc);
+  }
+};
+
+class PostableTask : public Task {
+private:
+  std::function<void()> _fnc;
+
+public:
+  PostableTask(std::function<void()> fnc) : _fnc(fnc) {}
+  virtual void operator()() {
+    _fnc();
+    resolve();
   }
 };
 
@@ -79,16 +93,17 @@ public:
 protected:
 #endif
   std::thread *_executingThread = nullptr;
-  std::queue<Task *> mq{};
+  std::queue<boost::intrusive_ptr<Task>> mq{};
   State status = IDLE;
   bool _end = false;
   std::mutex queueLock{};
-  std::optional<Task *> take();
-  void push(Task *task);
+  std::optional<boost::intrusive_ptr<Task>> take();
+  void push(boost::intrusive_ptr<Task> task);
 
 public:
   Executor();
-  void assign(Task *task);
+  void assign(boost::intrusive_ptr<Task>);
+  void post(std::function<void()> f);
   void start();
   int count() const { return mq.size(); }
   State state() const { return status; }
@@ -105,22 +120,27 @@ private:
   int _maxEnqueueDegree = 10;
 
 public:
-  void schedule(Task *task);
+  void post(std::function<void()> f);
+  void schedule(boost::intrusive_ptr<Task> task);
   void start();
   void stop();
   void reset();
   void setMaxEnqueueDegree(int maxdegree) { _maxEnqueueDegree = maxdegree; }
   static Scheduler &main();
-  bool AssignToIdle(Task *task);
-  bool AssignToLowerCharged(Task *task);
-  std::optional<Task *> take();
+  bool AssignToIdle(boost::intrusive_ptr<Task> task);
+  bool AssignToLowerCharged(boost::intrusive_ptr<Task> task);
+  std::optional<boost::intrusive_ptr<Task>> take();
 #ifndef UNITTEST
 protected:
 #endif
-  std::queue<Task *> mq{};
+  std::queue<boost::intrusive_ptr<Task>> mq{};
   Scheduler();
   ~Scheduler();
   static Scheduler *_instance;
 
   void routine();
 };
+
+void intrusive_ptr_add_ref(Task *p);
+
+void intrusive_ptr_release(Task *p);
