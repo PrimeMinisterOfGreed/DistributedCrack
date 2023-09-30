@@ -15,7 +15,7 @@ std::string makeformat(const char *format, Args... args) {
 class ILogEngine {
 public:
   virtual void Finalize() = 0;
-  virtual void Trace(LogType type, std::string &message) = 0;
+  virtual void Trace(LogType type, std::string message) = 0;
 
   template <typename... Args>
   void TraceException(const char *format, Args... args) {
@@ -51,7 +51,7 @@ public:
   // Ereditato tramite ILogEngine
   virtual void Finalize() override;
   // Ereditato tramite ILogEngine
-  virtual void Trace(LogType type, std::string &message) override;
+  virtual void Trace(LogType type, std::string message) override;
   ConsoleLogEngine() {}
   ConsoleLogEngine(int verbosity) : _verbosity{verbosity} {}
 };
@@ -75,5 +75,5 @@ public:
   virtual void Finalize() override;
 
   // Ereditato tramite ILogEngine
-  virtual void Trace(LogType type, std::string &message) override;
+  virtual void Trace(LogType type, std::string message) override;
 };

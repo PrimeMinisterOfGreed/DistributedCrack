@@ -22,20 +22,20 @@ class TestPromise : public TestEnvironment {};
 
 TEST(TestExecutable, test_promise_execution) {
   int a = 0;
-  auto p = Executable<>([&a]() mutable { a = 1; });
+  auto p = BasePromise<>([&a]() mutable { a = 1; });
   p();
   ASSERT_EQ(a, 1);
 }
 
 TEST(TestExecutable, test_argumented_promise) {
   int a = 0;
-  auto p = Executable<void, int>([&a](int b) { a = b; }, 10);
+  auto p = BasePromise<void, int>([&a](int b) { a = b; }, 10);
   p();
   ASSERT_EQ(a, 10);
 }
 
 TEST(TestExecutable, test_return) {
-  auto p = Executable<int>([] { return 10; });
+  auto p = BasePromise<int>([] { return 10; });
   p();
   auto value = p.result().reintepret<int>();
   ASSERT_EQ(value, 10);

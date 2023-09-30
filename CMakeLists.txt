@@ -43,7 +43,6 @@ file(GLOB_RECURSE SRC_LIST CONFIGURE_DEPENDS src/*.cpp src/*.hpp)
 list(REMOVE_ITEM TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 
 add_executable(distributedcrack ${SRC_LIST})
-
 target_include_directories(distributedcrack PUBLIC ${MPI_INCLUDE_PATH} ./include ${Boost_INCLUDE_DIRS})
 target_link_libraries(distributedcrack PUBLIC fmt::fmt ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES} ${Boost_LIBRARIES} DistributedCrack.GPU)
 

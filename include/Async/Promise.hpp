@@ -14,23 +14,29 @@
 #include <tuple>
 #include <type_traits>
 
+template <typename T, typename... Args> struct Callable {
+  std::function<T(Args...)> _fnc;
+  std::tuple<Args...> _args;
+  Callable(std::function<T(Args...)> fnc, Args... arg)
+      : _fnc(fnc), _args(arg...) {}
+  T operator()() { return std::apply(_fnc, _args); }
+};
+
 template <typename T, typename... Args> class Promise;
 
-template <typename T = void, typename... Args> class Executable : public Task {
-  friend class Promise<T, Args...>;
+template <typename T = void, typename... Args>
+struct BasePromise : public Task {
 
-protected:
   std::function<T(Args...)> _fnc;
   AsyncType type = START;
   std::tuple<Args...> _args;
-  Executable(std::function<T(Args...)> fnc, AsyncType type, Args... args)
+  BasePromise(std::function<T(Args...)> fnc, AsyncType type, Args... args)
       : type(type), _fnc(fnc), _args(args...) {}
 
-public:
-  Executable(std::function<T(Args...)> fnc, Args... args)
-      : Executable<T, Args...>{fnc, START, args...} {}
+  BasePromise(std::function<T(Args...)> fnc, Args... args)
+      : BasePromise<T, Args...>{fnc, START, args...} {}
 
-  Executable(std::function<T(Args...)> fnc, boost::intrusive_ptr<Task> father)
+  BasePromise(std::function<T(Args...)> fnc, boost::intrusive_ptr<Task> father)
       : _fnc(fnc) {
     _father = father;
   }
@@ -72,14 +78,14 @@ private:
 public:
   Promise(F fnc, boost::intrusive_ptr<Task> last) {
     auto alloc =
-        boost::intrusive_ptr<Task>{new Executable<T, Args...>{fnc, last}};
+        boost::intrusive_ptr<Task>{new BasePromise<T, Args...>{fnc, last}};
     Scheduler::main().schedule(alloc);
     last->set_children(alloc);
     lastTask = alloc;
   }
 
   Promise(F fnc) {
-    auto alloc = boost::intrusive_ptr<Task>{new Executable<T, Args...>{fnc}};
+    auto alloc = boost::intrusive_ptr<Task>{new BasePromise<T, Args...>{fnc}};
     lastTask = alloc;
     Scheduler::main().schedule(alloc);
   }
