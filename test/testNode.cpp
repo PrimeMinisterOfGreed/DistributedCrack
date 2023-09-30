@@ -1,8 +1,6 @@
 #include "Async/Executor.hpp"
 #include "Async/Promise.hpp"
-#include "Compute.hpp"
 #include "Concepts.hpp"
-#include "EventHandler.hpp"
 #include "LogEngine.hpp"
 #include "MultiThread/AutoResetEvent.hpp"
 #include "OptionsBag.hpp"
@@ -21,11 +19,6 @@
 #include <utility>
 
 class TestPromise : public TestEnvironment {};
-
-TEST(TestHandler, test_event_handler) {
-  EventHandler<> handler{};
-  handler += new FunctionHandler([]() {});
-}
 
 TEST(TestExecutable, test_promise_execution) {
   int a = 0;
