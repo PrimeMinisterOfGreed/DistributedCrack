@@ -10,7 +10,7 @@ template <typename T, typename... Args> struct BaseAsync : public Task {
   std::tuple<Args...> _args;
   BaseAsync(std::function<T(Args...)> &&fnc, Args... args)
       : _fnc(std::move(fnc)), _args(args...) {}
-  BaseAsync(std::function<T(Args...)> &&fnc, Task *father)
+  BaseAsync(std::function<T(Args...)> &&fnc, boost::intrusive_ptr<Task> father)
       : _fnc(std::move(fnc)) {
     _father = father;
   }
@@ -47,7 +47,8 @@ template <typename... Args> struct BaseAsync<void, Args...> : public Task {
   BaseAsync(BaseAsync &) = delete;
   BaseAsync(std::function<void(Args...)> &&fnc, Args... args)
       : _fnc(std::move(fnc)), _args(args...) {}
-  BaseAsync(std::function<void(Args...)> &&fnc, Task *father)
+  BaseAsync(std::function<void(Args...)> &&fnc,
+            boost::intrusive_ptr<Task> father)
       : _fnc(std::move(fnc)) {
     _father = father;
   }
@@ -80,31 +81,37 @@ BaseAsync(std::function<T()> &&fnc) -> BaseAsync<T>;
 
 template <typename T> BaseAsync(std::function<T()> &&fnc) -> BaseAsync<T>;
 
-template <typename T, typename... Args> struct Async {
+template <typename T = void, typename... Args> struct Async {
   boost::intrusive_ptr<Task> actual{};
 
   Async(std::function<T(Args...)> &&fnc, Args... args) {
-    auto alloc =
-        boost::intrusive_ptr<Task>(new BaseAsync<T, Args...>(fnc, args...));
+    auto alloc = boost::intrusive_ptr<Task>(
+        new BaseAsync<T, Args...>(std::move(fnc), args...));
     actual = alloc;
     Scheduler::main().schedule(alloc);
   }
 
-  Async(std::function<T(Args...)> &&fnc, Task *father) {
-    auto alloc =
-        boost::intrusive_ptr<Task>(new BaseAsync<T, Args...>(fnc, father));
+  Async(std::function<T(Args...)> &&fnc, boost::intrusive_ptr<Task> father) {
+    auto alloc = boost::intrusive_ptr<Task>(
+        new BaseAsync<T, Args...>(std::move(fnc), father));
 
     alloc->set_father(actual);
     actual->set_children(alloc);
     Scheduler::main().schedule(alloc);
   }
 
-  template <typename K> Async &&then(std::function<K(T)> &&fnc) {
-    return Async{fnc, actual};
+  template <typename K> Async then(auto &&fnc) {
+    return Async{std::move(fnc), actual};
   }
 
-  Async &&fail(std::function<void()> &&fnc) {
-    auto alloc = boost::intrusive_ptr<Task>();
+  Async fail(auto &&fnc) {
+    auto alloc =
+        boost::intrusive_ptr<Task>(new BaseAsync<void>{std::move(fnc)});
     actual->set_failure(alloc);
   }
+
+  void wait() { actual->wait(); }
 };
+
+template <typename T, typename... Args>
+Async(std::function<T(Args...)> &&) -> Async<T, Args...>;

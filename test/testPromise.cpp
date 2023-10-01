@@ -120,7 +120,11 @@ TEST(TestAsync, test_async_execution) {
 
 TEST(TestAsync, test_async_args) {
   int a = 0;
-  BaseAsync b = BaseAsync<void, int *>{[](int *c) { c++; }, &a};
+  BaseAsync b = BaseAsync<void, int *>{[](int *c) { (*c)++; }, &a};
   b();
   ASSERT_EQ(a, 1);
+}
+
+TEST_F(TestPromise, test_async) {
+  Async<void>{[]() {}}.then<void>([]() {}).wait();
 }
