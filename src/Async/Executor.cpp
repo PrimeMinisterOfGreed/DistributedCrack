@@ -155,3 +155,24 @@ Executor::~Executor() { _end = true; }
 void intrusive_ptr_add_ref(Task *p) {}
 
 void intrusive_ptr_release(Task *p) {}
+
+bool Task::child_of(Task *t) {
+  auto father = _father;
+  while (father != nullptr) {
+    if (father == t)
+      return true;
+    father = father->_father;
+  }
+  return false;
+}
+
+bool Task::father_of(Task *t) {
+  auto child = _children;
+  while (child != nullptr) {
+    if (child == t) {
+      return true;
+    }
+    child = child->_children;
+  }
+  return false;
+}

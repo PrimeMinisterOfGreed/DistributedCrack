@@ -14,14 +14,6 @@
 #include <tuple>
 #include <type_traits>
 
-template <typename T, typename... Args> struct Callable {
-  std::function<T(Args...)> _fnc;
-  std::tuple<Args...> _args;
-  Callable(std::function<T(Args...)> fnc, Args... arg)
-      : _fnc(fnc), _args(arg...) {}
-  T operator()() { return std::apply(_fnc, _args); }
-};
-
 template <typename T, typename... Args> class Promise;
 
 template <typename T = void, typename... Args>

@@ -46,14 +46,16 @@ class Task {
 
 protected:
   enum AsyncType { START, THEN, RESULT };
-  enum AsyncState { WAITING_EXECUTION, RESOLVED };
+  enum AsyncState { WAITING_EXECUTION, RESOLVED, FAILED };
   AsyncState _state = WAITING_EXECUTION;
   DynData _result;
   boost::intrusive_ptr<Task> _father{};
   boost::intrusive_ptr<Task> _children{};
+  boost::intrusive_ptr<Task> _failureHandler{};
+
   std::optional<std::function<void(Task *)>> onCompleted{};
-  void resolve() {
-    _state = RESOLVED;
+  void resolve(bool failed = false) {
+    _state = failed ? FAILED : RESOLVED;
     _executed.Set();
     if (onCompleted.has_value()) {
       onCompleted.value()(this);
@@ -69,9 +71,12 @@ public:
   void wait() { _executed.WaitOne(); }
   void set_children(boost::intrusive_ptr<Task> task) { _children = task; }
   void set_father(boost::intrusive_ptr<Task> task) { _father = task; }
+  void set_failure(boost::intrusive_ptr<Task> task) { _failureHandler = task; }
   void set_resolve_handler(std::function<void(Task *)> fnc) {
     onCompleted.emplace(fnc);
   }
+  bool child_of(Task *t);
+  bool father_of(Task *t);
 };
 
 class PostableTask : public Task {
