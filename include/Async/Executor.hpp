@@ -44,9 +44,11 @@ class Task {
   friend class Executor;
   ManualResetEvent _executed{false};
 
+public:
+  enum AsyncState { WAITING_EXECUTION, RESOLVED, FAILED };
+
 protected:
   enum AsyncType { START, THEN, RESULT };
-  enum AsyncState { WAITING_EXECUTION, RESOLVED, FAILED };
   AsyncState _state = WAITING_EXECUTION;
   DynData _result;
   boost::intrusive_ptr<Task> _father{};
@@ -77,6 +79,7 @@ public:
   }
   bool child_of(Task *t);
   bool father_of(Task *t);
+  void cancel();
 };
 
 class PostableTask : public Task {
@@ -130,6 +133,7 @@ public:
   void start();
   void stop();
   void reset();
+
   void setMaxEnqueueDegree(int maxdegree) { _maxEnqueueDegree = maxdegree; }
   static Scheduler &main();
   bool AssignToIdle(boost::intrusive_ptr<Task> task);

@@ -48,6 +48,8 @@ void Scheduler::routine() {
     auto task = take();
     if (!task.has_value())
       continue;
+    if (task.value()->state() == Task::RESOLVED)
+      continue;
     else if (AssignToIdle(task.value()) || AssignToLowerCharged(task.value())) {
       continue;
     } else {
@@ -176,3 +178,5 @@ bool Task::father_of(Task *t) {
   }
   return false;
 }
+
+void Task::cancel() { resolve(); }
