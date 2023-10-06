@@ -128,3 +128,15 @@ TEST(TestAsync, test_async_args) {
 TEST_F(TestPromise, test_async) {
   Async<void>{[]() {}}.then<void>([]() {}).wait();
 }
+
+TEST_F(TestPromise, test_async_loop) {
+  int a = 0;
+  AsyncLoop<int, int *>{[](int p) { return p == 100; },
+                        [](int iter, int *arg) {
+                          *arg++;
+                          return *arg;
+                        },
+                        &a}
+      .wait();
+  ASSERT_EQ(100, a);
+}

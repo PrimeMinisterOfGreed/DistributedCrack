@@ -111,7 +111,7 @@ protected:
 public:
   Executor();
   void assign(boost::intrusive_ptr<Task>);
-  void post(std::function<void()> f);
+  boost::intrusive_ptr<Task> post(std::function<void()> f);
   void start();
   int count() const { return mq.size(); }
   State state() const { return status; }
@@ -128,7 +128,7 @@ private:
   int _maxEnqueueDegree = 10;
 
 public:
-  void post(std::function<void()> f);
+  boost::intrusive_ptr<Task> post(std::function<void()> f);
   void schedule(boost::intrusive_ptr<Task> task);
   void start();
   void stop();

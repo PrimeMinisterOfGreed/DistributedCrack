@@ -1,8 +1,10 @@
 #pragma once
 #include "Executor.hpp"
 #include <boost/smart_ptr/intrusive_ptr.hpp>
+#include <cstddef>
 #include <functional>
 #include <tuple>
+#include <vector>
 
 template <typename T, typename... Args> struct BaseAsync : public Task {
   using F = std::function<T(Args...)>;
@@ -115,3 +117,34 @@ template <typename T = void, typename... Args> struct Async {
 
 template <typename T, typename... Args>
 Async(std::function<T(Args...)> &&) -> Async<T, Args...>;
+
+struct AsyncMTLoop {
+  std::function<void(int)> _fnc;
+  std::vector<boost::intrusive_ptr<Task>> _awaitables{};
+  int _iter;
+  AsyncMTLoop(int iter, std::function<void(int)> fnc);
+  void wait();
+};
+
+template <typename T, typename... Args> struct AsyncLoop : public Task {
+  std::function<T(int, Args...)> _iterFnc;
+  std::function<bool(T)> _terminator;
+  std::tuple<int, Args...> _args;
+  int _currentIter = 0;
+  AsyncLoop(std::function<bool(T)> predicate,
+            std::function<T(int, Args...)> iterFnc, Args... args)
+      : _terminator(predicate), _iterFnc(iterFnc),
+        _args(_currentIter, args...) {
+    Scheduler::main().schedule(boost::intrusive_ptr<Task>{this});
+  }
+
+  virtual void operator()() {
+    T res = std::apply<T, int, Args...>(_iterFnc, _args);
+    if (_terminator(res)) {
+      resolve();
+    } else {
+      _currentIter++;
+      Scheduler::main().schedule(this);
+    }
+  }
+};

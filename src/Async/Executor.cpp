@@ -11,9 +11,11 @@
 
 Scheduler *Scheduler::_instance = new Scheduler();
 
-void Scheduler::post(std::function<void()> f) {
+boost::intrusive_ptr<Task> Scheduler::post(std::function<void()> f) {
   std::lock_guard lock{schedLock};
-  mq.push(boost::intrusive_ptr<Task>{new PostableTask{f}});
+  auto alloc = boost::intrusive_ptr<Task>{new PostableTask{f}};
+  mq.push(alloc);
+  return alloc;
 }
 
 void Scheduler::schedule(boost::intrusive_ptr<Task> task) {
@@ -129,9 +131,11 @@ Executor::Executor() {}
 
 void Executor::assign(boost::intrusive_ptr<Task> task) { push(task); }
 
-void Executor::post(std::function<void()> f) {
+boost::intrusive_ptr<Task> Executor::post(std::function<void()> f) {
   std::lock_guard lock{queueLock};
-  mq.push(boost::intrusive_ptr<Task>{new PostableTask{f}});
+  auto alloc = boost::intrusive_ptr<Task>{new PostableTask{f}};
+  mq.push(alloc);
+  return alloc;
 }
 
 void Executor::start() {
