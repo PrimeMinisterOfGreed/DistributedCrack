@@ -1,5 +1,6 @@
 #include "Async/Executor.hpp"
 #include "Macro.hpp"
+#include "MultiThread/AutoResetEvent.hpp"
 #include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <cstddef>
 #include <exception>

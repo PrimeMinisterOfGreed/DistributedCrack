@@ -3,6 +3,7 @@
 #include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <cstddef>
 #include <functional>
+#include <mutex>
 #include <tuple>
 #include <vector>
 
@@ -96,9 +97,9 @@ template <typename T = void, typename... Args> struct Async {
   Async(std::function<T(Args...)> &&fnc, boost::intrusive_ptr<Task> father) {
     auto alloc = boost::intrusive_ptr<Task>(
         new BaseAsync<T, Args...>(std::move(fnc), father));
-
-    alloc->set_father(actual);
-    actual->set_children(alloc);
+    actual = alloc;
+    alloc->set_father(father);
+    father->set_children(alloc);
     Scheduler::main().schedule(alloc);
   }
 
@@ -118,33 +119,43 @@ template <typename T = void, typename... Args> struct Async {
 template <typename T, typename... Args>
 Async(std::function<T(Args...)> &&) -> Async<T, Args...>;
 
-struct AsyncMTLoop {
-  std::function<void(int)> _fnc;
-  std::vector<boost::intrusive_ptr<Task>> _awaitables{};
-  int _iter;
-  AsyncMTLoop(int iter, std::function<void(int)> fnc);
-  void wait();
-};
-
 template <typename T, typename... Args> struct AsyncLoop : public Task {
-  std::function<T(int, Args...)> _iterFnc;
+  std::function<T(Args...)> _iterFnc;
   std::function<bool(T)> _terminator;
-  std::tuple<int, Args...> _args;
-  int _currentIter = 0;
-  AsyncLoop(std::function<bool(T)> predicate,
-            std::function<T(int, Args...)> iterFnc, Args... args)
-      : _terminator(predicate), _iterFnc(iterFnc),
-        _args(_currentIter, args...) {
+  std::tuple<Args...> _args;
+  AsyncLoop(std::function<bool(T)> predicate, std::function<T(Args...)> iterFnc,
+            Args... args)
+      : _terminator(predicate), _iterFnc(iterFnc), _args(args...) {
     Scheduler::main().schedule(boost::intrusive_ptr<Task>{this});
   }
 
   virtual void operator()() {
-    T res = std::apply<T, int, Args...>(_iterFnc, _args);
+    T res = std::apply(_iterFnc, _args);
     if (_terminator(res)) {
       resolve();
     } else {
-      _currentIter++;
       Scheduler::main().schedule(this);
     }
   }
+};
+
+template <> struct AsyncLoop<void> : public Task {
+  std::function<void(boost::intrusive_ptr<Task>)> _iterFnc;
+  AsyncLoop(std::function<void(boost::intrusive_ptr<Task>)> iterFnc)
+      : _iterFnc(iterFnc) {
+    Scheduler::main().schedule(boost::intrusive_ptr<Task>(this));
+  }
+  virtual void operator()() {
+    auto itrPtr = boost::intrusive_ptr<Task>(this);
+    _iterFnc(itrPtr);
+    Scheduler::main().schedule(itrPtr);
+  }
+};
+
+struct AsyncMultiLoop : public Task {
+  std::function<void(size_t)> _iterLambda;
+  std::mutex _lock{};
+  int _iterations;
+  AsyncMultiLoop(int iterations, std::function<void(size_t)> iterLambda);
+  virtual void operator()();
 };

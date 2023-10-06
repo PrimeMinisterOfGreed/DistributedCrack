@@ -131,12 +131,28 @@ TEST_F(TestPromise, test_async) {
 
 TEST_F(TestPromise, test_async_loop) {
   int a = 0;
-  AsyncLoop<int, int *>{[](int p) { return p == 100; },
-                        [](int iter, int *arg) {
-                          *arg++;
-                          return *arg;
+  AsyncLoop<int, int *>{[](int a) { return a == 100; },
+                        [](int *a) {
+                          (*a)++;
+                          return *a;
                         },
                         &a}
       .wait();
   ASSERT_EQ(100, a);
+}
+
+TEST_F(TestPromise, test_async_void_loop) {
+  int a = 0;
+  AsyncLoop<void>{[&a](auto task) {
+    a++;
+    if (a == 100)
+      task->cancel();
+  }}.wait();
+  ASSERT_EQ(100, a);
+}
+
+TEST_F(TestPromise, test_async_mt) {
+  int a = 0;
+  AsyncMultiLoop{100, [&a](size_t itr) { a = itr; }}.wait();
+  ASSERT_TRUE(a != 0);
 }
