@@ -155,7 +155,7 @@ template <> struct AsyncLoop<void> : public Task {
 struct AsyncMultiLoop : public Task {
   std::function<void(size_t)> _iterLambda;
   std::mutex _lock{};
-  int _iterations;
-  AsyncMultiLoop(int iterations, std::function<void(size_t)> iterLambda);
+  size_t _iterations;
+  AsyncMultiLoop(size_t iterations, std::function<void(size_t)> iterLambda);
   virtual void operator()();
 };

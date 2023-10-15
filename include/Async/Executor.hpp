@@ -97,9 +97,8 @@ public:
 class Executor {
 public:
   enum State { IDLE, PROCESSING, WAITING_EXECUTION };
-#ifndef UNITTEST
+
 protected:
-#endif
   std::thread *_executingThread = nullptr;
   std::queue<boost::intrusive_ptr<Task>> mq{};
   State status = IDLE;
@@ -107,6 +106,7 @@ protected:
   std::mutex queueLock{};
   std::optional<boost::intrusive_ptr<Task>> take();
   void push(boost::intrusive_ptr<Task> task);
+  ManualResetEvent onCompleted{false};
 
 public:
   Executor();
@@ -114,13 +114,15 @@ public:
   boost::intrusive_ptr<Task> post(std::function<void()> f);
   void start();
   int count() const { return mq.size(); }
+  void wait_termination();
   State state() const { return status; }
+  void stop();
   ~Executor();
 };
 
 class Scheduler {
 private:
-  std::vector<Executor *> _executors{};
+  std::vector<boost::intrusive_ptr<Executor>> _executors{};
   int _previousCount = 0;
   bool _end = false;
   std::thread *_executionThread = nullptr;
@@ -139,17 +141,17 @@ public:
   bool AssignToIdle(boost::intrusive_ptr<Task> task);
   bool AssignToLowerCharged(boost::intrusive_ptr<Task> task);
   std::optional<boost::intrusive_ptr<Task>> take();
-#ifndef UNITTEST
+  bool empty() const;
+
 protected:
-#endif
   std::queue<boost::intrusive_ptr<Task>> mq{};
   Scheduler();
   ~Scheduler();
   static Scheduler *_instance;
-
   void routine();
 };
 
 void intrusive_ptr_add_ref(Task *p);
-
+void intrusive_ptr_add_ref(Executor *p);
 void intrusive_ptr_release(Task *p);
+void intrusive_ptr_release(Executor *p);

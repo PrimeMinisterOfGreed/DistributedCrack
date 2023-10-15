@@ -33,6 +33,17 @@ std::optional<boost::intrusive_ptr<Task>> Scheduler::take() {
   return {v};
 }
 
+bool Scheduler::empty() const {
+  if (mq.empty()) {
+    for (auto &exec : _executors) {
+      if (exec->count() > 0) {
+        return false;
+      }
+    }
+  }
+  return false;
+}
+
 void Scheduler::start() {
   if (_executionThread == nullptr) {
     _executionThread = new std::thread{[this]() { routine(); }};
@@ -56,7 +67,7 @@ void Scheduler::routine() {
     else if (AssignToIdle(task.value()) || AssignToLowerCharged(task.value())) {
       continue;
     } else {
-      auto executor = new Executor();
+      auto executor = boost::intrusive_ptr<Executor>(new Executor());
       executor->start();
       _executors.push_back(executor);
       executor->assign(task.value());
@@ -72,7 +83,8 @@ void Scheduler::reset() {
     mq.pop();
   }
   for (auto ex : _executors) {
-    delete ex;
+    ex->stop();
+    ex->wait_termination();
   }
 }
 
@@ -144,6 +156,7 @@ void Executor::start() {
     return;
   _executingThread = new std::thread{[this]() {
     while (!_end) {
+      onCompleted.Reset();
       auto v = take();
       if (!v.has_value())
         continue;
@@ -153,14 +166,22 @@ void Executor::start() {
       status = WAITING_EXECUTION;
     }
     status = IDLE;
+    onCompleted.Set();
   }};
   _executingThread->detach();
 }
+
+void Executor::wait_termination() { onCompleted.WaitOne(); }
+
+void Executor::stop() { _end = true; }
 
 Executor::~Executor() { _end = true; }
 
 void intrusive_ptr_add_ref(Task *p) {}
 
+void intrusive_ptr_add_ref(Executor *p) {}
+
+void intrusive_ptr_release(Executor *p) {}
 void intrusive_ptr_release(Task *p) {}
 
 bool Task::child_of(Task *t) {

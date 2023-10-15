@@ -45,7 +45,7 @@ TEST(TestExecutable, test_return) {
 TEST(TestExecutable, test_promise) {
   int a = 10;
   Promise<>{[&a]() { a++; }};
-  Task &p = *Scheduler::main().mq.front();
+  Task &p = *Scheduler::main().take().value();
   p();
   ASSERT_EQ(11, a);
 }
@@ -55,10 +55,9 @@ TEST(TestExecutor, test_deferred_execution) {}
 TEST(TestExecutable, test_then) {
   int a = 0;
   Promise<>{[&a] { a++; }}.then<void>([&a]() { a++; });
-  Task &p = *Scheduler::main().mq.front();
+  Task &p = *Scheduler::main().take().value();
   p();
-  Scheduler::main().mq.pop();
-  Task &t = *Scheduler::main().mq.front();
+  Task &t = *Scheduler::main().take().value();
   t();
   ASSERT_EQ(2, a);
 };
@@ -69,10 +68,9 @@ TEST(TestExecutable, test_promise_return) {
     a = ns;
     return 0;
   });
-  Task &p = *Scheduler::main().mq.front();
+  Task &p = *Scheduler::main().take().value();
   p();
-  Scheduler::main().mq.pop();
-  Task &t = *Scheduler::main().mq.front();
+  Task &t = *Scheduler::main().take().value();
   t();
   ASSERT_EQ(1, a);
 }
