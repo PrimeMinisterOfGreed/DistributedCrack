@@ -184,25 +184,28 @@ void intrusive_ptr_add_ref(Executor *p) {}
 void intrusive_ptr_release(Executor *p) {}
 void intrusive_ptr_release(Task *p) {}
 
-bool Task::child_of(Task *t) {
-  auto father = _father;
-  while (father != nullptr) {
-    if (father == t)
-      return true;
-    father = father->_father;
-  }
-  return false;
-}
-
-bool Task::father_of(Task *t) {
-  auto child = _children;
-  while (child != nullptr) {
-    if (child == t) {
-      return true;
-    }
-    child = child->_children;
-  }
-  return false;
-}
-
 void Task::cancel() { resolve(); }
+
+void Task::resolve(bool failed) {
+  _state = failed ? FAILED : RESOLVED;
+  _executed.Set();
+  if (failed && _failureHandler != nullptr)
+    Scheduler::main().schedule(_failureHandler);
+  else if (_thenHandler != nullptr) {
+    _thenHandler->_father = this;
+    Scheduler::main().schedule(_thenHandler);
+  }
+}
+void Task::set_then(boost::intrusive_ptr<Task> task) {
+  _thenHandler = task;
+  if (_state == RESOLVED) {
+    _thenHandler->_father = this;
+    Scheduler::main().schedule(_thenHandler);
+  }
+}
+void Task::set_failure(boost::intrusive_ptr<Task> task) {
+  _failureHandler = task;
+  if (_state == FAILED) {
+    Scheduler::main().schedule(_failureHandler);
+  }
+}
