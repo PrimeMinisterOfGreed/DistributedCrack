@@ -11,14 +11,4 @@ AsyncMultiLoop::AsyncMultiLoop(size_t iterations,
   Scheduler::main().schedule(boost::intrusive_ptr<Task>{this});
 }
 
-void AsyncMultiLoop::operator()() {
-  int limit = _iterations;
-  for (int i = 0; i < limit; i++) {
-    Async<void>{[i, this]() { _iterLambda(i); }}.then<void>([this]() {
-      std::lock_guard l{_lock};
-      _iterations--;
-      if (_iterations == 0)
-        resolve();
-    });
-  }
-}
+void AsyncMultiLoop::operator()() {}

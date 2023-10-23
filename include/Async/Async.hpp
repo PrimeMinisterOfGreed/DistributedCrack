@@ -8,11 +8,17 @@
 #include <type_traits>
 #include <vector>
 
-template <typename T, typename... Args> struct BaseAsyncTask : public Task {
-  using F = std::function<T(Args...)>;
-  F _fnc;
+template <typename T> using iptr = boost::intrusive_ptr<T>;
+
+template <typename> struct BaseAsyncTask;
+
+template <typename T, typename... Args>
+struct BaseAsyncTask<T(Args...)> : public Task {
+
+  std::function<T(Args...)> _fnc;
   std::tuple<Args...> _args;
-  BaseAsyncTask(std::function<T(Args...)> &&fnc, Args... args)
+
+  BaseAsyncTask(auto &&fnc, Args... args)
       : _fnc(std::move(fnc)), _args(args...) {}
 
   BaseAsyncTask(BaseAsyncTask &) = delete;
@@ -53,24 +59,35 @@ template <typename T, typename... Args> struct BaseAsyncTask : public Task {
   }
 };
 
-template <typename T> struct BaseAsyncTask<T, void> : public Task {
-  using F = std::function<T()>;
-  F _fnc;
-  BaseAsyncTask(std::function<T()> &&fnc) : _fnc(std::move(fnc)) {}
-  BaseAsyncTask(BaseAsyncTask &) = delete;
-  virtual void operator()() override {
-    if constexpr (std::is_void_v<T>) {
-      _fnc();
-    } else {
-      _result.emplace(_fnc());
-    }
-  }
-};
-
-template <typename T, typename... Args> struct Async {
+struct BaseAsync {
+protected:
+  iptr<Task> _actual;
 
 public:
-  Async(std::function<T(Args...)> &&fnc) {}
+  BaseAsync() {}
+  BaseAsync(iptr<Task> actual) : _actual(actual) {}
+
+  void start_impl(iptr<Task> task) { Scheduler::main().schedule(task); }
+
+  void then_impl(iptr<Task> task) { _actual->set_then(task); }
+
+  void fail_impl(iptr<Task> task) { task->set_failure(task); }
+};
+
+template <typename T, typename... Args> struct Async : BaseAsync {
+
+public:
+  Async() : BaseAsync() {}
+  Async(iptr<Task> actual) : BaseAsync(actual) {}
+
+  template <typename F>
+    requires(std::is_invocable_v<F, Args...>)
+  auto &&start(F &&fnc, Args... args) {
+    auto task = iptr<Task>(new BaseAsyncTask{std::forward<F>(fnc)});
+    _actual = task;
+    start_impl(task);
+    return *this;
+  }
 };
 
 template <typename T, typename... Args> struct AsyncLoop : public Task {
