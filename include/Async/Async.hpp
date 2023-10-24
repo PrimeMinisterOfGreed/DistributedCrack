@@ -6,6 +6,7 @@
 #include <mutex>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 template <typename T> using iptr = boost::intrusive_ptr<T>;
@@ -18,8 +19,8 @@ struct BaseAsyncTask<T(Args...)> : public Task {
   std::function<T(Args...)> _fnc;
   std::tuple<Args...> _args;
 
-  BaseAsyncTask(auto &&fnc, Args... args)
-      : _fnc(std::move(fnc)), _args(args...) {}
+  template <typename F>
+  BaseAsyncTask(F &&fnc, Args... args) : _fnc(std::move(fnc)), _args(args...) {}
 
   BaseAsyncTask(BaseAsyncTask &) = delete;
 
@@ -83,10 +84,26 @@ public:
   template <typename F>
     requires(std::is_invocable_v<F, Args...>)
   auto &&start(F &&fnc, Args... args) {
-    auto task = iptr<Task>(new BaseAsyncTask{std::forward<F>(fnc)});
+    using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
+    auto task = iptr<Task>(
+        new BaseAsyncTask<T(Args...)>(std::forward<F>(fnc), args...));
     _actual = task;
     start_impl(task);
     return *this;
+  }
+
+  template <typename F> auto &&then(F &&fnc) {
+    if constexpr (std::is_void_v<T>) {
+      using ret_t = decltype(std::forward<F>(fnc)());
+      auto task = iptr<Task>(new BaseAsyncTask<ret_t()>(std::forward<F>(fnc)));
+      then_impl(task);
+      return Async<void, T>(task);
+    } else {
+      using ret_t = decltype(std::forward<F>(fnc)(std::declval<T>()));
+      auto task = iptr<Task>(new BaseAsyncTask<ret_t(T)>(std::forward<F>(fnc)));
+      then_impl(task);
+      return Async<ret_t, T>(task);
+    }
   }
 };
 
