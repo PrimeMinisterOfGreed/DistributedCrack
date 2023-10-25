@@ -1,3 +1,4 @@
+#pragma once
 #include "Executor.hpp"
 #include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <vector>

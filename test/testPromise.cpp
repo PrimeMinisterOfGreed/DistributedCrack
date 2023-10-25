@@ -44,7 +44,7 @@ TEST_F(TestPromise, test_async_then) {
   Async<>()
       .start([&a]() {
         a++;
-        return a;
+        return Async<int>();
       })
       .then([&a](int val) { a += 2; })
       .wait();

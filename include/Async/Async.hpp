@@ -1,6 +1,7 @@
 #pragma once
 #include "Executor.hpp"
 #include <boost/smart_ptr/intrusive_ptr.hpp>
+#include <concepts>
 #include <cstddef>
 #include <functional>
 #include <mutex>
@@ -12,6 +13,21 @@
 template <typename T> using iptr = boost::intrusive_ptr<T>;
 
 template <typename> struct BaseAsyncTask;
+struct BaseAsync;
+
+template <typename T, typename F, typename... Args>
+concept is_function_return = requires(T ret, F a, Args... args) {
+  { a.operator()(args...) } -> std::convertible_to<T>;
+};
+
+template <typename F, typename... Args>
+concept is_void_function = requires(F f, Args... args) {
+  { f.operator()(args...) } -> std::same_as<void>;
+};
+
+template <typename F, typename... Args>
+concept is_valid_async = is_void_function<F, Args...> ||
+                         is_function_return<BaseAsync &&, F, Args...>;
 
 template <typename T, typename... Args>
 struct BaseAsyncTask<T(Args...)> : public Task {
@@ -89,7 +105,7 @@ public:
   Async(iptr<Task> actual) : BaseAsync(actual) {}
 
   template <typename F>
-    requires(std::is_invocable_v<F, Args...>)
+    requires(std::is_invocable_v<F, Args...> && is_valid_async<F, Args...>)
   auto &&start(F &&fnc, Args... args) {
     using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
     auto task = iptr<Task>(
@@ -97,22 +113,25 @@ public:
     _actual = task;
     start_impl(task);
     if constexpr (std::is_void_v<ret_t>) {
-      return std::move(Async<>(_actual));
+      return static_cast<Async &&>(*this);
     } else {
-      return std::move(Async<ret_t>(_actual));
+
+      return reinterpret_cast<ret_t &&>(*this);
     }
   }
 
-  template <typename F> auto &&then(F &&fnc) {
+  template <typename F>
+    requires(is_void_function<F, Args...> || is_valid_async<F, Args...>)
+  auto &&then(F &&fnc) {
     using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
     auto task = iptr<Task>(
         new BaseAsyncTask<ret_t(Args...)>(std::forward<F>(fnc), _actual));
     _actual = task;
     then_impl(_actual);
     if constexpr (std::is_void_v<ret_t>) {
-      return std::move(Async<>(_actual));
+      return static_cast<Async &&>(*this);
     } else {
-      return std::move(Async<ret_t>(_actual));
+      return reinterpret_cast<ret_t &&>(*this);
     }
   }
 
