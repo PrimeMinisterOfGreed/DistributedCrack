@@ -22,6 +22,11 @@ struct BaseAsyncTask<T(Args...)> : public Task {
   template <typename F>
   BaseAsyncTask(F &&fnc, Args... args) : _fnc(std::move(fnc)), _args(args...) {}
 
+  template <typename F>
+  BaseAsyncTask(F &&fnc, iptr<Task> father) : _fnc(std::move(fnc)) {
+    _father = father;
+  }
+
   BaseAsyncTask(BaseAsyncTask &) = delete;
 
   void set_args(Args... args) { _args = std::tuple<Args...>{args...}; }
@@ -49,12 +54,14 @@ struct BaseAsyncTask<T(Args...)> : public Task {
           std::apply(_fnc, _args);
         else
           _fnc();
+        resolve();
       } else {
         if constexpr (sizeof...(Args) > 0) {
           _result.emplace(std::apply(_fnc, _args));
         } else {
           _result.emplace(_fnc());
         }
+        resolve();
       }
     }
   }
@@ -75,7 +82,7 @@ public:
   void fail_impl(iptr<Task> task) { task->set_failure(task); }
 };
 
-template <typename T, typename... Args> struct Async : BaseAsync {
+template <typename... Args> struct Async : BaseAsync {
 
 public:
   Async() : BaseAsync() {}
@@ -86,25 +93,30 @@ public:
   auto &&start(F &&fnc, Args... args) {
     using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
     auto task = iptr<Task>(
-        new BaseAsyncTask<T(Args...)>(std::forward<F>(fnc), args...));
+        new BaseAsyncTask<ret_t(Args...)>(std::forward<F>(fnc), args...));
     _actual = task;
     start_impl(task);
-    return *this;
+    if constexpr (std::is_void_v<ret_t>) {
+      return std::move(Async<>(_actual));
+    } else {
+      return std::move(Async<ret_t>(_actual));
+    }
   }
 
   template <typename F> auto &&then(F &&fnc) {
-    if constexpr (std::is_void_v<T>) {
-      using ret_t = decltype(std::forward<F>(fnc)());
-      auto task = iptr<Task>(new BaseAsyncTask<ret_t()>(std::forward<F>(fnc)));
-      then_impl(task);
-      return Async<void, T>(task);
+    using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
+    auto task = iptr<Task>(
+        new BaseAsyncTask<ret_t(Args...)>(std::forward<F>(fnc), _actual));
+    _actual = task;
+    then_impl(_actual);
+    if constexpr (std::is_void_v<ret_t>) {
+      return std::move(Async<>(_actual));
     } else {
-      using ret_t = decltype(std::forward<F>(fnc)(std::declval<T>()));
-      auto task = iptr<Task>(new BaseAsyncTask<ret_t(T)>(std::forward<F>(fnc)));
-      then_impl(task);
-      return Async<ret_t, T>(task);
+      return std::move(Async<ret_t>(_actual));
     }
   }
+
+  void wait() { _actual->wait(); }
 };
 
 template <typename T, typename... Args> struct AsyncLoop : public Task {

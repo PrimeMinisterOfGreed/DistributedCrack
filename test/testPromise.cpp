@@ -36,20 +36,19 @@ TEST(TestAsync, test_async_args) {
 
 TEST_F(TestPromise, test_async_start) {
   int a = 0;
-  Async<void>().start([&a]() { a++; });
+  Async<>().start([&a]() { a++; }).wait();
 }
 
-/*
 TEST_F(TestPromise, test_async_then) {
   int a = 0;
-  Async<void>()
+  Async<>()
       .start([&a]() {
         a++;
         return a;
       })
-      .then([&a](int val) { a += 2; });
+      .then([&a](int val) { a += 2; })
+      .wait();
 }
-*/
 
 /*
 TEST_F(TestPromise, test_async) {
