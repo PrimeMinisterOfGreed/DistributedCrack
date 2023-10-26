@@ -80,25 +80,25 @@ public:
 };
 
 class Executor {
+  friend class Scheduler;
+
 public:
   enum State { IDLE, PROCESSING, WAITING_EXECUTION };
 
 protected:
   std::thread *_executingThread = nullptr;
-  std::queue<boost::intrusive_ptr<Task>> mq{};
   State status = IDLE;
   bool _end = false;
-  std::mutex queueLock{};
-  std::optional<boost::intrusive_ptr<Task>> take();
+  std::optional<boost::intrusive_ptr<Task>> _currentExecution{};
   void push(boost::intrusive_ptr<Task> task);
   ManualResetEvent onCompleted{false};
+  ManualResetEvent onAssigned{false};
 
 public:
   Executor();
-  void assign(boost::intrusive_ptr<Task>);
+  bool assign(boost::intrusive_ptr<Task>);
   boost::intrusive_ptr<Task> post(std::function<void()> f);
   void start();
-  int count() const { return mq.size(); }
   void wait_termination();
   State state() const { return status; }
   void stop();
@@ -112,7 +112,11 @@ private:
   bool _end = false;
   std::thread *_executionThread = nullptr;
   std::mutex schedLock{};
-  int _maxEnqueueDegree = 10;
+  int _maxExecutors = 10;
+  int WaitAnyExecutorIdle();
+
+protected:
+  bool assign(boost::intrusive_ptr<Task> task);
 
 public:
   boost::intrusive_ptr<Task> post(std::function<void()> f);
@@ -121,10 +125,11 @@ public:
   void stop();
   void reset();
 
-  void setMaxEnqueueDegree(int maxdegree) { _maxEnqueueDegree = maxdegree; }
+  inline Scheduler &setMaxExecutors(int maxThreads) {
+    _maxExecutors = maxThreads;
+    return *this;
+  }
   static Scheduler &main();
-  bool AssignToIdle(boost::intrusive_ptr<Task> task);
-  bool AssignToLowerCharged(boost::intrusive_ptr<Task> task);
   std::optional<boost::intrusive_ptr<Task>> take();
   bool empty() const;
 

@@ -127,7 +127,7 @@ public:
     auto task = iptr<Task>(
         new BaseAsyncTask<ret_t(Args...)>(std::forward<F>(fnc), _actual));
     _actual = task;
-    then_impl(_actual);
+    then_impl(task);
     if constexpr (std::is_void_v<ret_t>) {
       return static_cast<Async &&>(*this);
     } else {

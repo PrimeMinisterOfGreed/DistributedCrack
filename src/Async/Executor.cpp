@@ -1,5 +1,4 @@
 #include "Async/Executor.hpp"
-#include "Macro.hpp"
 #include "MultiThread/AutoResetEvent.hpp"
 #include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <cstddef>
@@ -9,8 +8,25 @@
 #include <optional>
 #include <thread>
 #include <utility>
+#include <vector>
 
 Scheduler *Scheduler::_instance = new Scheduler();
+
+int Scheduler::WaitAnyExecutorIdle() {
+  std::vector<WaitHandle *> _handlers{};
+  for (auto e : _executors)
+    _handlers.push_back(&e->onCompleted);
+  auto res = WaitAny(_handlers);
+  return res;
+}
+
+bool Scheduler::assign(boost::intrusive_ptr<Task> task) {
+  for (auto e : _executors) {
+    if (e->assign(task))
+      return true;
+  }
+  return false;
+}
 
 boost::intrusive_ptr<Task> Scheduler::post(std::function<void()> f) {
   std::lock_guard lock{schedLock};
@@ -36,7 +52,7 @@ std::optional<boost::intrusive_ptr<Task>> Scheduler::take() {
 bool Scheduler::empty() const {
   if (mq.empty()) {
     for (auto &exec : _executors) {
-      if (exec->count() > 0) {
+      if (exec->state() != Executor::IDLE) {
         return false;
       }
     }
@@ -55,8 +71,9 @@ void Scheduler::routine() {
   while (!_end) {
     // TODO introduce an optimization to decide if disband or allocate new
     // executors
-    if (_executors.size() == 0) {
-      _executors.push_back(new Executor());
+    auto ecount = _executors.size();
+    if (ecount == 0) {
+      _executors.push_back(boost::intrusive_ptr<Executor>(new Executor()));
       _executors.at(0)->start();
     }
     auto task = take();
@@ -64,13 +81,16 @@ void Scheduler::routine() {
       continue;
     if (task.value()->state() == Task::RESOLVED)
       continue;
-    else if (AssignToIdle(task.value()) || AssignToLowerCharged(task.value())) {
+    else if (assign(task.value())) {
       continue;
-    } else {
+    } else if (ecount < _maxExecutors) {
       auto executor = boost::intrusive_ptr<Executor>(new Executor());
       executor->start();
       _executors.push_back(executor);
       executor->assign(task.value());
+    } else {
+      auto free = WaitAnyExecutorIdle();
+      _executors.at(free)->assign(task.value());
     }
   }
 }
@@ -97,58 +117,15 @@ Scheduler::~Scheduler() {
   reset();
 }
 
-bool Scheduler::AssignToIdle(boost::intrusive_ptr<Task> task) {
-  for (auto ex : this->_executors) {
-    if (ex->state() == Executor::IDLE) {
-      ex->assign(task);
-      return true;
-    }
-  }
-  return false;
-}
-
-bool Scheduler::AssignToLowerCharged(boost::intrusive_ptr<Task> task) {
-  std::pair<int, int> minQueue = {_executors[0]->count(), 0};
-  int k = 0;
-  for (auto ex : _executors) {
-    if (ex->count() < minQueue.first) {
-      minQueue.first = ex->count();
-      minQueue.second = k;
-    }
-    k++;
-  }
-
-  if (minQueue.first < _maxEnqueueDegree) {
-    _executors.at(minQueue.second)->assign(task);
-    return true;
-  }
-  return false;
-}
-
-std::optional<boost::intrusive_ptr<Task>> Executor::take() {
-  std::lock_guard<std::mutex> lock{queueLock};
-  if (mq.size() > 0) {
-    auto v = mq.front();
-    mq.pop();
-    return {v};
-  }
-  return {};
-}
-
-void Executor::push(boost::intrusive_ptr<Task> task) {
-  std::lock_guard<std::mutex> lock{queueLock};
-  mq.push(task);
-}
-
 Executor::Executor() {}
 
-void Executor::assign(boost::intrusive_ptr<Task> task) { push(task); }
-
-boost::intrusive_ptr<Task> Executor::post(std::function<void()> f) {
-  std::lock_guard lock{queueLock};
-  auto alloc = boost::intrusive_ptr<Task>{new PostableTask{f}};
-  mq.push(alloc);
-  return alloc;
+bool Executor::assign(boost::intrusive_ptr<Task> task) {
+  if (status == PROCESSING || status == WAITING_EXECUTION)
+    return false;
+  _currentExecution.emplace(task);
+  status = WAITING_EXECUTION;
+  onAssigned.Set();
+  return true;
 }
 
 void Executor::start() {
@@ -156,14 +133,15 @@ void Executor::start() {
     return;
   _executingThread = new std::thread{[this]() {
     while (!_end) {
+      if (!_currentExecution.has_value()) {
+        status = IDLE;
+        onAssigned.WaitOne();
+      }
       onCompleted.Reset();
-      auto v = take();
-      if (!v.has_value())
-        continue;
-      auto t = v.value();
+      onAssigned.Reset();
+      auto t = _currentExecution.value();
       status = PROCESSING;
       (*t)();
-      status = WAITING_EXECUTION;
     }
     status = IDLE;
     onCompleted.Set();
