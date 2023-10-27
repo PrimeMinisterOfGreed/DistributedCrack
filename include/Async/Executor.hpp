@@ -69,6 +69,8 @@ public:
   void set_then(sptr<Task> task);
   void set_failure(sptr<Task> task);
   void cancel();
+
+  template <typename T> void make_data(T &&data) { _result.emplace(data); }
 };
 
 class PostableTask : public Task {

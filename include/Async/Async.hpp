@@ -91,11 +91,15 @@ public:
 template <typename... Args> struct Async : BaseAsync {
 
 public:
-  Async() : BaseAsync() {}
+  Async(Args... args) {
+    if constexpr (sizeof...(args) > 0) {
+      _actual->make_data(args...);
+    }
+  }
   Async(sptr<Task> actual) : BaseAsync(actual) {}
 
   template <typename F>
-    requires(std::is_invocable_v<F, Args...> && is_valid_async<F, Args...>)
+    requires(is_void_function<F, Args...> || is_valid_async<F, Args...>)
   auto &&start(F &&fnc, Args... args) {
     using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
     auto task = sptr<Task>(
@@ -116,8 +120,8 @@ public:
     using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
     auto task = sptr<Task>(
         new BaseAsyncTask<ret_t(Args...)>(std::forward<F>(fnc), _actual));
-    _actual = task;
     then_impl(task);
+    _actual = task;
     if constexpr (std::is_void_v<ret_t>) {
       return static_cast<Async &&>(*this);
     } else {
