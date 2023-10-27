@@ -1,4 +1,5 @@
 #pragma once
+#include "Concepts.hpp"
 #include "MultiThread/AutoResetEvent.hpp"
 #include <boost/intrusive_ptr.hpp>
 #include <boost/smart_ptr/intrusive_ptr.hpp>
@@ -51,19 +52,22 @@ protected:
   enum AsyncType { START, THEN, RESULT };
   AsyncState _state = WAITING_EXECUTION;
   DynData _result;
-  boost::intrusive_ptr<Task> _thenHandler{};
-  boost::intrusive_ptr<Task> _failureHandler{};
-  boost::intrusive_ptr<Task> _father;
+  std::mutex _lock{};
+  sptr<Task> _thenHandler{};
+  sptr<Task> _failureHandler{};
+  sptr<Task> _father;
   void resolve(bool failed = false);
 
 public:
+  Task() {}
   virtual void operator()() = 0;
   virtual ~Task() = default;
+  Task(Task &) = delete;
   AsyncState state() const { return _state; }
   DynData &result() { return this->_result; }
   void wait() { _executed.WaitOne(); }
-  void set_then(boost::intrusive_ptr<Task> task);
-  void set_failure(boost::intrusive_ptr<Task> task);
+  void set_then(sptr<Task> task);
+  void set_failure(sptr<Task> task);
   void cancel();
 };
 
@@ -72,7 +76,7 @@ private:
   std::function<void()> _fnc;
 
 public:
-  PostableTask(std::function<void()> fnc) : _fnc(fnc) {}
+  PostableTask(std::function<void()> fnc) : Task(), _fnc(fnc) {}
   virtual void operator()() {
     _fnc();
     resolve();
@@ -89,15 +93,26 @@ protected:
   std::thread *_executingThread = nullptr;
   State status = IDLE;
   bool _end = false;
-  std::optional<boost::intrusive_ptr<Task>> _currentExecution{};
-  void push(boost::intrusive_ptr<Task> task);
+  std::mutex _lock;
+  sptr<Task> _currentExecution{};
+  void push(sptr<Task> task);
   ManualResetEvent onCompleted{false};
   ManualResetEvent onAssigned{false};
 
+  inline sptr<Task> take() {
+    std::lock_guard l{_lock};
+    return _currentExecution;
+  }
+
+  inline void reset() {
+    std::lock_guard l{_lock};
+    _currentExecution = nullptr;
+  }
+
 public:
   Executor();
-  bool assign(boost::intrusive_ptr<Task>);
-  boost::intrusive_ptr<Task> post(std::function<void()> f);
+  bool assign(sptr<Task> task);
+  sptr<Task> post(std::function<void()> f);
   void start();
   void wait_termination();
   State state() const { return status; }
@@ -107,20 +122,22 @@ public:
 
 class Scheduler {
 private:
-  std::vector<boost::intrusive_ptr<Executor>> _executors{};
+  std::vector<sptr<Executor>> _executors{};
   int _previousCount = 0;
   bool _end = false;
   std::thread *_executionThread = nullptr;
   std::mutex schedLock{};
   int _maxExecutors = 10;
   int WaitAnyExecutorIdle();
+  void forExecutors(std::function<void(sptr<Executor> &e)>);
 
 protected:
-  bool assign(boost::intrusive_ptr<Task> task);
+  bool assign(sptr<Task> task);
+  ManualResetEvent onThreadTerminated{false};
 
 public:
-  boost::intrusive_ptr<Task> post(std::function<void()> f);
-  void schedule(boost::intrusive_ptr<Task> task);
+  sptr<Task> post(std::function<void()> f);
+  void schedule(sptr<Task> task);
   void start();
   void stop();
   void reset();
@@ -130,11 +147,11 @@ public:
     return *this;
   }
   static Scheduler &main();
-  std::optional<boost::intrusive_ptr<Task>> take();
+  std::optional<sptr<Task>> take();
   bool empty() const;
 
 protected:
-  std::queue<boost::intrusive_ptr<Task>> mq{};
+  std::queue<sptr<Task>> mq{};
   Scheduler();
   ~Scheduler();
   static Scheduler *_instance;

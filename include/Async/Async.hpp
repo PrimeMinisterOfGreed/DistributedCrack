@@ -1,29 +1,19 @@
 #pragma once
-#include "Executor.hpp"
+#include "Async/Executor.hpp"
+#include "Concepts.hpp"
 #include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <concepts>
 #include <cstddef>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
-template <typename T> using iptr = boost::intrusive_ptr<T>;
-
 template <typename> struct BaseAsyncTask;
 struct BaseAsync;
-
-template <typename T, typename F, typename... Args>
-concept is_function_return = requires(T ret, F a, Args... args) {
-  { a.operator()(args...) } -> std::convertible_to<T>;
-};
-
-template <typename F, typename... Args>
-concept is_void_function = requires(F f, Args... args) {
-  { f.operator()(args...) } -> std::same_as<void>;
-};
 
 template <typename F, typename... Args>
 concept is_valid_async = is_void_function<F, Args...> ||
@@ -39,7 +29,7 @@ struct BaseAsyncTask<T(Args...)> : public Task {
   BaseAsyncTask(F &&fnc, Args... args) : _fnc(std::move(fnc)), _args(args...) {}
 
   template <typename F>
-  BaseAsyncTask(F &&fnc, iptr<Task> father) : _fnc(std::move(fnc)) {
+  BaseAsyncTask(F &&fnc, sptr<Task> father) : _fnc(std::move(fnc)) {
     _father = father;
   }
 
@@ -85,30 +75,30 @@ struct BaseAsyncTask<T(Args...)> : public Task {
 
 struct BaseAsync {
 protected:
-  iptr<Task> _actual;
+  sptr<Task> _actual;
 
 public:
   BaseAsync() {}
-  BaseAsync(iptr<Task> actual) : _actual(actual) {}
+  BaseAsync(sptr<Task> actual) : _actual(actual) {}
+  BaseAsync(BaseAsync &) = delete;
+  void start_impl(sptr<Task> task) { Scheduler::main().schedule(task); }
 
-  void start_impl(iptr<Task> task) { Scheduler::main().schedule(task); }
+  void then_impl(sptr<Task> task) { _actual->set_then(task); }
 
-  void then_impl(iptr<Task> task) { _actual->set_then(task); }
-
-  void fail_impl(iptr<Task> task) { task->set_failure(task); }
+  void fail_impl(sptr<Task> task) { task->set_failure(task); }
 };
 
 template <typename... Args> struct Async : BaseAsync {
 
 public:
   Async() : BaseAsync() {}
-  Async(iptr<Task> actual) : BaseAsync(actual) {}
+  Async(sptr<Task> actual) : BaseAsync(actual) {}
 
   template <typename F>
     requires(std::is_invocable_v<F, Args...> && is_valid_async<F, Args...>)
   auto &&start(F &&fnc, Args... args) {
     using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
-    auto task = iptr<Task>(
+    auto task = sptr<Task>(
         new BaseAsyncTask<ret_t(Args...)>(std::forward<F>(fnc), args...));
     _actual = task;
     start_impl(task);
@@ -124,7 +114,7 @@ public:
     requires(is_void_function<F, Args...> || is_valid_async<F, Args...>)
   auto &&then(F &&fnc) {
     using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
-    auto task = iptr<Task>(
+    auto task = sptr<Task>(
         new BaseAsyncTask<ret_t(Args...)>(std::forward<F>(fnc), _actual));
     _actual = task;
     then_impl(task);
@@ -145,7 +135,7 @@ template <typename T, typename... Args> struct AsyncLoop : public Task {
   AsyncLoop(std::function<bool(T)> predicate, std::function<T(Args...)> iterFnc,
             Args... args)
       : _terminator(predicate), _iterFnc(iterFnc), _args(args...) {
-    Scheduler::main().schedule(boost::intrusive_ptr<Task>{this});
+    Scheduler::main().schedule(std::shared_ptr<Task>{this});
   }
 
   virtual void operator()() {
@@ -159,13 +149,13 @@ template <typename T, typename... Args> struct AsyncLoop : public Task {
 };
 
 template <> struct AsyncLoop<void> : public Task {
-  std::function<void(boost::intrusive_ptr<Task>)> _iterFnc;
-  AsyncLoop(std::function<void(boost::intrusive_ptr<Task>)> iterFnc)
+  std::function<void(std::shared_ptr<Task>)> _iterFnc;
+  AsyncLoop(std::function<void(std::shared_ptr<Task>)> iterFnc)
       : _iterFnc(iterFnc) {
-    Scheduler::main().schedule(boost::intrusive_ptr<Task>(this));
+    Scheduler::main().schedule(std::shared_ptr<Task>(this));
   }
   virtual void operator()() {
-    auto itrPtr = boost::intrusive_ptr<Task>(this);
+    auto itrPtr = std::shared_ptr<Task>(this);
     _iterFnc(itrPtr);
     Scheduler::main().schedule(itrPtr);
   }

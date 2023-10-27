@@ -20,7 +20,7 @@ int Scheduler::WaitAnyExecutorIdle() {
   return res;
 }
 
-bool Scheduler::assign(boost::intrusive_ptr<Task> task) {
+bool Scheduler::assign(sptr<Task> task) {
   for (auto e : _executors) {
     if (e->assign(task))
       return true;
@@ -28,19 +28,19 @@ bool Scheduler::assign(boost::intrusive_ptr<Task> task) {
   return false;
 }
 
-boost::intrusive_ptr<Task> Scheduler::post(std::function<void()> f) {
+sptr<Task> Scheduler::post(std::function<void()> f) {
   std::lock_guard lock{schedLock};
-  auto alloc = boost::intrusive_ptr<Task>{new PostableTask{f}};
+  auto alloc = sptr<Task>{new PostableTask{f}};
   mq.push(alloc);
   return alloc;
 }
 
-void Scheduler::schedule(boost::intrusive_ptr<Task> task) {
+void Scheduler::schedule(sptr<Task> task) {
   std::lock_guard lock{schedLock};
   mq.push(task);
 }
 
-std::optional<boost::intrusive_ptr<Task>> Scheduler::take() {
+std::optional<sptr<Task>> Scheduler::take() {
   std::lock_guard lock{schedLock};
   if (mq.size() == 0)
     return {};
@@ -69,11 +69,12 @@ void Scheduler::start() {
 
 void Scheduler::routine() {
   while (!_end) {
+    onThreadTerminated.Reset();
     // TODO introduce an optimization to decide if disband or allocate new
     // executors
     auto ecount = _executors.size();
     if (ecount == 0) {
-      _executors.push_back(boost::intrusive_ptr<Executor>(new Executor()));
+      _executors.push_back(sptr<Executor>(new Executor()));
       _executors.at(0)->start();
     }
     auto task = take();
@@ -84,7 +85,7 @@ void Scheduler::routine() {
     else if (assign(task.value())) {
       continue;
     } else if (ecount < _maxExecutors) {
-      auto executor = boost::intrusive_ptr<Executor>(new Executor());
+      auto executor = sptr<Executor>(new Executor());
       executor->start();
       _executors.push_back(executor);
       executor->assign(task.value());
@@ -93,16 +94,18 @@ void Scheduler::routine() {
       _executors.at(free)->assign(task.value());
     }
   }
+
+  onThreadTerminated.Set();
 }
 
-void Scheduler::stop() {}
+void Scheduler::stop() { _end = true; }
 
 void Scheduler::reset() {
-  std::lock_guard lock{schedLock};
+  // std::lock_guard lock{schedLock};
   while (!mq.empty()) {
     mq.pop();
   }
-  for (auto ex : _executors) {
+  for (auto &&ex : _executors) {
     ex->stop();
     ex->wait_termination();
   }
@@ -113,35 +116,42 @@ Scheduler &Scheduler::main() { return *_instance; }
 Scheduler::Scheduler() {}
 
 Scheduler::~Scheduler() {
-  _end = true;
   reset();
+  stop();
 }
 
 Executor::Executor() {}
 
-bool Executor::assign(boost::intrusive_ptr<Task> task) {
+bool Executor::assign(sptr<Task> task) {
+  std::lock_guard _{_lock};
   if (status == PROCESSING || status == WAITING_EXECUTION)
     return false;
-  _currentExecution.emplace(task);
+  _currentExecution = task;
   status = WAITING_EXECUTION;
   onAssigned.Set();
   return true;
 }
 
 void Executor::start() {
+
   if (_executingThread != nullptr)
     return;
   _executingThread = new std::thread{[this]() {
+    onCompleted.Reset();
     while (!_end) {
-      if (!_currentExecution.has_value()) {
+      auto ct = take();
+      if (ct == nullptr) {
         status = IDLE;
         onAssigned.WaitOne();
+        ct = take();
       }
-      onCompleted.Reset();
+      if (_end)
+        break;
       onAssigned.Reset();
-      auto t = _currentExecution.value();
       status = PROCESSING;
-      (*t)();
+      if (ct != nullptr) // accrocchio, controllare perchè
+        (*ct)();
+      reset();
     }
     status = IDLE;
     onCompleted.Set();
@@ -151,7 +161,11 @@ void Executor::start() {
 
 void Executor::wait_termination() { onCompleted.WaitOne(); }
 
-void Executor::stop() { _end = true; }
+void Executor::stop() {
+  _end = true;
+  onAssigned.Set();
+  wait_termination();
+}
 
 Executor::~Executor() { _end = true; }
 
@@ -170,18 +184,18 @@ void Task::resolve(bool failed) {
   if (failed && _failureHandler != nullptr)
     Scheduler::main().schedule(_failureHandler);
   else if (_thenHandler != nullptr) {
-    _thenHandler->_father = this;
+    _thenHandler->_father = std::shared_ptr<Task>(this);
     Scheduler::main().schedule(_thenHandler);
   }
 }
-void Task::set_then(boost::intrusive_ptr<Task> task) {
+void Task::set_then(sptr<Task> task) {
   _thenHandler = task;
   if (_state == RESOLVED) {
-    _thenHandler->_father = this;
+    _thenHandler->_father = std::shared_ptr<Task>(this);
     Scheduler::main().schedule(_thenHandler);
   }
 }
-void Task::set_failure(boost::intrusive_ptr<Task> task) {
+void Task::set_failure(sptr<Task> task) {
   _failureHandler = task;
   if (_state == FAILED) {
     Scheduler::main().schedule(_failureHandler);
