@@ -50,6 +50,12 @@ TEST_F(TestPromise, test_async_then) {
       .wait();
 }
 
+TEST_F(TestPromise, test_future) {
+  auto p = Future<int()>::Run([]() { return 1; });
+  int a = p->result();
+  ASSERT_EQ(a, 1);
+}
+
 /*
 TEST_F(TestPromise, test_async) {
   Async<void>{[]() {}}.then<void>([]() {}).wait();

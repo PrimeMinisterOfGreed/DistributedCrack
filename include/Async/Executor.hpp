@@ -5,6 +5,7 @@
 #include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <condition_variable>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -17,13 +18,19 @@
 class DynData {
 private:
   void *ptr = nullptr;
-  size_t size;
+  size_t size{};
 
 public:
-  template <typename T> void emplace(T value) {
-    ptr = malloc(sizeof(T));
-    std::memcpy(ptr, &value, sizeof(T));
+  template <typename T> void emplace(T &&value) {
     size = sizeof(T);
+    ptr = malloc(size);
+    std::memcpy(ptr, &value, sizeof(T));
+  }
+
+  template <typename T> void emplace(T &&value, size_t size) {
+    this->size = size;
+    ptr = malloc(size);
+    std::memcpy(ptr, &value, size);
   }
 
   template <typename T> T &reintepret() {
@@ -51,7 +58,7 @@ public:
 protected:
   enum AsyncType { START, THEN, RESULT };
   AsyncState _state = WAITING_EXECUTION;
-  DynData _result;
+  DynData _result{};
   std::mutex _lock{};
   sptr<Task> _thenHandler{};
   sptr<Task> _failureHandler{};
@@ -70,7 +77,9 @@ public:
   void set_failure(sptr<Task> task);
   void cancel();
 
-  template <typename T> void make_data(T &&data) { _result.emplace(data); }
+  template <typename T> void make_data(T &&data) {
+    _result.emplace<T>(std::move(data), sizeof(T));
+  }
 };
 
 class PostableTask : public Task {

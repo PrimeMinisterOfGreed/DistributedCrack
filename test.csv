@@ -1,2 +1,0 @@
-execution(#);process(#);method;mean_interArrival(ms);mean_serviceTime(ms);max_interArrival(ms);max_serviceTime(ms);arrivalRate(ms);throughput;serviceRate;utilization;completions;busyTime(ms);observationPeriod(ms)
-1;Test;0;1.79769e+308;1;1.79769e+308;1;377;377;377;1;377;1;1

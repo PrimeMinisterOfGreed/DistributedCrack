@@ -19,6 +19,8 @@ template <typename F, typename... Args>
 concept is_valid_async = is_void_function<F, Args...> ||
                          is_function_return<BaseAsync &&, F, Args...>;
 
+template <typename... Args> struct Async;
+
 template <typename T, typename... Args>
 struct BaseAsyncTask<T(Args...)> : public Task {
 
@@ -93,7 +95,7 @@ template <typename... Args> struct Async : BaseAsync {
 public:
   Async(Args... args) {
     if constexpr (sizeof...(args) > 0) {
-      _actual->make_data(args...);
+      _actual->make_data<std::tuple<Args...>>(std::tuple(args...));
     }
   }
   Async(sptr<Task> actual) : BaseAsync(actual) {}
@@ -109,7 +111,6 @@ public:
     if constexpr (std::is_void_v<ret_t>) {
       return static_cast<Async &&>(*this);
     } else {
-
       return reinterpret_cast<ret_t &&>(*this);
     }
   }
@@ -152,23 +153,51 @@ template <typename T, typename... Args> struct AsyncLoop : public Task {
   }
 };
 
-template <> struct AsyncLoop<void> : public Task {
-  std::function<void(std::shared_ptr<Task>)> _iterFnc;
-  AsyncLoop(std::function<void(std::shared_ptr<Task>)> iterFnc)
-      : _iterFnc(iterFnc) {
-    Scheduler::main().schedule(std::shared_ptr<Task>(this));
-  }
-  virtual void operator()() {
-    auto itrPtr = std::shared_ptr<Task>(this);
-    _iterFnc(itrPtr);
-    Scheduler::main().schedule(itrPtr);
-  }
-};
+template <typename> class Future;
+template <typename T, typename... Args> class Future<T(Args...)> : public Task {
 
-struct AsyncMultiLoop : public Task {
-  std::function<void(size_t)> _iterLambda;
-  std::mutex _lock{};
-  size_t _iterations;
-  AsyncMultiLoop(size_t iterations, std::function<void(size_t)> iterLambda);
-  virtual void operator()();
+  std::function<T(Args...)> _fnc;
+  std::tuple<Args...> _args;
+
+public:
+  template <typename F> Future(F &&fnc, Args... args) : Task(), _fnc(fnc) {
+    using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
+    static_assert(std::is_same_v<ret_t, T>,
+                  "cannot use function with different return type");
+    _fnc = fnc;
+    if constexpr (sizeof...(Args) > 0)
+      _args = {args...};
+  }
+
+  virtual void operator()() {
+    if constexpr (sizeof...(Args) > 0) {
+      if constexpr (std::is_void_v<T>) {
+        std::apply(_fnc, _args);
+        resolve();
+      } else {
+        _result.emplace(std::apply(_fnc, _args));
+        resolve();
+      }
+    } else {
+      if constexpr (std::is_void_v<T>) {
+        _fnc();
+        resolve();
+      } else {
+        _result.emplace(_fnc());
+        resolve();
+      }
+    }
+  }
+
+  template <typename F>
+  static sptr<Future<T(Args...)>> Run(F &&fnc, Args... args) {
+    auto ptr = sptr<Future<T(Args...)>>{new Future<T(Args...)>(fnc, args...)};
+    Scheduler::main().schedule(std::static_pointer_cast<Task>(ptr));
+    return ptr;
+  }
+
+  T result() {
+    wait();
+    return _result.reintepret<T>();
+  }
 };
