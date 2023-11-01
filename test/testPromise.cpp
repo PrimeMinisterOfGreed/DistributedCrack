@@ -74,6 +74,18 @@ TEST_F(TestPromise, test_future_ptr) {
   ASSERT_EQ(a, 4);
 }
 
+TEST_F(TestPromise, test_future_void) {
+  int a = 0;
+  int b = 0;
+  auto p = Future<void>::Run([&a]() { a = 4; });
+  *p += [&b]() { b = 1; };
+  sched().start();
+  p->wait();
+  sched().stop();
+  ASSERT_EQ(a, 4);
+  ASSERT_EQ(b, 1);
+}
+
 TEST_F(TestPromise, test_future_fnc) {
   int b = 0;
   auto p = async([]() { return 1; });
@@ -84,37 +96,3 @@ TEST_F(TestPromise, test_future_fnc) {
   ASSERT_EQ(1, b);
   sched().stop();
 }
-
-/*
-TEST_F(TestPromise, test_async) {
-  Async<void>{[]() {}}.then<void>([]() {}).wait();
-}
-
-TEST_F(TestPromise, test_async_loop) {
-  int a = 0;
-  AsyncLoop<int, int *>{[](int a) { return a == 100; },
-                        [](int *a) {
-                          (*a)++;
-                          return *a;
-                        },
-                        &a}
-      .wait();
-  ASSERT_EQ(100, a);
-}
-
-TEST_F(TestPromise, test_async_void_loop) {
-  int a = 0;
-  AsyncLoop<void>{[&a](auto task) {
-    a++;
-    if (a == 100)
-      task->cancel();
-  }}.wait();
-  ASSERT_EQ(100, a);
-}
-
-TEST_F(TestPromise, test_async_mt) {
-  int a = 0;
-  AsyncMultiLoop{100, [&a](size_t itr) { a = itr; }}.wait();
-  ASSERT_TRUE(a != 0);
-}
-*/

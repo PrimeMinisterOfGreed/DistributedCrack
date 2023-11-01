@@ -22,11 +22,7 @@
 
 boost::program_options::variables_map optionsMap;
 
-Future<int> async_main() {
-  return async([]() {
-
-  });
-}
+void async_main() {}
 
 int main(int argc, char *argv[]) {
   using namespace boost::program_options;
@@ -77,7 +73,7 @@ int main(int argc, char *argv[]) {
          << std::endl;
     return 0;
   }
-  auto pftr = async_main();
-  pftr += [](auto... ns) { Scheduler::main().stop(); };
+  auto pftr = ::async(async_main);
+  *pftr += [](auto... ns) { Scheduler::main().stop(); };
   Scheduler::main().start(false);
 }

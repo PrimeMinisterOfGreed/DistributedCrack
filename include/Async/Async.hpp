@@ -153,15 +153,16 @@ template <typename T, typename... Args> struct AsyncLoop : public Task {
   }
 };
 
-template <typename T, typename... Args> class Future : public Task {
+template <typename> struct BaseFuture;
+
+template <typename T, typename... Args>
+class BaseFuture<T(Args...)> : public Task {
 
   std::function<T(Args...)> _fnc;
   std::tuple<Args...> _args;
 
-  std::vector<std::function<void(T)>> _handlers;
-
 public:
-  template <typename F> Future(F &&fnc, Args... args) : Task(), _fnc(fnc) {
+  template <typename F> BaseFuture(F &&fnc, Args... args) : Task(), _fnc(fnc) {
     using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
     static_assert(std::is_same_v<ret_t, T>,
                   "cannot use function with different return type");
@@ -190,29 +191,67 @@ public:
     }
   }
 
+  T result() {
+    wait();
+    return _result.reintepret<T>();
+  }
+
+  operator T() { return result(); }
+};
+
+template <typename T, typename... Args>
+class Future : public BaseFuture<T(Args...)> {
+private:
+  std::vector<std::function<void(T)>> _handlers;
+
+public:
+  template <typename F>
+  Future(F &&fnc, Args... args) : BaseFuture<T(Args...)>(fnc, args...) {}
+
   template <typename F>
   static sptr<Future<T, Args...>> Run(F &&fnc, Args... args) {
     auto ptr = sptr<Future<T, Args...>>{new Future<T, Args...>(fnc, args...)};
     Scheduler::main().schedule(std::static_pointer_cast<Task>(ptr));
     return ptr;
   }
+  virtual void resolve(bool failed = false) override {
+    if (_handlers.size() > 0) {
+      for (auto h : _handlers) {
+        h(Task::_result.reintepret<T>());
+      }
+    }
+    Task::resolve(failed);
+  }
+  template <typename F> void operator+=(F &&onCompletedHandler) {
+    _handlers.push_back(onCompletedHandler);
+  }
+};
 
-  T result() {
-    wait();
-    return _result.reintepret<T>();
+template <typename... Args>
+class Future<void, Args...> : public BaseFuture<void(Args...)> {
+private:
+  std::vector<std::function<void()>> _handlers;
+
+public:
+  template <typename F>
+  Future(F &&fnc, Args... args) : BaseFuture<void(Args...)>(fnc, args...) {}
+
+  template <typename F>
+  static sptr<Future<void, Args...>> Run(F &&fnc, Args... args) {
+    auto ptr =
+        sptr<Future<void, Args...>>{new Future<void, Args...>(fnc, args...)};
+    Scheduler::main().schedule(std::static_pointer_cast<Task>(ptr));
+    return ptr;
   }
 
   virtual void resolve(bool failed = false) override {
     if (_handlers.size() > 0) {
       for (auto h : _handlers) {
-        h(_result.reintepret<T>());
+        h();
       }
     }
     Task::resolve(failed);
   }
-
-  operator T() { return result(); }
-
   template <typename F> void operator+=(F &&onCompletedHandler) {
     _handlers.push_back(onCompletedHandler);
   }
@@ -222,4 +261,4 @@ template <typename F, typename... Args> auto async(F &&fnc, Args... args) {
   using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
   auto ptr = Future<ret_t, Args...>::Run(fnc, args...);
   return ptr;
-}
+};
