@@ -4,7 +4,7 @@
 
 class TestEnvironment : public testing::Test {
 public:
-  virtual void SetUp() { Scheduler::main().start(); }
+  virtual void SetUp() {}
 
   virtual void TearDown() { Scheduler::main().reset(); }
 };

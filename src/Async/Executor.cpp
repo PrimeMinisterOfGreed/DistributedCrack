@@ -60,7 +60,9 @@ bool Scheduler::empty() const {
   return false;
 }
 
-void Scheduler::start() {
+void Scheduler::start(bool newThread) {
+  if (!newThread)
+    routine();
   if (_executionThread == nullptr) {
     _executionThread = new std::thread{[this]() { routine(); }};
     _executionThread->detach();
@@ -101,7 +103,7 @@ void Scheduler::routine() {
 void Scheduler::stop() { _end = true; }
 
 void Scheduler::reset() {
-  // std::lock_guard lock{schedLock};
+  std::lock_guard lock{schedLock};
   while (!mq.empty()) {
     mq.pop();
   }
@@ -109,6 +111,19 @@ void Scheduler::reset() {
     ex->stop();
     ex->wait_termination();
   }
+}
+
+bool Scheduler::next() {
+  if (!mq.empty()) {
+    auto t = take();
+    (*t.value())();
+  }
+  return mq.empty();
+}
+
+void Scheduler::run_to_empty() {
+  while (next())
+    ;
 }
 
 Scheduler &Scheduler::main() { return *_instance; }

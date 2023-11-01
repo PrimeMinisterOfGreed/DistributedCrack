@@ -63,7 +63,7 @@ protected:
   sptr<Task> _thenHandler{};
   sptr<Task> _failureHandler{};
   sptr<Task> _father;
-  void resolve(bool failed = false);
+  virtual void resolve(bool failed = false);
 
 public:
   Task() {}
@@ -149,9 +149,12 @@ protected:
 public:
   sptr<Task> post(std::function<void()> f);
   void schedule(sptr<Task> task);
-  void start();
+  void start(bool newThread = true);
   void stop();
   void reset();
+
+  bool next();
+  void run_to_empty();
 
   inline Scheduler &setMaxExecutors(int maxThreads) {
     _maxExecutors = maxThreads;

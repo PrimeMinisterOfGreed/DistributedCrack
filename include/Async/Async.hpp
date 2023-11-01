@@ -153,11 +153,12 @@ template <typename T, typename... Args> struct AsyncLoop : public Task {
   }
 };
 
-template <typename> class Future;
-template <typename T, typename... Args> class Future<T(Args...)> : public Task {
+template <typename T, typename... Args> class Future : public Task {
 
   std::function<T(Args...)> _fnc;
   std::tuple<Args...> _args;
+
+  std::vector<std::function<void(T)>> _handlers;
 
 public:
   template <typename F> Future(F &&fnc, Args... args) : Task(), _fnc(fnc) {
@@ -169,7 +170,7 @@ public:
       _args = {args...};
   }
 
-  virtual void operator()() {
+  virtual void operator()() override {
     if constexpr (sizeof...(Args) > 0) {
       if constexpr (std::is_void_v<T>) {
         std::apply(_fnc, _args);
@@ -190,8 +191,8 @@ public:
   }
 
   template <typename F>
-  static sptr<Future<T(Args...)>> Run(F &&fnc, Args... args) {
-    auto ptr = sptr<Future<T(Args...)>>{new Future<T(Args...)>(fnc, args...)};
+  static sptr<Future<T, Args...>> Run(F &&fnc, Args... args) {
+    auto ptr = sptr<Future<T, Args...>>{new Future<T, Args...>(fnc, args...)};
     Scheduler::main().schedule(std::static_pointer_cast<Task>(ptr));
     return ptr;
   }
@@ -200,4 +201,25 @@ public:
     wait();
     return _result.reintepret<T>();
   }
+
+  virtual void resolve(bool failed = false) override {
+    if (_handlers.size() > 0) {
+      for (auto h : _handlers) {
+        h(_result.reintepret<T>());
+      }
+    }
+    Task::resolve(failed);
+  }
+
+  operator T() { return result(); }
+
+  template <typename F> void operator+=(F &&onCompletedHandler) {
+    _handlers.push_back(onCompletedHandler);
+  }
 };
+
+template <typename F, typename... Args> auto async(F &&fnc, Args... args) {
+  using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
+  auto ptr = Future<ret_t, Args...>::Run(fnc, args...);
+  return ptr;
+}

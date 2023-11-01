@@ -1,3 +1,5 @@
+#include "Async/Async.hpp"
+#include "Async/Executor.hpp"
 #include "CompileMacro.hpp"
 #include "LogEngine.hpp"
 #include "OptionsBag.hpp"
@@ -20,61 +22,10 @@
 
 boost::program_options::variables_map optionsMap;
 
-void RunMPI(int argc, char *argv[]) {
-  using namespace boost::mpi;
-  MPI_Init(&argc, &argv);
-  int verbosity = 0;
-  if (optionsMap.count("verbosity")) {
-    verbosity = optionsMap.at("verbosity").as<int>();
-  }
-  auto &comm = *new communicator();
-  if (comm.rank() != 0) {
-    std::stringstream *logBuf = new std::stringstream();
-    MPILogEngine::CreateInstance(comm, nullptr, &std::cout, verbosity);
-  } else {
-    MPILogEngine::CreateInstance(comm, nullptr, &std::cout, verbosity);
-  }
-  MPILogEngine::Instance()->TraceInformation("Starting process:{0}",
-                                             comm.rank());
-  int schema = 0;
-  std::string target = optionsMap.at("target").as<std::string>();
-  if (optionsMap.count("schema"))
-    schema = optionsMap.at("schema").as<int>();
-  int chunk = 2000;
-  if (optionsMap.count("chunk"))
-    chunk = optionsMap.at("chunk").as<int>();
-  switch (schema) {
-  case 0:
+Future<int> async_main() {
+  return async([]() {
 
-    break;
-
-  case 1:
-
-    break;
-  }
-  MPI_Finalize();
-}
-
-void RunGpu() {
-  std::string target = optionsMap.at("target").as<std::string>();
-  int result = -1;
-  int chunk = 2000;
-  int threads = 256;
-  if (optionsMap.count("chunk"))
-    chunk = optionsMap.at("chunk").as<int>();
-  if (optionsMap.count("thread"))
-    threads = optionsMap.at("thread").as<int>();
-  AssignedSequenceGenerator generator{4};
-  size_t computed = 0;
-  while (result == -1) {
-    auto &chunks = generator.generateChunk(chunk);
-    result = md5_gpu(chunks, threads, target);
-    computed += chunk;
-    printf("computed: %d\n", computed);
-    if (result != -1)
-      printf("password is %d\n", chunks.at(result).c_str());
-    chunks.clear();
-  }
+  });
 }
 
 int main(int argc, char *argv[]) {
@@ -126,11 +77,7 @@ int main(int argc, char *argv[]) {
          << std::endl;
     return 0;
   }
-  if (map.count("mpiexec")) {
-    RunMPI(argc, argv);
-    return 0;
-  } else if (map.count("gpu")) {
-    RunGpu();
-    return 0;
-  }
+  auto pftr = async_main();
+  pftr += [](auto... ns) { Scheduler::main().stop(); };
+  Scheduler::main().start(false);
 }
