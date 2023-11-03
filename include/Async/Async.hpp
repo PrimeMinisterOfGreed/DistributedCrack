@@ -133,26 +133,6 @@ public:
   void wait() { _actual->wait(); }
 };
 
-template <typename T, typename... Args> struct AsyncLoop : public Task {
-  std::function<T(Args...)> _iterFnc;
-  std::function<bool(T)> _terminator;
-  std::tuple<Args...> _args;
-  AsyncLoop(std::function<bool(T)> predicate, std::function<T(Args...)> iterFnc,
-            Args... args)
-      : _terminator(predicate), _iterFnc(iterFnc), _args(args...) {
-    Scheduler::main().schedule(std::shared_ptr<Task>{this});
-  }
-
-  virtual void operator()() {
-    T res = std::apply(_iterFnc, _args);
-    if (_terminator(res)) {
-      resolve();
-    } else {
-      Scheduler::main().schedule(this);
-    }
-  }
-};
-
 template <typename> struct BaseFuture;
 
 template <typename T, typename... Args>
