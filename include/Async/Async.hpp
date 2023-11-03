@@ -189,8 +189,13 @@ public:
   Future(F &&fnc, Args... args) : BaseFuture<T(Args...)>(fnc, args...) {}
 
   template <typename F>
+  static sptr<Future<T, Args...>> Create(F &&fnc, Args... args) {
+    return sptr<Future<T, Args...>>{new Future<T, Args...>(fnc, args...)};
+  }
+
+  template <typename F>
   static sptr<Future<T, Args...>> Run(F &&fnc, Args... args) {
-    auto ptr = sptr<Future<T, Args...>>{new Future<T, Args...>(fnc, args...)};
+    auto ptr = Create(fnc, args...);
     Scheduler::main().schedule(std::static_pointer_cast<Task>(ptr));
     return ptr;
   }

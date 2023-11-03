@@ -20,7 +20,7 @@ public:
 struct ParallelLoopBuilder;
 
 template <typename... Args> struct ParallelLoop : public Future<void, Args...> {
-  friend class ParallelLoopBuilder;
+  friend struct ParallelLoopBuilder;
 
 protected:
   std::tuple<Args...> _args;
@@ -33,7 +33,18 @@ protected:
       : _fncs(std::vector<std::function<void(Args...)>>{f...}) {}
 
 public:
-  virtual void operator()() {}
+  virtual void operator()() {
+    for (int i = 0; i < iterations; i++) {
+      for (auto f : _fncs) {
+        std::apply(
+            [this, f](Args... args) {
+              auto t = Future<void, Args...>::Create(f, args...);
+              _tasks.push_back(t);
+            },
+            _args);
+      }
+    }
+  }
 };
 
 struct ParallelLoopBuilder {};
