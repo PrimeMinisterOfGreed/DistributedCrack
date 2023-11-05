@@ -3,6 +3,7 @@
 #include "Async/Executor.hpp"
 #include "Concepts.hpp"
 #include <functional>
+#include <memory>
 #include <tuple>
 #include <vector>
 
@@ -17,10 +18,7 @@ public:
   virtual void operator()() override {}
 };
 
-struct ParallelLoopBuilder;
-
 template <typename... Args> struct ParallelLoop : public Future<void, Args...> {
-  friend struct ParallelLoopBuilder;
 
 protected:
   std::tuple<Args...> _args;
@@ -29,8 +27,9 @@ protected:
   void set_args(Args... args) { _args = std::tuple<Args...>{args...}; }
   int iterations = 1;
   template <typename... Fs>
-  ParallelLoop(Fs... f)
-      : _fncs(std::vector<std::function<void(Args...)>>{f...}) {}
+  ParallelLoop(int it, Fs... f)
+      : _fncs(std::vector<std::function<void(Args...)>>{f...}), iterations(it) {
+  }
 
 public:
   virtual void operator()() {
@@ -45,6 +44,11 @@ public:
       }
     }
   }
-};
 
-struct ParallelLoopBuilder {};
+  template <typename... Fs> static sptr<Task> Create(int it, Fs... f) {
+    return std::make_shared(ParallelLoop<Args...>(it, f...));
+  }
+  template <typename... Fs> static sptr<Task> Create(Fs... f) {
+    return Create(0, f...);
+  }
+};
