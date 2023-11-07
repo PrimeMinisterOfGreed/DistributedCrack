@@ -229,6 +229,11 @@ public:
     return ptr;
   }
 
+  template <typename F>
+  static sptr<Future<void, Args...>> Create(F &&fnc, Args... args) {
+    return sptr<Future<void, Args...>>{new Future<void, Args...>(fnc, args...)};
+  }
+
   virtual void resolve(bool failed = false) override {
     if (_handlers.size() > 0) {
       for (auto h : _handlers) {

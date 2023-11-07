@@ -1,4 +1,5 @@
 #include "Async/Async.hpp"
+#include "Async/AsyncLoop.hpp"
 #include "Async/Executor.hpp"
 #include "Concepts.hpp"
 #include "LogEngine.hpp"
@@ -95,4 +96,19 @@ TEST_F(TestPromise, test_future_fnc) {
   ASSERT_EQ(a, 1);
   ASSERT_EQ(1, b);
   sched().stop();
+}
+
+TEST_F(TestPromise, test_async_loop) {
+  int b = 0;
+  int a = 0;
+  int c = 0;
+  auto p = ParallelLoop<>::Create([&a]() { a = 1; }, [&b]() { b = 1; },
+                                  [&c] { c = 1; });
+  sched().start();
+  p->Run();
+  p->wait();
+  sched().stop();
+  ASSERT_EQ(1, a);
+  ASSERT_EQ(1, b);
+  ASSERT_EQ(1, c);
 }
