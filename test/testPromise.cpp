@@ -106,8 +106,8 @@ TEST_F(TestPromise, test_async_loop) {
                                   [&c] { c = 1; });
   sched().start();
   p->wait();
-  sched().stop();
   ASSERT_EQ(1, a);
   ASSERT_EQ(1, b);
   ASSERT_EQ(1, c);
+  sched().stop();
 }

@@ -40,8 +40,9 @@ protected:
 public:
   virtual void operator()(sptr<Task> thisptr) {
     std::vector<sptr<Task>> tasks{};
-    if (iterations == 0) {
+    if (iterations <= 0) {
       resolve();
+      return;
     }
     for (auto f : _fncs) {
       std::apply(
