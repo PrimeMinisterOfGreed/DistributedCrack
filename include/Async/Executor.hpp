@@ -67,7 +67,7 @@ protected:
 
 public:
   Task() {}
-  virtual void operator()() = 0;
+  virtual void operator()(sptr<Task> thisptr) = 0;
   virtual ~Task() = default;
   Task(Task &) = delete;
   AsyncState state() const { return _state; }
@@ -88,7 +88,7 @@ private:
 
 public:
   PostableTask(std::function<void()> fnc) : Task(), _fnc(fnc) {}
-  virtual void operator()() {
+  virtual void operator()(sptr<Task> thisptr) {
     _fnc();
     resolve();
   }

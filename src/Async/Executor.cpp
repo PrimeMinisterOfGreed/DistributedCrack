@@ -116,7 +116,7 @@ void Scheduler::reset() {
 bool Scheduler::next() {
   if (!mq.empty()) {
     auto t = take();
-    (*t.value())();
+    (*t.value())(t.value());
   }
   return mq.empty();
 }
@@ -165,7 +165,7 @@ void Executor::start() {
       onAssigned.Reset();
       status = PROCESSING;
       if (ct != nullptr) // accrocchio, controllare perchè
-        (*ct)();
+        (*ct)(ct);
       reset();
     }
     status = IDLE;

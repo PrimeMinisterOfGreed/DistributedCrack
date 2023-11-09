@@ -2,6 +2,9 @@
 #include "Async.hpp"
 #include "Async/Executor.hpp"
 #include "Concepts.hpp"
+#include "Functions.hpp"
+#include <algorithm>
+#include <boost/graph/properties.hpp>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -24,7 +27,6 @@ template <typename... Args> struct ParallelLoop : public Task {
 
 protected:
   std::tuple<Args...> _args;
-  std::vector<sptr<Task>> _tasks;
   size_t _opCounter = 0;
   std::vector<std::function<void(Args...)>> _fncs;
   std::mutex _queueLock{};
@@ -32,41 +34,47 @@ protected:
   int iterations = 1;
   template <typename... Fs>
   ParallelLoop(int it, Fs... f)
-      : _fncs(std::vector<std::function<void(Args...)>>{f...}), iterations(it) {
-
-  }
+      : Task(), _fncs(std::vector<std::function<void(Args...)>>{f...}),
+        iterations(it) {}
 
 public:
-  virtual void operator()() {
-    for (int i = 0; i < iterations; i++) {
-      for (auto f : _fncs) {
-        std::apply(
-            [this, f](Args... args) {
-              auto t = Future<void, Args...>::Create(f, args...);
-              *t += [this]() {
-                std::lock_guard _{_queueLock};
-                _opCounter--;
-                if (_opCounter == 0) {
-                  this->resolve();
-                }
-              };
-              _tasks.push_back(t);
-            },
-            _args);
-      }
+  virtual void operator()(sptr<Task> thisptr) {
+    std::vector<sptr<Task>> tasks{};
+    if (iterations == 0) {
+      resolve();
     }
+    for (auto f : _fncs) {
+      std::apply(
+          [this, f, &tasks, thisptr](Args... args) {
+            auto t = Future<void, Args...>::Create(f, args...);
+            *t += [this, t, thisptr]() {
+              std::lock_guard _{_queueLock};
+              _opCounter--;
+              if (_opCounter == 0) {
+                iterations--;
+                Scheduler::main().schedule(thisptr);
+              }
+            };
+            tasks.push_back(t);
+          },
+          _args);
+    }
+    for (auto t : tasks) {
+      Scheduler::main().schedule(t);
+    }
+    _opCounter = tasks.size();
   }
 
   template <typename... Fs>
-  static sptr<ParallelLoop<Args...>> Create(int it, Fs... f) {
-    return sptr<ParallelLoop<Args...>>(new ParallelLoop<Args...>(it, f...));
+  static sptr<ParallelLoop<Args...>> Create(int it, Args... args, Fs... f) {
+    auto ptr = sptr<ParallelLoop<Args...>>(new ParallelLoop<Args...>(it, f...));
+    ptr->set_args(args...);
+    Scheduler::main().schedule(ptr);
+    return ptr;
   }
   template <typename... Fs> static auto Create(Fs... f) {
-    return Create(0, f...);
+    return Create(1, f...);
   }
 
-  void Run(Args... args) {
-    _args = std::tuple{args...};
-    Scheduler::main().schedule(sptr<Task>{this});
-  }
+  ~ParallelLoop() { wait(); }
 };

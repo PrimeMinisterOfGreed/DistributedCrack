@@ -26,14 +26,14 @@ Scheduler &sched() { return Scheduler::main(); }
 TEST(TestAsync, test_async_execution) {
   int a = 0;
   BaseAsyncTask b = BaseAsyncTask<void()>{[&a]() { a++; }};
-  b();
+  b(nullptr);
   ASSERT_EQ(a, 1);
 }
 
 TEST(TestAsync, test_async_args) {
   int a = 0;
   BaseAsyncTask b = BaseAsyncTask<void(int *)>{[](int *c) { (*c)++; }, &a};
-  b();
+  b(nullptr);
   ASSERT_EQ(a, 1);
 }
 
@@ -105,7 +105,6 @@ TEST_F(TestPromise, test_async_loop) {
   auto p = ParallelLoop<>::Create([&a]() { a = 1; }, [&b]() { b = 1; },
                                   [&c] { c = 1; });
   sched().start();
-  p->Run();
   p->wait();
   sched().stop();
   ASSERT_EQ(1, a);

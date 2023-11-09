@@ -39,7 +39,7 @@ struct BaseAsyncTask<T(Args...)> : public Task {
 
   void set_args(Args... args) { _args = std::tuple<Args...>{args...}; }
 
-  virtual void operator()() override {
+  virtual void operator()(sptr<Task> thisptr) override {
     const auto argsize = sizeof...(Args);
     const bool isvoid = std::is_void_v<T>;
     if (_father != nullptr) {
@@ -133,7 +133,7 @@ public:
   void wait() { _actual->wait(); }
 };
 
-template <typename> struct BaseFuture;
+template <typename> class BaseFuture;
 
 template <typename T, typename... Args>
 class BaseFuture<T(Args...)> : public Task {
@@ -151,7 +151,7 @@ public:
       _args = {args...};
   }
 
-  virtual void operator()() override {
+  virtual void operator()(sptr<Task> thisptr) override {
     if constexpr (sizeof...(Args) > 0) {
       if constexpr (std::is_void_v<T>) {
         std::apply(_fnc, _args);
