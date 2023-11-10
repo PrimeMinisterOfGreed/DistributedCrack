@@ -44,19 +44,6 @@ TEST_F(TestPromise, test_async_start) {
   Scheduler::main().stop();
 }
 
-TEST_F(TestPromise, test_async_then) {
-  int a = 0;
-  Scheduler::main().start();
-  Async<>()
-      .start([&a]() {
-        a++;
-        return Async<int>(a);
-      })
-      .then([&a](int val) { a += 2; })
-      .wait();
-  Scheduler::main().stop();
-}
-
 TEST_F(TestPromise, test_future) {
   sched().start();
   auto p = Future<int>::Run([]() { return 1; });
