@@ -20,7 +20,7 @@ public:
   template <typename IterF, typename Predicate>
   AsyncLoop(IterF &&fnc, Predicate &&terminator) {}
 
-  virtual void operator()() override {}
+  virtual void operator()(sptr<Task> thisptr) override {}
 };
 
 template <typename... Args> struct ParallelLoop : public Task {
@@ -67,15 +67,57 @@ public:
   }
 
   template <typename... Fs>
-  static sptr<ParallelLoop<Args...>> Create(int it, Args... args, Fs... f) {
+  static sptr<ParallelLoop<Args...>> Run(int it, Args... args, Fs... f) {
     auto ptr = sptr<ParallelLoop<Args...>>(new ParallelLoop<Args...>(it, f...));
     ptr->set_args(args...);
     Scheduler::main().schedule(ptr);
     return ptr;
   }
-  template <typename... Fs> static auto Create(Fs... f) {
-    return Create(1, f...);
-  }
+  template <typename... Fs> static auto Run(Fs... f) { return Run(1, f...); }
 
   ~ParallelLoop() { wait(); }
+};
+
+template <typename... Args> class AsyncSILoop : public Task {
+  std::tuple<Args...> _args;
+  std::vector<sptr<Task>> _tasks;
+  std::mutex _lock{};
+  std::function<void(size_t, Args...)> _iterFnc;
+  size_t _iterations = 1;
+
+public:
+  template <typename F>
+  AsyncSILoop(F &&fnc, size_t iterations, Args... args)
+      : _args(args...), _iterFnc(fnc), _iterations(iterations) {}
+
+  virtual void operator()(sptr<Task> thisptr) {
+    for (size_t i = 0; i < _iterations; i++) {
+      std::apply(
+          [this, i](Args... args) {
+            auto t =
+                Future<void, size_t, Args...>::Create(_iterFnc, i, args...);
+            *t += [this]() {
+              std::lock_guard l(_lock);
+              _iterations--;
+              if (_iterations == 0) {
+                resolve();
+              }
+            };
+            _tasks.push_back(t);
+          },
+          _args);
+    }
+    for (auto t : _tasks) {
+      Scheduler::main().schedule(t);
+    }
+  }
+
+  template <typename F>
+  static sptr<AsyncSILoop<Args...>> Run(size_t iterations, F &&fnc,
+                                        Args... args) {
+    auto t = sptr<AsyncSILoop<Args...>>(
+        new AsyncSILoop<Args...>(fnc, iterations, args...));
+    Scheduler::main().schedule(t);
+    return t;
+  }
 };

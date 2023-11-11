@@ -89,12 +89,23 @@ TEST_F(TestPromise, test_async_loop) {
   int b = 0;
   int a = 0;
   int c = 0;
-  auto p = ParallelLoop<>::Create([&a]() { a = 1; }, [&b]() { b = 1; },
-                                  [&c] { c = 1; });
+  auto p = ParallelLoop<>::Run([&a]() { a = 1; }, [&b]() { b = 1; },
+                               [&c] { c = 1; });
   sched().start();
   p->wait();
   ASSERT_EQ(1, a);
   ASSERT_EQ(1, b);
   ASSERT_EQ(1, c);
+  sched().stop();
+}
+
+TEST_F(TestPromise, test_simd_loop) {
+  int a[3] = {0, 0, 0};
+  auto p = AsyncSILoop<>::Run(3, [&a](size_t i) { a[i] = 1; });
+  sched().start();
+  p->wait();
+  ASSERT_EQ(1, a[0]);
+  ASSERT_EQ(1, a[1]);
+  ASSERT_EQ(1, a[2]);
   sched().stop();
 }
