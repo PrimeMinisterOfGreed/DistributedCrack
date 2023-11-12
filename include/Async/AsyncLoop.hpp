@@ -12,13 +12,19 @@
 #include <tuple>
 #include <vector>
 
-template <typename... Args> struct AsyncLoop : public Future<void, Args...> {
+template <typename... Args> struct AsyncLoop : public Task {
+
+  template <typename T> struct LoopRequest {
+    bool end = false;
+    T hold;
+  };
+
 private:
   std::tuple<Args...> _args;
+  sptr<Task> _innerTask;
 
 public:
-  template <typename IterF, typename Predicate>
-  AsyncLoop(IterF &&fnc, Predicate &&terminator) {}
+  template <typename IterF> AsyncLoop(IterF &&fnc) {}
 
   virtual void operator()(sptr<Task> thisptr) override {}
 };

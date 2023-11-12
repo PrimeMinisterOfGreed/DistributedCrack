@@ -138,3 +138,6 @@ template <typename F, typename... Args> auto async(F &&fnc, Args... args) {
   auto ptr = Future<ret_t, Args...>::Run(fnc, args...);
   return ptr;
 };
+
+template <typename T, typename... Args>
+using FuturePtr = sptr<Future<T, Args...>>;
