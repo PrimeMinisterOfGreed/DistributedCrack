@@ -194,6 +194,7 @@ void intrusive_ptr_release(Task *p) {}
 void Task::cancel() { resolve(); }
 
 void Task::resolve(bool failed) {
+  std::lock_guard l(_lock);
   _state = failed ? FAILED : RESOLVED;
   _executed.Set();
   if (failed && _failureHandler != nullptr)
@@ -204,6 +205,7 @@ void Task::resolve(bool failed) {
   }
 }
 void Task::set_then(sptr<Task> task) {
+  std::lock_guard l(_lock);
   _thenHandler = task;
   if (_state == RESOLVED) {
     _thenHandler->_father = std::shared_ptr<Task>(this);
@@ -211,6 +213,7 @@ void Task::set_then(sptr<Task> task) {
   }
 }
 void Task::set_failure(sptr<Task> task) {
+  std::lock_guard l(_lock);
   _failureHandler = task;
   if (_state == FAILED) {
     Scheduler::main().schedule(_failureHandler);
