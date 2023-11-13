@@ -14,19 +14,40 @@
 
 template <typename... Args> struct AsyncLoop : public Task {
 
-  template <typename T> struct LoopRequest {
+  struct LoopRequest {
     bool end = false;
-    T hold;
+  };
+
+  template <typename... Results> struct LoopResult : public LoopRequest {
+    bool end = true;
+    std::tuple<Results...> results;
   };
 
 private:
-  std::tuple<Args...> _args;
   sptr<Task> _innerTask;
 
 public:
-  template <typename IterF> AsyncLoop(IterF &&fnc) {}
+  template <typename IterF> AsyncLoop(IterF &&fnc, Args... args) {
+    _innerTask = Future<LoopRequest, Args...>::Create(fnc, args...);
+  }
 
-  virtual void operator()(sptr<Task> thisptr) override {}
+  virtual void operator()(sptr<Task> thisptr) override {
+    (*_innerTask)(_innerTask);
+    auto res = _innerTask->result().reintepret<LoopRequest>();
+    if (!res.end) {
+      Scheduler::main().schedule(thisptr);
+    } else {
+      resolve();
+    }
+  }
+
+  static LoopRequest loopNext() { return LoopRequest{false}; }
+  static LoopRequest loopResolve() { return LoopRequest{true}; }
+
+  template <typename... Results>
+  static LoopRequest &loopResolve(Results... results) {
+    return LoopResult<Results...>{false, results...};
+  }
 };
 
 template <typename... Args> struct ParallelLoop : public Task {
