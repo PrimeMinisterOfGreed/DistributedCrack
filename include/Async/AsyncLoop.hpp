@@ -24,19 +24,22 @@ template <typename... Args> struct AsyncLoop : public Task {
   };
 
 private:
-  sptr<Task> _innerTask;
+  // may be should be single return so it could be detucted
+  std::function<LoopRequest(Args...)> _loopFnc;
+  std::tuple<Args...> _args;
+  sptr<LoopRequest> _result = nullptr;
 
 public:
-  template <typename IterF> AsyncLoop(IterF &&fnc, Args... args) {
-    _innerTask = Future<LoopRequest, Args...>::Create(fnc, args...);
-  }
+  template <typename IterF>
+  AsyncLoop(IterF &&fnc, Args... args) : _loopFnc(fnc), _args(args...) {}
 
   virtual void operator()(sptr<Task> thisptr) override {
-    (*_innerTask)(_innerTask);
-    auto res = _innerTask->result().reintepret<LoopRequest>();
-    if (!res.end) {
+    sptr<LoopRequest> res =
+        sptr<LoopRequest>(std::make_shared(std::apply(_loopFnc, _args)));
+    if (!res->end) {
       Scheduler::main().schedule(thisptr);
     } else {
+      _result = res;
       resolve();
     }
   }
@@ -47,6 +50,18 @@ public:
   template <typename... Results>
   static LoopRequest &loopResolve(Results... results) {
     return LoopResult<Results...>{false, results...};
+  }
+
+  template <typename... Result> sptr<LoopResult<Result...>> result() {
+    wait();
+    return static_cast<sptr<LoopResult<Result...>>>(_result);
+  }
+
+  template <typename F>
+  static sptr<AsyncLoop<Args...>> Create(F &&fnc, Args... args) {
+    auto ptr = sptr<AsyncLoop<Args...>>(new AsyncLoop<Args...>(fnc, args...));
+    Scheduler::main().schedule(ptr);
+    return ptr;
   }
 };
 

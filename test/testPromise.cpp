@@ -88,3 +88,18 @@ TEST_F(TestPromise, test_simd_loop) {
   ASSERT_EQ(1, a[2]);
   sched().stop();
 }
+
+TEST_F(TestPromise, test_loop) {
+  int a = 0;
+  auto p = AsyncLoop<int>::Create(
+      [&a](int b) {
+        b++;
+        if (b > 3) {
+          return AsyncLoop<int>::loopResolve(b);
+        }
+        a = b;
+        return AsyncLoop<int>::loopNext();
+      },
+      a);
+  int c = p->result<int>()->results;
+}
