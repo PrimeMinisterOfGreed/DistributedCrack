@@ -10,15 +10,21 @@
 #include <memory>
 #include <mutex>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 template <typename... Args> struct AsyncLoop : public Future<void, Args...> {
 private:
   std::tuple<Args...> _args;
+  sptr<Task> predTask;
+  sptr<Task> iterfTask;
 
 public:
   template <typename IterF, typename Predicate>
-  AsyncLoop(IterF &&fnc, Predicate &&terminator) {}
+  AsyncLoop(IterF &&fnc, Predicate &&terminator) {
+    using iterRet_t =
+        decltype(std::forward<IterF>(fnc)(std::declval<Args &>()...));
+  }
 
   virtual void operator()(sptr<Task> thisptr) override {}
 };

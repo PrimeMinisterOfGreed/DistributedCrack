@@ -12,129 +12,7 @@
 #include <utility>
 #include <vector>
 
-template <typename> struct BaseAsyncTask;
-struct BaseAsync;
-
-template <typename F, typename... Args>
-concept is_valid_async = is_void_function<F, Args...> ||
-                         is_function_return<BaseAsync &&, F, Args...>;
-
-template <typename... Args> struct Async;
-
-template <typename T, typename... Args>
-struct BaseAsyncTask<T(Args...)> : public Task {
-
-  std::function<T(Args...)> _fnc;
-  std::tuple<Args...> _args;
-
-  template <typename F>
-  BaseAsyncTask(F &&fnc, Args... args) : _fnc(std::move(fnc)), _args(args...) {}
-
-  template <typename F>
-  BaseAsyncTask(F &&fnc, sptr<Task> father) : _fnc(std::move(fnc)) {
-    _father = father;
-  }
-
-  BaseAsyncTask(BaseAsyncTask &) = delete;
-
-  void set_args(Args... args) { _args = std::tuple<Args...>{args...}; }
-
-  virtual void operator()(sptr<Task> thisptr) override {
-    const auto argsize = sizeof...(Args);
-    const bool isvoid = std::is_void_v<T>;
-    if (_father != nullptr) {
-      if constexpr (isvoid) {
-        if constexpr (argsize > 0)
-          _fnc(_father->result().reintepret<Args...>());
-        else
-          _fnc();
-      } else {
-        if constexpr (argsize > 0) {
-          _result.emplace(_fnc(_father->result().reintepret<Args...>()));
-        } else {
-          _result.emplace(_fnc);
-        }
-      }
-      resolve();
-    } else {
-      if constexpr (isvoid) {
-        if constexpr (argsize > 0)
-          std::apply(_fnc, _args);
-        else
-          _fnc();
-        resolve();
-      } else {
-        if constexpr (sizeof...(Args) > 0) {
-          _result.emplace(std::apply(_fnc, _args));
-        } else {
-          _result.emplace(_fnc());
-        }
-        resolve();
-      }
-    }
-  }
-};
-
-struct BaseAsync {
-protected:
-  sptr<Task> _actual;
-
-public:
-  BaseAsync() {}
-  BaseAsync(sptr<Task> actual) : _actual(actual) {}
-  BaseAsync(BaseAsync &) = delete;
-  void start_impl(sptr<Task> task) { Scheduler::main().schedule(task); }
-
-  void then_impl(sptr<Task> task) { _actual->set_then(task); }
-
-  void fail_impl(sptr<Task> task) { task->set_failure(task); }
-};
-
-template <typename... Args> struct Async : BaseAsync {
-
-public:
-  Async(Args... args) {
-    if constexpr (sizeof...(args) > 0) {
-      _actual->make_data<std::tuple<Args...>>(std::tuple(args...));
-    }
-  }
-  Async(sptr<Task> actual) : BaseAsync(actual) {}
-
-  template <typename F>
-    requires(is_void_function<F, Args...> || is_valid_async<F, Args...>)
-  auto &&start(F &&fnc, Args... args) {
-    using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
-    auto task = sptr<Task>(
-        new BaseAsyncTask<ret_t(Args...)>(std::forward<F>(fnc), args...));
-    _actual = task;
-    start_impl(task);
-    if constexpr (std::is_void_v<ret_t>) {
-      return static_cast<Async &&>(*this);
-    } else {
-      return reinterpret_cast<ret_t &&>(*this);
-    }
-  }
-
-  template <typename F>
-    requires(is_void_function<F, Args...> || is_valid_async<F, Args...>)
-  auto &&then(F &&fnc) {
-    using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
-    auto task = sptr<Task>(
-        new BaseAsyncTask<ret_t(Args...)>(std::forward<F>(fnc), _actual));
-    then_impl(task);
-    _actual = task;
-    if constexpr (std::is_void_v<ret_t>) {
-      return static_cast<Async &&>(*this);
-    } else {
-      return reinterpret_cast<ret_t &&>(*this);
-    }
-  }
-
-  void wait() { _actual->wait(); }
-};
-
 template <typename> class BaseFuture;
-
 template <typename T, typename... Args>
 class BaseFuture<T(Args...)> : public Task {
 
@@ -150,6 +28,10 @@ public:
     if constexpr (sizeof...(Args) > 0)
       _args = {args...};
   }
+
+  template <typename F> BaseFuture(F &&fnc) : Task(), _fnc(fnc) {}
+
+  void set_args(Args... args) { _args = {args...}; }
 
   virtual void operator()(sptr<Task> thisptr) override {
     if constexpr (sizeof...(Args) > 0) {

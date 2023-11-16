@@ -23,27 +23,6 @@ class TestPromise : public TestEnvironment {};
 
 Scheduler &sched() { return Scheduler::main(); }
 
-TEST(TestAsync, test_async_execution) {
-  int a = 0;
-  BaseAsyncTask b = BaseAsyncTask<void()>{[&a]() { a++; }};
-  b(nullptr);
-  ASSERT_EQ(a, 1);
-}
-
-TEST(TestAsync, test_async_args) {
-  int a = 0;
-  BaseAsyncTask b = BaseAsyncTask<void(int *)>{[](int *c) { (*c)++; }, &a};
-  b(nullptr);
-  ASSERT_EQ(a, 1);
-}
-
-TEST_F(TestPromise, test_async_start) {
-  Scheduler::main().start();
-  int a = 0;
-  Async<>().start([&a]() { a++; }).wait();
-  Scheduler::main().stop();
-}
-
 TEST_F(TestPromise, test_future) {
   sched().start();
   auto p = Future<int>::Run([]() { return 1; });
