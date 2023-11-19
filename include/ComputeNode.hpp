@@ -18,9 +18,9 @@ private:
 
 public:
   Node(boost::mpi::communicator comm);
-  FuturePtr<NodeTask> WaitTask();
-  FuturePtr<void> SignalReady();
-  FuturePtr<void> ComputeTask();
+  // FuturePtr<NodeTask> WaitTask();
+  // FuturePtr<void> SignalReady();
+  // FuturePtr<void> ComputeTask();
   virtual Task Routine();
 };
 
@@ -28,6 +28,6 @@ class GeneratorNode : public Node {
 
 public:
   GeneratorNode(boost::mpi::communicator comm);
-  FuturePtr<void> SendTask(NodeTask task, int node);
+  // FuturePtr<void> SendTask(NodeTask task, int node);
   virtual Task Routine() override;
 };

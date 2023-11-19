@@ -197,25 +197,23 @@ void Task::resolve(bool failed) {
   std::lock_guard l(_lock);
   _state = failed ? FAILED : RESOLVED;
   _executed.Set();
-  if (failed && _failureHandler != nullptr)
-    Scheduler::main().schedule(_failureHandler);
-  else if (_thenHandler != nullptr) {
-    _thenHandler->_father = std::shared_ptr<Task>(this);
-    Scheduler::main().schedule(_thenHandler);
+  if (failed && _onFail != nullptr)
+    Scheduler::main().schedule(_onFail);
+  else if (_onComplete != nullptr) {
+    Scheduler::main().schedule(_onComplete);
   }
 }
-void Task::set_then(sptr<Task> task) {
+void Task::onComplete(sptr<Task> task) {
   std::lock_guard l(_lock);
-  _thenHandler = task;
+  _onComplete = task;
   if (_state == RESOLVED) {
-    _thenHandler->_father = std::shared_ptr<Task>(this);
-    Scheduler::main().schedule(_thenHandler);
+    Scheduler::main().schedule(_onComplete);
   }
 }
-void Task::set_failure(sptr<Task> task) {
+void Task::onFail(sptr<Task> task) {
   std::lock_guard l(_lock);
-  _failureHandler = task;
+  _onFail = task;
   if (_state == FAILED) {
-    Scheduler::main().schedule(_failureHandler);
+    Scheduler::main().schedule(_onFail);
   }
 }

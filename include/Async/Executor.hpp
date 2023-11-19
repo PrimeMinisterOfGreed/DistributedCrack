@@ -3,6 +3,7 @@
 #include "MultiThread/AutoResetEvent.hpp"
 #include <boost/intrusive_ptr.hpp>
 #include <boost/smart_ptr/intrusive_ptr.hpp>
+#include <boost/smart_ptr/make_shared_array.hpp>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdlib>
@@ -47,6 +48,17 @@ public:
   }
 };
 
+struct Callable {
+  DynData _result{};
+
+public:
+  virtual void operator()() = 0;
+  DynData &result() { return this->_result; }
+  template <typename T> void make_data(T &&data) {
+    _result.emplace<T>(std::move(data));
+  }
+};
+
 class Executor;
 class Task {
   friend class Executor;
@@ -58,11 +70,9 @@ public:
 protected:
   enum AsyncType { START, THEN, RESULT };
   AsyncState _state = WAITING_EXECUTION;
-  DynData _result{};
   std::mutex _lock{};
-  sptr<Task> _thenHandler{};
-  sptr<Task> _failureHandler{};
-  sptr<Task> _father;
+  sptr<Task> _onComplete{};
+  sptr<Task> _onFail{};
   virtual void resolve(bool failed = false);
 
 public:
@@ -71,15 +81,11 @@ public:
   virtual ~Task() = default;
   Task(Task &) = delete;
   AsyncState state() const { return _state; }
-  DynData &result() { return this->_result; }
-  void wait() { _executed.WaitOne(); }
-  void set_then(sptr<Task> task);
-  void set_failure(sptr<Task> task);
-  void cancel();
 
-  template <typename T> void make_data(T &&data) {
-    _result.emplace<T>(std::move(data), sizeof(T));
-  }
+  void wait() { _executed.WaitOne(); }
+  void onComplete(sptr<Task> task);
+  void onFail(sptr<Task> task);
+  void cancel();
 };
 
 class PostableTask : public Task {

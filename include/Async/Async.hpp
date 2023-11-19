@@ -2,6 +2,7 @@
 #include "Async/Executor.hpp"
 #include "Concepts.hpp"
 #include <boost/smart_ptr/intrusive_ptr.hpp>
+#include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <functional>
@@ -12,67 +13,43 @@
 #include <utility>
 #include <vector>
 
-template <typename> struct BaseAsyncTask;
-struct BaseAsync;
-
-template <typename F, typename... Args>
-concept is_valid_async = is_void_function<F, Args...> ||
-                         is_function_return<BaseAsync &&, F, Args...>;
-
-template <typename> class BaseFuture;
-
-template <typename T, typename... Args>
-class BaseFuture<T(Args...)> : public Task {
-
-  std::function<T(Args...)> _fnc;
+template <typename F, typename... Args> struct Func : public Callable {
+private:
+  F _fnc;
   std::tuple<Args...> _args;
 
 public:
-  template <typename F> BaseFuture(F &&fnc, Args... args) : Task(), _fnc(fnc) {
-    using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
-    static_assert(std::is_same_v<ret_t, T>,
-                  "cannot use function with different return type");
-    _fnc = fnc;
-    if constexpr (sizeof...(Args) > 0)
-      _args = {args...};
-  }
+  Func(F &&fnc, Args... args) : _fnc(fnc), _args(args...) {}
 
-  virtual void operator()(sptr<Task> thisptr) override {
-    if constexpr (sizeof...(Args) > 0) {
-      if constexpr (std::is_void_v<T>) {
+  virtual void operator()() override {
+    using ret = decltype(std::forward<F>(_fnc)(std::declval<Args &>()...));
+    if constexpr (std::is_void_v<ret>) {
+      if constexpr (sizeof...(Args) > 0)
         std::apply(_fnc, _args);
-        resolve();
-      } else {
-        _result.emplace(std::apply(_fnc, _args));
-        resolve();
-      }
-    } else {
-      if constexpr (std::is_void_v<T>) {
+      else
         _fnc();
-        resolve();
-      } else {
-        _result.emplace(_fnc());
-        resolve();
-      }
+    } else {
+      if constexpr (sizeof...(Args) > 0)
+        make_data(std::apply(_fnc, _args));
+      else
+        make_data(_fnc());
     }
   }
 
-  T result() {
-    wait();
-    return _result.reintepret<T>();
-  }
-
-  operator T() { return result(); }
+  Func(Func &) = delete;
 };
 
-template <typename T, typename... Args>
-class Future : public BaseFuture<T(Args...)> {
+template <typename> struct Handler;
+
+template <typename T, typename... Args> class Future : public Task {
 private:
-  std::vector<std::function<void(T)>> _handlers;
+  sptr<Callable> _callable;
+  std::vector<sptr<Callable>> _handlers;
 
 public:
   template <typename F>
-  Future(F &&fnc, Args... args) : BaseFuture<T(Args...)>(fnc, args...) {}
+  Future(F &&fnc, Args... args)
+      : Task(), _callable(new Func<decltype(fnc), Args...>{fnc, args...}) {}
 
   template <typename F>
   static sptr<Future<T, Args...>> Create(F &&fnc, Args... args) {
@@ -85,27 +62,32 @@ public:
     Scheduler::main().schedule(std::static_pointer_cast<Task>(ptr));
     return ptr;
   }
-  virtual void resolve(bool failed = false) override {
-    if (_handlers.size() > 0) {
-      for (auto h : _handlers) {
-        h(Task::_result.reintepret<T>());
-      }
-    }
-    Task::resolve(failed);
+
+  virtual void operator()(sptr<Task> thisptr) override {
+    (*_callable)();
+    resolve();
   }
-  template <typename F> void operator+=(F &&onCompletedHandler) {
-    _handlers.push_back(onCompletedHandler);
+
+  template <typename F> void operator+=(F fnc) {
+    auto ptr = sptr<Callable>(new Func<decltype(fnc), T>{fnc});
+    _handlers.push_back(ptr);
+  }
+
+  virtual operator T() {
+    wait();
+    return _callable->result().reintepret<T>();
   }
 };
 
-template <typename... Args>
-class Future<void, Args...> : public BaseFuture<void(Args...)> {
+template <typename... Args> class Future<void, Args...> : public Task {
 private:
-  std::vector<std::function<void()>> _handlers;
+  sptr<Callable> _callable;
+  std::vector<sptr<Callable>> _handlers;
 
 public:
   template <typename F>
-  Future(F &&fnc, Args... args) : BaseFuture<void(Args...)>(fnc, args...) {}
+  Future(F &&fnc, Args... args)
+      : Task(), _callable(new Func<decltype(fnc), Args...>{fnc, args...}) {}
 
   template <typename F>
   static sptr<Future<void, Args...>> Run(F &&fnc, Args... args) {
@@ -120,24 +102,26 @@ public:
     return sptr<Future<void, Args...>>{new Future<void, Args...>(fnc, args...)};
   }
 
-  virtual void resolve(bool failed = false) override {
-    if (_handlers.size() > 0) {
-      for (auto h : _handlers) {
-        h();
-      }
+  void resolve(bool failed = false) override {
+    for (auto &h : _handlers) {
+      (*h)();
     }
     Task::resolve(failed);
   }
-  template <typename F> void operator+=(F &&onCompletedHandler) {
-    _handlers.push_back(onCompletedHandler);
+
+  virtual void operator()(sptr<Task> thisptr) override {
+    (*_callable)();
+    resolve();
+  }
+
+  template <typename F> void operator+=(F fnc) {
+    auto ptr = sptr<Callable>(new Func<decltype(fnc)>(std::move(fnc)));
+    _handlers.push_back(ptr);
   }
 };
 
 template <typename F, typename... Args> auto async(F &&fnc, Args... args) {
   using ret_t = decltype(std::forward<F>(fnc)(std::declval<Args &>()...));
-  auto ptr = Future<ret_t, Args...>::Run(fnc, args...);
+  auto ptr = Future<ret_t, Args...>::Run(std::move(fnc), args...);
   return ptr;
 };
-
-template <typename T, typename... Args>
-using FuturePtr = sptr<Future<T, Args...>>;

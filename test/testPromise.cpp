@@ -11,11 +11,14 @@
 #include <boost/program_options/variables_map.hpp>
 #include <cstddef>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <functional>
 #include <gtest/gtest.h>
 #include <md5.hpp>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -26,7 +29,7 @@ Scheduler &sched() { return Scheduler::main(); }
 TEST_F(TestPromise, test_future) {
   sched().start();
   auto p = Future<int>::Run([]() { return 1; });
-  int a = p->result();
+  int a = *p;
   sched().stop();
   ASSERT_EQ(a, 1);
 }
@@ -44,62 +47,36 @@ TEST_F(TestPromise, test_future_ptr) {
 TEST_F(TestPromise, test_future_void) {
   int a = 0;
   int b = 0;
-  auto p = Future<void>::Run([&a]() { a = 4; });
+  auto p = async([&a]() { a = 4; });
   *p += [&b]() { b = 1; };
   sched().start();
   p->wait();
+  ASSERT_EQ(4, a);
+  ASSERT_EQ(1, b);
   sched().stop();
-  ASSERT_EQ(a, 4);
-  ASSERT_EQ(b, 1);
 }
 
 TEST_F(TestPromise, test_future_fnc) {
   int b = 0;
   auto p = async([]() { return 1; });
-  *p += [&b](int t) { b += t; };
   sched().start();
   int a = *p;
   ASSERT_EQ(a, 1);
-  ASSERT_EQ(1, b);
   sched().stop();
 }
 
-TEST_F(TestPromise, test_async_loop) {
-  int b = 0;
+TEST(TestAlternateHandler, test_f) {
+  Func f{[](int a, int b) { return a + b; }, 1, 2};
+  f();
+  int c = f.result().reintepret<int>();
+  ASSERT_EQ(3, c);
+}
+
+TEST(TestAlternateHandler, test_f_ref) {
   int a = 0;
-  int c = 0;
-  auto p = ParallelLoop<>::Run([&a]() { a = 1; }, [&b]() { b = 1; },
-                               [&c] { c = 1; });
-  sched().start();
-  p->wait();
+  Func f{[&a]() { a = 1; }};
+  f();
   ASSERT_EQ(1, a);
-  ASSERT_EQ(1, b);
-  ASSERT_EQ(1, c);
-  sched().stop();
 }
 
-TEST_F(TestPromise, test_simd_loop) {
-  int a[3] = {0, 0, 0};
-  auto p = AsyncSILoop<>::Run(3, [&a](size_t i) { a[i] = 1; });
-  sched().start();
-  p->wait();
-  ASSERT_EQ(1, a[0]);
-  ASSERT_EQ(1, a[1]);
-  ASSERT_EQ(1, a[2]);
-  sched().stop();
-}
-
-TEST_F(TestPromise, test_loop) {
-  int a = 0;
-  auto p = AsyncLoop<int>::Create(
-      [&a](int b) {
-        b++;
-        if (b > 3) {
-          return AsyncLoop<int>::loopResolve(b);
-        }
-        a = b;
-        return AsyncLoop<int>::loopNext();
-      },
-      a);
-  int c = p->result<int>()->results;
-}
+TEST(TestAlternateHandler, test_f_lazy) { int a = 0; }
