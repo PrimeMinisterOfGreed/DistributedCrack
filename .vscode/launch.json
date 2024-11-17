@@ -1,45 +1,12 @@
 {
-      // Usare IntelliSense per informazioni sui possibili attributi.
-      // Al passaggio del mouse vengono visualizzate le descrizioni degli attributi esistenti.
-      // Per altre informazioni, visitare: https://go.microsoft.com/fwlink/?linkid=830387
-      "version": "0.2.0",
-      "configurations": [
-            {
-                  "name": "GPU mode launch",
-                  "type": "cppdbg",
-                  "request": "launch",
-                  "program": "${workspaceFolder}/build/distributedcrack",
-                  "args": ["--gpu", "--target","4a7d1ed414474e4033ac29ccb8653d9b", "--chunk","3000000" ,"--thread", "4096"],
-                  "stopAtEntry": false,
-                  "cwd": "${fileDirname}",
-                  "environment": [],
-                  "externalConsole": false,
-                  "MIMode": "gdb",
-                  "setupCommands": [
-                      {
-                          "description": "Abilita la riformattazione per gdb",
-                          "text": "-enable-pretty-printing",
-                          "ignoreFailures": true
-                      },
-                      {
-                          "description": "Imposta Versione Disassembly su Intel",
-                          "text": "-gdb-set disassembly-flavor intel",
-                          "ignoreFailures": true
-                      }
-                  ]
-            },
-
-            {
-                  "name": "CUDA C++: Launch tests",
-                  "type": "cuda-gdb",
-                  "request": "launch",
-                  "program": "${workspaceFolder}/build/tests"
-            },
-            {
-                  "name": "CUDA C++: Attach",
-                  "type": "cuda-gdb",
-                  "request": "attach"
-            },
-
-      ]
+    "configurations": [
+        {
+            "type": "cmake",
+            "request": "launch",
+            "name": "Debug portfile(s)",
+            "cmakeDebugType": "external",
+            "pipeName": "/tmp/vcpkg_ext_portfile_dbg",
+            "preLaunchTask": "Debug vcpkg commands"
+        }
+    ]
 }

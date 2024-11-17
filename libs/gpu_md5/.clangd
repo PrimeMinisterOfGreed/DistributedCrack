@@ -1,0 +1,20 @@
+CompileFlags:                     # Tweak the parse settings
+  Add: [
+    -xcuda,
+    --no-cuda-version-check,
+
+  ]
+  Remove: [
+    -forward-unknown-to-host-compiler,
+    --options-file,
+    "--generate-code=arch=compute_52,code=[compute_52,sm_52]",
+    -allow-unsupported-compiler,
+    -G
+    ]
+  Compiler: nvcc 
+
+Diagnostics:
+  Suppress:
+    - ovl_no_viable_function_in_call
+    - undeclared_var_use_suggest
+    - typename_invalid_functionspec

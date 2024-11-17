@@ -62,7 +62,7 @@
             "__nullptr": "cpp"
       },
       "[cuda-cpp]": {
-            "editor.wordBasedSuggestions": false,
+            "editor.wordBasedSuggestions": "off",
             "editor.suggest.insertMode": "replace",
             "editor.semanticHighlighting.enabled": true,
             "editor.inlayHints.enabled": "on"
@@ -70,5 +70,6 @@
       "C_Cpp.intelliSenseEngine": "disabled",
       "coverage-gutters.coverageFileNames": [
             "build/DistributedCrack_lcov.info"
-      ]
+      ],
+      "OpenCL.server.deviceID": 3699028656
 }

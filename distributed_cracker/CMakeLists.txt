@@ -1,0 +1,13 @@
+project(massive_parallel_cracker C CXX)
+
+set(TARGET_NAME mpc)
+file(GLOB_RECURSE SRC_LIST src/*.cpp src/*.c)
+add_executable(${TARGET_NAME} ${SRC_LIST})
+set(TARGET_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src ${MPI_INCLUDE_DIRS} /usr/lib/x86_64-linux-gnu/mpich/include/)
+set(TARGET_LINK_LIBS fmt::fmt MPI::MPI_CXX md5_gpu)
+target_include_directories(${TARGET_NAME} PRIVATE  ${TARGET_INCLUDE_DIRS})
+target_compile_options(${TARGET_NAME} PUBLIC -fopenmp)
+target_link_libraries(${TARGET_NAME} PUBLIC ${TARGET_LINK_LIBS})
+if(ENABLE_UNIT_TEST)
+    add_subdirectory(test)
+endif()
