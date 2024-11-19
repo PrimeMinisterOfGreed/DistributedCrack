@@ -14,42 +14,19 @@ constexpr bool _is_debug = false;
 
 constexpr size_t max_log_size = MAX_LOG_SIZE;
 
-enum class LogType { EXCEPTION, RESULT, INFORMATION, TRANSFER, DEBUG };
 
-
-
+#define dbg(message,...) LogEngine::instance()->trace(__FILE_NAME__,__LINE__,fmt::format(message __VA_OPT__(,__VA_ARGS__)),false)
+#define dbgln(message,...) LogEngine::instance()->trace(__FILE_NAME__,__LINE__,fmt::format(message __VA_OPT__(,__VA_ARGS__)),true)
+#define print(message,...) LogEngine::instance()->trace(__FILE_NAME__,__LINE__,fmt::format(message __VA_OPT__(,__VA_ARGS__)),false)
+#define println(message,...) LogEngine::instance()->trace(__FILE_NAME__,__LINE__,fmt::format(message __VA_OPT__(,__VA_ARGS__)),false)
 struct LogEngine {
 private:
   FILE *_fd;
 
 public:
 
-  virtual void trace(LogType type, const std::string& message);
+  virtual void trace(const char* filename, int line, const std::string& message, bool newline);
   static LogEngine* instance();
   LogEngine();
 };
 
-template<typename T, typename ... Args>
-consteval void dbg(const char* fmt, Args...args){
-  LogEngine::instance()->trace(LogType::DEBUG, fmt::format(fmt,args...));
-}
-
-template<typename T, typename ... Args>
-consteval void dbgln(const char* fmt, Args...args){
-  LogEngine::instance()->trace(LogType::DEBUG, fmt::format(fmt,args...) + std::endl);
-}
-
-template<typename T, typename ... Args>
-consteval void info(const char* fmt, Args...args){
-  LogEngine::instance()->trace(LogType::INFORMATION, fmt::format(fmt,args...));
-}
-
-template<typename T, typename ... Args>
-consteval void println(const char* fmt, Args...args){
-  LogEngine::instance()->trace(LogType::INFORMATION, fmt::format(fmt,args...) + std::endl);
-}
-
-template<typename T, typename ... Args>
-consteval void print(const char* fmt, Args...args){
-  LogEngine::instance()->trace(LogType::INFORMATION, fmt::format(fmt,args...));
-}

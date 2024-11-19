@@ -1,7 +1,8 @@
 
 #include <argparse.hpp>
+#include <mpi.h>
 #include <string>
-
+#include "Async/executor.hpp"
 std::string config_file;
 bool use_gpu;
 std::string target_md5;
@@ -13,6 +14,10 @@ bool ismpi;
 bool restore_from_file;
 bool use_mpi;
 std::string dictionary;
+
+
+
+extern int async_main();
 
 int main(int argc, char *argv[]) {
   using namespace std;
@@ -30,6 +35,5 @@ int main(int argc, char *argv[]) {
   make_arg("--save_file", "store file for data").default_value("store.dat").store_into(savefile);
   make_arg("--mpi", "assume launched with mpi").flag().store_into(use_mpi);
   make_arg("--dictionary", "use a dictionary").default_value("NONE").store_into(dictionary);
-
-  
+  return async_main();
 }
