@@ -1,13 +1,22 @@
 #pragma once
 #include <string>
-extern const std::string config_file;
-extern const bool use_gpu;
-extern const std::string target_md5;
-extern const int num_threads;
-extern const int chunk_size;
-extern const int verbosity;
-extern const std::string savefile;
-extern const bool ismpi;
-extern const bool restore_from_file;
-extern const bool use_mpi;
-extern const std::string dictionary;
+
+struct ProgramOptions {
+  std::string config_file;
+  bool use_gpu;
+  std::string target_md5;
+  int num_threads;
+  int chunk_size;
+  int verbosity;
+  std::string savefile;
+  bool ismpi;
+  bool restore_from_file;
+  bool use_mpi;
+  std::string dictionary;
+  constexpr bool use_dictionary() { return dictionary != "NONE"; }
+  static ProgramOptions* instance(){
+    static ProgramOptions _instance{};
+    return &_instance;
+  }
+};
+

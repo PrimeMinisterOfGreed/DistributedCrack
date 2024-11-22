@@ -18,45 +18,32 @@ constexpr int maxUpperCaseLetter = 90;
 constexpr int minLowerCaseLetter = 97;
 constexpr int maxLowerCaseLetter = 122;
 
-class GeneratorException : std::exception
-{
-  private:
-    char *_message;
 
-  public:
-    GeneratorException(char *message) : _message(message)
-    {
-    }
-    const char *what() const noexcept override
-    {
-        return _message;
-    }
-};
 
 class ISequenceGenerator
 {
   public:
-    virtual std::string nextSequence() = 0;
-    virtual std::vector<std::string>& generateChunk(int num);
+    virtual std::string next_sequence() = 0;
+    virtual std::vector<std::string> generate_chunk(int num);
 };
 
 class IAddressableGenerator
 {
     public:
-  virtual void AssignAddress(size_t address) = 0;  
+  virtual void assign_address(size_t address) = 0;  
 };
 
 class SequentialGenerator : public ISequenceGenerator
 {
   protected:
-    std::string &_current;
+    std::string _current;
 
   private:
     int _currentSequenceLength;
 
   public:
     SequentialGenerator(int initialSequenceLength);
-    std::string virtual nextSequence();
+    std::string virtual next_sequence();
     int GetCurrentSequenceLength() const
     {
         return _currentSequenceLength;
@@ -71,8 +58,8 @@ class AssignedSequenceGenerator : public SequentialGenerator, public IAddressabl
 
   public:
     AssignedSequenceGenerator(int initialSequenceLength);
-    std::string nextSequence() override;
-    void AssignAddress(uint64_t address) override;
+    std::string next_sequence() override;
+    void assign_address(uint64_t address) override;
     uint64_t GetCurrentIndex()const{return _currentSequenceIndex;}
 };
 

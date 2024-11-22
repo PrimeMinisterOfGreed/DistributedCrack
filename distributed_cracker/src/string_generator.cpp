@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-SequentialGenerator::SequentialGenerator(int initialSequenceLength) : _current(*new std::string())
+SequentialGenerator::SequentialGenerator(int initialSequenceLength) : _current()
 {
     for (int i = 0; i < (initialSequenceLength>0?initialSequenceLength:1); i++)
     {
@@ -14,9 +14,9 @@ SequentialGenerator::SequentialGenerator(int initialSequenceLength) : _current(*
     }
 }
 
-std::string SequentialGenerator::nextSequence()
+std::string SequentialGenerator::next_sequence()
 {
-    auto &result = *new std::string(_current);
+    auto result = _current;
     for (int i = _current.size() - 1; i >= 0; i--)
     {
         _current[i]++;
@@ -37,11 +37,11 @@ std::string SequentialGenerator::nextSequence()
     return result;
 };
 
-std::vector<std::string> &ISequenceGenerator::generateChunk(int num)
+std::vector<std::string> ISequenceGenerator::generate_chunk(int num)
 {
-    std::vector<std::string> &result = *new std::vector<std::string>{};
+    std::vector<std::string> result{};
     for (int i = 0; i < num; i++)
-        result.push_back(nextSequence());
+        result.push_back(next_sequence());
     return result;
 };
 
@@ -50,7 +50,7 @@ AssignedSequenceGenerator::AssignedSequenceGenerator(int initlength)
 {
 }
 
-void AssignedSequenceGenerator::AssignAddress(uint64_t address)
+void AssignedSequenceGenerator::assign_address(uint64_t address)
 {
     int div = maxCharint - minCharInt;
     int q = address;
@@ -69,9 +69,9 @@ void AssignedSequenceGenerator::AssignAddress(uint64_t address)
     }
 }
 
-std::string AssignedSequenceGenerator::nextSequence()
+std::string AssignedSequenceGenerator::next_sequence()
 {
     _currentSequenceIndex++;
-    return SequentialGenerator::nextSequence();
+    return SequentialGenerator::next_sequence();
 }
 

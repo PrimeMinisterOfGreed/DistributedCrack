@@ -1,0 +1,3 @@
+[submodule "libs/b-mpi3"]
+	path = libs/b-mpi3
+	url = https://github.com/LLNL/b-mpi3
