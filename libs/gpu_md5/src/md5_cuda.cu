@@ -242,7 +242,7 @@ __global__ void md5_call_gpu(const uint8_t *data, const uint32_t *sizes, uint32_
         md5(data + offsets[i], sizes[i], result + i * sizeof(uint32_t) * 4);
 }
 
-__host__ int md5_gpu(const uint8_t *data, const uint32_t *sizes, uint32_t size, int threads, uint8_t *targetDigest)
+__host__ int md5_gpu_finder(const uint8_t *data, const uint32_t *sizes, uint32_t size, uint8_t *targetDigest)
 {
     uint8_t *remoteData = nullptr, *remoteResults = nullptr, *remoteTarget = nullptr;
     uint32_t *remoteSizes = nullptr, *offsets = nullptr;
@@ -258,11 +258,11 @@ __host__ int md5_gpu(const uint8_t *data, const uint32_t *sizes, uint32_t size, 
     HandleError(GpuMalloc(&remoteSizes, size));
     HandleError(GpuCopy(remoteData, data,  grandTotal, cudaMemcpyHostToDevice));
     HandleError(GpuCopy(remoteSizes, sizes, size , cudaMemcpyHostToDevice));
-    int blocks = ceil((float)size / threads);
-    md5_call_gpu<<<blocks, threads>>>(remoteData, remoteSizes, offsets, remoteResults, size);
+    md5_call_gpu<<<1, size>>>(remoteData, remoteSizes, offsets, remoteResults, size);
+    HandleError(cudaDeviceSynchronize());
     HandleError(GpuMalloc(&remoteTarget, 16));
     HandleError(GpuCopy(remoteTarget, targetDigest, 16, cudaMemcpyHostToDevice));
-    md5_gpu_comparer<<<blocks, threads>>>(remoteResults, remoteTarget, size, offsets);
+    md5_gpu_comparer<<<1, size>>>(remoteResults, remoteTarget, size, offsets);
     HandleError(cudaDeviceSynchronize());
     HandleError(cudaFree(remoteData));
     HandleError(cudaFree(remoteSizes));
@@ -273,7 +273,7 @@ __host__ int md5_gpu(const uint8_t *data, const uint32_t *sizes, uint32_t size, 
     return res;
 }
 
-__host__ void md5_gpu(const uint8_t *data, const uint32_t *sizes, uint8_t *result, uint32_t size, int threads)
+__host__ void md5_gpu_transform(const uint8_t *data, const uint32_t *sizes, uint8_t *result, uint32_t size)
 {
     uint8_t *remoteData = nullptr, *remoteResults = nullptr;
     uint32_t *remoteSizes = nullptr, *offsets = nullptr;
@@ -290,8 +290,7 @@ __host__ void md5_gpu(const uint8_t *data, const uint32_t *sizes, uint8_t *resul
     HandleError(GpuCopy(remoteData, data, grandTotal, cudaMemcpyHostToDevice));
     HandleError(GpuCopy(remoteSizes, sizes, size * sizeof(uint32_t), cudaMemcpyHostToDevice));
 
-    int blocks = ceil((float)size / threads);
-    md5_call_gpu<<<blocks, threads>>>(remoteData, remoteSizes, offsets, remoteResults, size);
+    md5_call_gpu<<<1, size>>>(remoteData, remoteSizes, offsets, remoteResults, size);
 
     HandleError(cudaDeviceSynchronize());
     HandleError(GpuCopy(result, remoteResults, size * sizeof(uint32_t) * 4, cudaMemcpyDeviceToHost));

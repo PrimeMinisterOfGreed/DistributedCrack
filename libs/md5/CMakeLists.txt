@@ -1,0 +1,10 @@
+Project(Md5 C CXX)
+
+set(TARGET_NAME md5)
+file(GLOB_RECURSE SRC_FILES src/*.cpp src/*.c)
+add_library(${TARGET_NAME} OBJECT ${SRC_FILES})
+add_library(md5::md5 ALIAS ${TARGET_NAME})
+target_include_directories(${TARGET_NAME} PUBLIC include)
+if(ENABLE_UNIT_TEST)
+    add_subdirectory(test)
+endif()

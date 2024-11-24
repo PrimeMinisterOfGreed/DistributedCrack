@@ -44,35 +44,34 @@ std::vector<std::string> hexdigest(const std::vector<std::string> &results) {
   return result;
 }
 
-int md5_gpu(const std::vector<std::string> &chunk, int threads,
+int md5_gpu(const std::vector<std::string> &chunk,
             std::string targetMd5) {
   CheckGpuCondition();
   size_t sum = 0;
 
-  auto sizes = std::make_unique<uint32_t[]>(chunk.size());
+  auto sizes = new uint32_t[chunk.size()]{};
   for (size_t i = 0; i < chunk.size(); i++) {
     sizes[i] = chunk[i].size();
     sum += chunk[i].size();
   }
-  auto data = std::make_unique<uint8_t[]>(sum);
-  auto results = std::make_unique<uint8_t[]>(
-      chunk.size() * sizeof(uint32_t) *
-      4); // every state vector is 4 elements composed of 4 bytes
+  auto data = new uint8_t[sum]{};
+  auto results = new uint8_t[chunk.size() * sizeof(uint32_t) *4]{}; // every state vector is 4 elements composed of 4 bytes
   size_t offset = 0;
   for (int i = 0; i < chunk.size(); i++) {
     auto str = chunk.at(i).c_str();
     auto size = sizes[i];
-    memcpy(data.get() + offset, str, sizeof(uint8_t) * size);
+    memcpy(data + offset, str, sizeof(uint8_t) * size);
     offset += size;
   }
-  data[sum] = '\0';
-  int result = md5_gpu(data.get(), sizes.get(), chunk.size(), threads,
-                       digesthex(targetMd5).get());
+  
+  int result = md5_gpu_finder(data, sizes, chunk.size() , digesthex(targetMd5).get());
+  delete[] sizes;
+  delete[] data;
+  delete[] results;
   return result;
 }
 
-std::vector<std::string> md5_gpu(const std::vector<std::string> &chunk,
-                                 int threads) {
+std::vector<std::string> md5_gpu(const std::vector<std::string> &chunk) {
   CheckGpuCondition();
   std::vector<std::string> resultsVector{};
   size_t sum = 0;
@@ -93,7 +92,7 @@ std::vector<std::string> md5_gpu(const std::vector<std::string> &chunk,
     offset += size;
   }
   data[sum] = '\0';
-  md5_gpu(data.get(), sizes.get(), results.get(), chunk.size(), threads);
+  md5_gpu_transform(data.get(), sizes.get(), results.get(), chunk.size());
   for (int i = 0; i < chunk.size(); i++) {
     resultsVector.push_back(
         std::string((char *)results.get() + (i * sizeof(uint32_t) * 4),

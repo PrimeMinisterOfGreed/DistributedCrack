@@ -1,4 +1,4 @@
-project(md5_gpu LANGUAGES CUDA CXX)
+project(Md5Gpu LANGUAGES CUDA CXX)
 
 set(TARGET_NAME md5_gpu)
 enable_language(CUDA)

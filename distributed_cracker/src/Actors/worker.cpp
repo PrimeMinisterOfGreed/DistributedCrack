@@ -33,13 +33,12 @@ public:
     comm.recv(root, chunk_tag, buffer, max_elem_alloc * chunks);
     std::vector<std::string> res{};
     res.resize(chunks, "");
-    std::string line{};
-    line.resize(max_elem_alloc);
     for (size_t i = 0, disp = 0; i < chunks; i++) {
-      mempcpy(line.data(), &buffer[disp], sizes[i]);
-      res[i] = line;
+      char str[sizes[i]+1];
+      memset(str, 0, sizes[i]+1);
+      memcpy(str, &buffer[disp], sizes[i]);
+      res[i] = string{str};
       disp += sizes[i];
-      line.clear();
     }
     delete[] buffer;
     return res;
@@ -62,6 +61,7 @@ public:
         if (res > -1) {
           auto str = chunk[res];
           send_result(str);
+          dbgln("Password found:{}",str);
         }
         gpu_busy = false;
       });
