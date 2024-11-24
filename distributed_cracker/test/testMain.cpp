@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
+#include "options_bag.hpp"
 
 
+ProgramOptions options{};
 
 void fillOptionsMap()
 {

@@ -17,4 +17,5 @@ struct ChunkLoader{
     public:
     ChunkLoader();
     std::vector<std::string> get_chunk(int dim);
+    std::vector<size_t> get_chunk(int dim, char* buffer);
 };

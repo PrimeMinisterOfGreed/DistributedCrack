@@ -1,6 +1,30 @@
 {
     "configurations": [
         {
+            "name": "Launch mpc_ut",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/distributed_cracker/test/mpc_ut",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Abilita la riformattazione per gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Imposta Versione Disassembly su Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "type": "cmake",
             "request": "launch",
             "name": "Debug portfile(s)",

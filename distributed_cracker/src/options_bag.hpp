@@ -1,4 +1,5 @@
 #pragma once
+#include <cstring>
 #include <string>
 
 struct ProgramOptions {
@@ -13,10 +14,8 @@ struct ProgramOptions {
   bool restore_from_file;
   bool use_mpi;
   std::string dictionary;
-  constexpr bool use_dictionary() { return dictionary != "NONE"; }
-  static ProgramOptions* instance(){
-    static ProgramOptions _instance{};
-    return &_instance;
-  }
+  bool use_dictionary() {return dictionary.compare("NONE") !=0; }
 };
+
+extern ProgramOptions options;
 

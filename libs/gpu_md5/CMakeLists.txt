@@ -5,7 +5,8 @@ enable_language(CUDA)
 file(GLOB_RECURSE SRC_FILES src/*.cpp src/*.cu)
 set(CMAKE_CXX_STANDARD 20)
 #set(CMAKE_CUDA_ARCHITECTURES 75)
-add_library(${TARGET_NAME} STATIC ${SRC_FILES})
+add_library(${TARGET_NAME} SHARED ${SRC_FILES})
+add_library(md5::gpu ALIAS ${TARGET_NAME})
 target_include_directories(
     ${TARGET_NAME} PUBLIC
     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} 

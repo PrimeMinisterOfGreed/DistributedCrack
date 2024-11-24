@@ -25,6 +25,7 @@ class ISequenceGenerator
   public:
     virtual std::string next_sequence() = 0;
     virtual std::vector<std::string> generate_chunk(int num);
+    virtual void generate_chunk(char*buffer,size_t*sizes, int num);
 };
 
 class IAddressableGenerator
@@ -44,7 +45,7 @@ class SequentialGenerator : public ISequenceGenerator
   public:
     SequentialGenerator(int initialSequenceLength);
     std::string virtual next_sequence();
-    int GetCurrentSequenceLength() const
+    int get_current_length() const
     {
         return _currentSequenceLength;
     }

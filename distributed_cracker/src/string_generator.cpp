@@ -45,6 +45,17 @@ std::vector<std::string> ISequenceGenerator::generate_chunk(int num)
     return result;
 };
 
+void ISequenceGenerator::generate_chunk(char*buffer, size_t * sizes, int num) {
+  std::string current{};
+  size_t displ = 0;  
+  for(int i = 0 ; i < num; i++){
+    current = next_sequence();
+    memcpy(&buffer[displ], current.c_str(), current.size());
+    displ+= current.size();
+    sizes[i] = current.size();
+  }
+}
+
 AssignedSequenceGenerator::AssignedSequenceGenerator(int initlength)
     : SequentialGenerator(initlength), _currentSequenceIndex(0)
 {
