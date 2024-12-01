@@ -5,17 +5,21 @@
 #include "md5.hpp"
 #include "md5_gpu.hpp"
 #include "string_generator.hpp"
+#include "cuda.h"
+#include "cuda_runtime_api.h"
+
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  auto res = RUN_ALL_TESTS();
+  cudaDeviceSynchronize();
+  return res;
 }
 
 TEST(TestGpuResponse, test_md5_calc) {
     std::vector<std::string> chunk{"foo","bar","hello world"};
     std::string tgt = "5eb63bbbe01eeed093cb22bb8f5acdc3";
-    auto index = md5_gpu(chunk,tgt);
-    ASSERT_EQ(2, index);
-    printf("Response from gpu %d",index);
+    auto index = md5_gpu(chunk);
+    ASSERT_EQ(index[2],tgt);
 }
 
 TEST(TestGpuResponse, test_regime_response){

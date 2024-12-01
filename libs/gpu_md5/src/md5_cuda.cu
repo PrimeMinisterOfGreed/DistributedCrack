@@ -1,4 +1,4 @@
-#include "md5Cuda.cuh"
+#include "cuda_memory_support.cuh"
 #include "stdio.h"
 #include <cstddef>
 #include <cstdint>
@@ -88,15 +88,6 @@ __device__ constexpr inline void II(uint32_t &a, uint32_t b, uint32_t c, uint32_
 }
 
 
-
-
-__host__ inline void HandleError(cudaError_t cudaError)
-{
-    if (cudaError != cudaSuccess)
-    {
-        printf("Error on cuda execution: %s\n", cudaGetErrorString(cudaError));
-    }
-}
 
 __device__ constexpr uint8_t padding[block_size] = {0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                                   0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -242,68 +233,113 @@ __global__ void md5_call_gpu(const uint8_t *data, const uint32_t *sizes, uint32_
         md5(data + offsets[i], sizes[i], result + i * sizeof(uint32_t) * 4);
 }
 
-__host__ int md5_gpu_finder(const uint8_t *data, const uint32_t *sizes, uint32_t size, uint8_t *targetDigest)
-{
-    uint8_t *remoteData = nullptr, *remoteResults = nullptr, *remoteTarget = nullptr;
-    uint32_t *remoteSizes = nullptr, *offsets = nullptr;
-    size_t grandTotal = 0;
-    HandleError(GpuManagedMalloc(&offsets, size));
-    for (int i = 0; i < size; i++)
+__host__ void select_cuda_device(){
+    int devices;
+    cudaGetDeviceCount(&devices);
+    size_t maxFreeMem = 0;
+    int betterDevice = 0;
+    for(int i= 0; i < devices; i++)
     {
-        offsets[i] = grandTotal;
-        grandTotal += sizes[i];
+        cudaSetDevice(i);
+        size_t freeMem;
+        size_t totalMem;
+        cudaMemGetInfo(&freeMem, &totalMem);
+        if (freeMem > maxFreeMem){
+            maxFreeMem= freeMem;
+            betterDevice = i;
+        }
     }
-    HandleError(GpuMalloc(&remoteData,  grandTotal));
-    HandleError(GpuMalloc(&remoteResults, size * 4));
-    HandleError(GpuMalloc(&remoteSizes, size));
-    HandleError(GpuCopy(remoteData, data,  grandTotal, cudaMemcpyHostToDevice));
-    HandleError(GpuCopy(remoteSizes, sizes, size , cudaMemcpyHostToDevice));
-    md5_call_gpu<<<1, size>>>(remoteData, remoteSizes, offsets, remoteResults, size);
-    HandleError(cudaDeviceSynchronize());
-    HandleError(GpuMalloc(&remoteTarget, 16));
-    HandleError(GpuCopy(remoteTarget, targetDigest, 16, cudaMemcpyHostToDevice));
-    md5_gpu_comparer<<<1, size>>>(remoteResults, remoteTarget, size, offsets);
-    HandleError(cudaDeviceSynchronize());
-    HandleError(cudaFree(remoteData));
-    HandleError(cudaFree(remoteSizes));
-    HandleError(cudaFree(remoteResults));
-    uint32_t res = offsets[0] - 1;
-    HandleError(cudaFree(offsets));
-    HandleError(cudaFree(remoteTarget));
-    return res;
+    cudaSetDevice(betterDevice);
+    cudaDeviceReset();
 }
 
-__host__ void md5_gpu_transform(const uint8_t *data, const uint32_t *sizes, uint8_t *result, uint32_t size)
-{
-    uint8_t *remoteData = nullptr, *remoteResults = nullptr;
-    uint32_t *remoteSizes = nullptr, *offsets = nullptr;
-    size_t grandTotal = 0;
-    HandleError(GpuManagedMalloc(&offsets, size * sizeof(uint32_t)));
-    for (int i = 0; i < size; i++)
-    {
-        offsets[i] = grandTotal;
-        grandTotal += sizes[i];
+struct _gpudata {
+  uint8_t *_data = nullptr;
+  uint32_t _size = 0;
+  uint8_t *_result = nullptr;
+  uint32_t *_displacements = nullptr;
+  uint32_t *_sizes = nullptr;
+  uint8_t *_target = nullptr;
+  _gpudata(size_t num_of_strings, const uint8_t *local_data,
+           const uint32_t *local_sizes, uint8_t *local_target) {
+    uint32_t data_size = 0;
+    for (size_t i = 0; i < num_of_strings; i++) {
+      data_size += local_sizes[i];
     }
-    HandleError(GpuMalloc(&remoteData,  grandTotal));
-    HandleError(GpuMalloc(&remoteResults, size * sizeof(uint32_t) * 4));
-    HandleError(GpuMalloc(&remoteSizes, size * sizeof(uint32_t)));
-    HandleError(GpuCopy(remoteData, data, grandTotal, cudaMemcpyHostToDevice));
-    HandleError(GpuCopy(remoteSizes, sizes, size * sizeof(uint32_t), cudaMemcpyHostToDevice));
+    uint32_t *local_displacements =
+        (uint32_t *)alloca(num_of_strings * sizeof(uint32_t));
+    memset(local_displacements, 0, num_of_strings * sizeof(uint32_t));
+    for (size_t i = 1; i < num_of_strings; i++) {
+      local_displacements[i] = local_sizes[i - 1] + local_displacements[i - 1];
+    }
+    alloc_gpu(num_of_strings, data_size, local_data, local_sizes,
+              local_displacements, local_target);
+  }
+  void alloc_gpu(size_t num_of_string, size_t data_size,
+                 const uint8_t *local_data, const uint32_t *local_sizes,
+                 uint32_t *displacements, uint8_t *local_target) {
+    _size = num_of_string;
 
-    md5_call_gpu<<<1, size>>>(remoteData, remoteSizes, offsets, remoteResults, size);
+        GpuMalloc(&_data, data_size);
+        GpuMalloc(&_sizes, num_of_string);
+        GpuMalloc(&_displacements, num_of_string);
+        GpuCopy(_data, local_data, data_size, cudaMemcpyHostToDevice);
+        GpuCopy(_sizes, local_sizes, num_of_string, cudaMemcpyHostToDevice);
+        GpuCopy(_displacements, displacements, num_of_string,
+                cudaMemcpyHostToDevice);
+    GpuMalloc(&_result, num_of_string * 16);
+    if (local_target != nullptr) {
+      GpuMalloc(&_target, 16);
+      GpuCopy(_target, local_target, 16, cudaMemcpyHostToDevice);
+    }
+  }
 
-    HandleError(cudaDeviceSynchronize());
-    HandleError(GpuCopy(result, remoteResults, size * sizeof(uint32_t) * 4, cudaMemcpyDeviceToHost));
+  void dealloc() {
+    GpuFree(_data,_sizes,_displacements,_result);
+    if (_target != NULL)
+     GpuFree(_target);
+  }
+  ~_gpudata() { dealloc(); }
+};
 
-    HandleError(cudaFree(remoteData));
-    HandleError(cudaFree(remoteSizes));
-    HandleError(cudaFree(remoteResults));
+__host__ void CheckGpuCondition() {
+  static bool initialized = false;
+  CUresult result;
+  if (!initialized && (result = cuInit(0)) != CUDA_SUCCESS)
+    printf("Error %d on gpu initialization: %s\n", result,
+           cudaGetErrorString((cudaError)result));  
+  select_cuda_device();
 }
 
-__host__ void CheckGpuCondition()
-{
-    static bool initialized = false;
-    CUresult result;
-    if (!initialized && (result = cuInit(0)) != CUDA_SUCCESS)
-        printf("Error on gpu initialization: %s\n", cudaGetErrorString((cudaError)result));
+__host__ int md5_gpu_finder(const uint8_t *data, const uint32_t *sizes,
+                            uint32_t num_of_strings, uint8_t *targetDigest) {
+  CheckGpuCondition();
+  dim3 grid(1, num_of_strings);
+  _gpudata gpudata{num_of_strings, data, sizes, targetDigest};
+  md5_call_gpu<<<grid.x, grid.y>>>(gpudata._data, gpudata._sizes,
+                                   gpudata._displacements, gpudata._result,
+                                   num_of_strings);
+  cudaDeviceSynchronize();
+
+  md5_gpu_comparer<<<grid.x, grid.y>>>(gpudata._result, gpudata._target,
+                                       num_of_strings, gpudata._displacements);
+
+ cudaDeviceSynchronize();
+  return 0;
 }
+
+__host__ void md5_gpu_transform(const uint8_t *data, const uint32_t *sizes,
+                                uint8_t *result, uint32_t num_of_strings) {
+  CheckGpuCondition();
+  _gpudata gpudata{num_of_strings, data, sizes, NULL};
+  cudaDeviceSynchronize();
+  md5_call_gpu<<<1, num_of_strings>>>(gpudata._data, gpudata._sizes,
+                                      gpudata._displacements, gpudata._result,
+                                      num_of_strings);
+
+  cudaDeviceSynchronize();
+  GpuCopy(result, gpudata._result, 16 * num_of_strings, cudaMemcpyDeviceToHost);
+
+}
+
+

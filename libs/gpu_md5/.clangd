@@ -1,8 +1,7 @@
 CompileFlags:                     # Tweak the parse settings
   Add: [
     -xcuda,
-    --no-cuda-version-check,
-
+    --no-cuda-version-check
   ]
   Remove: [
     -forward-unknown-to-host-compiler,

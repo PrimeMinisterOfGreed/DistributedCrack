@@ -8,20 +8,3 @@ __host__ void md5_gpu_transform(const uint8_t *data, const uint32_t *sizes, uint
 __host__ int md5_gpu_finder(const uint8_t *data, const uint32_t *sizes, uint32_t size, uint8_t * targetDigest);
 __host__ void CheckGpuCondition();
 
-
-
-
-template <typename T> cudaError_t GpuMalloc(T **pointer, size_t size)
-{
-    return cudaMalloc(pointer, sizeof(T) * size);
-}
-
-template <typename T> cudaError_t GpuCopy(T *dst, const T *src, size_t size, cudaMemcpyKind kind)
-{
-    return cudaMemcpy(dst, src, sizeof(T) * size, kind);
-}
-
-template <typename T> cudaError_t GpuManagedMalloc(T **pointer, size_t size)
-{
-    return cudaMallocManaged(pointer, sizeof(T) * size);
-}

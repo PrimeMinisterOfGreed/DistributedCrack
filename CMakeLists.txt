@@ -1,6 +1,6 @@
 
 cmake_minimum_required(VERSION 3.24)
-project(DistributedCrack)
+project(distributed_cracker)
 
 include(CheckCXXCompilerFlag)
 find_package(fmt REQUIRED)
@@ -11,6 +11,5 @@ set(CMAKE_CXX_STANDARD_REQUIRED YES)
 add_subdirectory(libs/md5)
 add_subdirectory(libs/gpu_md5)
 add_subdirectory(distributed_cracker)
-add_subdirectory(gpu_experiments)
 
 

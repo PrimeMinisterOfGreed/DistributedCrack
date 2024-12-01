@@ -71,5 +71,6 @@
       "coverage-gutters.coverageFileNames": [
             "build/DistributedCrack_lcov.info"
       ],
-      "OpenCL.server.deviceID": 3699028656
+      "OpenCL.server.deviceID": 3699028656,
+      "testMate.cpp.test.executables": "{build,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST,ut}*"
 }
