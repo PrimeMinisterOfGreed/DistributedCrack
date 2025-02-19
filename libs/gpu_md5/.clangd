@@ -11,7 +11,6 @@ CompileFlags:                     # Tweak the parse settings
     -G,
     -Xcompiler=-fPIC
     ]
-  Compiler: nvcc 
 
 Diagnostics:
   Suppress:

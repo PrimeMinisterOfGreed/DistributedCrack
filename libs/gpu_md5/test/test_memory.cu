@@ -2,38 +2,56 @@
 #include "gtest/gtest.h"
 
 
-__global__ void increase(gpumemblock& blk){
-    auto i = blockDim.x*blockIdx.x + threadIdx.x;
-   if(i == 0)
-        printf("Size of block %d\n",blk.get_size());
-    if(i < blk.get_size()){
-        blk.getblock()[i] += 1;
+__global__ void addone(int* data, size_t size){
+    auto i = blockDim.x*blockIdx.x+threadIdx.x;
+    if(i<size){
+        data[i] += 1;
     }
 }
 
 
-TEST(TestMemorySupport, test_gpu_functions){
-    uint32_t *data = nullptr;
-    uint32_t transf[32]{};
-    for(int i = 0 ; i < sizeof(transf); i++){
-        transf[i] = i ;
-    }
-    GpuMalloc<uint32_t>(&data,32);
-    GpuCopy(data,transf,sizeof(transf),cudaMemcpyHostToDevice);
-    GpuFree(data);
+TEST(TestMemorySupport, test_object_alloc){
+    int* ptr;
+    int hostptr[30]{};
+    cuInit(0);
+    cudaMallocManaged(&ptr,30);
+    addone<<<1,1>>>(ptr,30);
+    cudaMemcpy(hostptr, ptr, 30, cudaMemcpyDeviceToHost);
+    printf("Data is %d",ptr[0]);
 }
 
-TEST(TestMemorySupport, test_block_instance){
-    auto block = gpumemblock{1024};
-    char ch[1024]{};
-    char tgt[1024]{};
-    for(int i = 0 ; i < 1024; i++){
-        ch[i]=i;
+
+__global__ void reduce(uint8_t ** a, uint8_t *b  ,size_t size){
+    auto i = blockDim.x*blockIdx.x+ threadIdx.x;
+    if(i < size){
+        auto vec = a[i];
+        auto num = 0;
+        for(int k = 0 ; k < size; k++){
+            num += vec[k];
+        }
+        b[i] = num;
     }
-    block.copyfrom(ch);
-    increase<<<1,1>>>(block);
-    cudaDeviceSynchronize();
-    block.copyto(tgt);
-    cudaDeviceSynchronize();
-    ASSERT_EQ(1, ch[0]);
 }
+
+__global__ void gen_array(uint8_t ** a, size_t size){
+    auto i = blockDim.x* blockIdx.x + threadIdx.x;
+    if (i < size){
+        auto array = reinterpret_cast<uint8_t*>(malloc(size));
+        memset(array,1,size);
+        a[i] = array;
+    }
+}
+
+
+TEST(TestMemorySupport, test_malloc){
+    uint8_t** dev_array = nullptr;
+    uint8_t * dev_result = nullptr;
+    cudaMallocManaged(&dev_array,32);
+    cudaMallocManaged(&dev_result,32);
+    gen_array<<<32,1>>>(dev_array, 32);
+    reduce<<<32,1>>>(dev_array, dev_result, 32);
+    uint8_t result[32]{};
+    cudaMemcpy(&result, dev_result, 32, cudaMemcpyDeviceToHost);
+    printf("element at 1 %d",result[0]);
+}
+

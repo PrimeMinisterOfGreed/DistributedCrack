@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdio>
 #include <exception>
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -33,10 +34,10 @@ template <typename T>  void GpuCopy(T *dst, const T *src, size_t size, cudaMemcp
     }
 }
 
-template <typename T> void GpuManagedMalloc(T **pointer, size_t size)
+template <typename T> void GpuMallocManaged(T *pointer, size_t size)
 {
     cudaError_t error;
-    if((error = cudaMallocManaged(pointer, sizeof(T) * size)) != cudaSuccess)
+    if((error = cudaMallocManaged<T>(&pointer, size)) != cudaSuccess)
         throw CudaMemoryError(error);
 }
 
@@ -46,31 +47,35 @@ static void GpuFree(void* pointer){
         throw CudaMemoryError(error);
 }
 
-template<typename... Args> void GpuFree(Args...ptrs){
-    (GpuFree(ptrs),...);
-}
 
-struct gpumemblock{
+
+template<typename T>
+struct gpu_object{
     private:
-    void * _data = nullptr;
-    size_t * _gpusize = nullptr;
-    size_t _size = 0;
+    T* _ptr;
+    size_t size;
     public:
-    gpumemblock(size_t size);
-
-    gpumemblock(gpumemblock&) = delete;
-    __device__ uint8_t* getblock();
-
-    __device__ size_t get_size();
-
-    __host__ void copyfrom(void* data);
-
-    __host__ void copyto(void*data);
-
-    __device__ void copyto(gpumemblock &blk);
-
-    ~gpumemblock(){
-        //GpuFree(_gpusize,_data);
+    gpu_object(size_t elems) : size(size){
+        GpuMalloc(&_ptr, elems);
     }
+
+    gpu_object(): gpu_object(1){
+
+    }
+
+    ~gpu_object(){
+        GpuFree(_ptr);
+    }
+
+    __host__ void copytogpu(const T*data){
+        GpuCopy(_ptr, data, size, cudaMemcpyHostToDevice);
+    }
+
+    __host__ void copyback(T*data){
+        GpuCopy(data, _ptr, size, cudaMemcpyDeviceToHost);
+    }
+
+    __host__ T* ptr(){return _ptr;}
 };
+
 

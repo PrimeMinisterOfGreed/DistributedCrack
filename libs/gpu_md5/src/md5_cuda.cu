@@ -1,15 +1,6 @@
 #include "cuda_memory_support.cuh"
-#include "stdio.h"
-#include <cstddef>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-
+#include "md5_cuda.cuh"
 // Constants for MD5Transform routine.
-
-constexpr uint8_t block_size = 64;
-
 
 __device__ const uint32_t md5_magic_const[4] =
 {   
@@ -38,8 +29,6 @@ constexpr uint8_t S41 = 6;
 constexpr uint8_t S42 = 10;
 constexpr uint8_t S43 = 15;
 constexpr uint8_t S44 = 21;
-
-
 
 ///////////////////////////////////////////////
 
@@ -88,151 +77,233 @@ __device__ constexpr inline void II(uint32_t &a, uint32_t b, uint32_t c, uint32_
 }
 
 
-
-__device__ constexpr uint8_t padding[block_size] = {0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                                  0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                                  0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-__device__  uint32_t byteswap(uint32_t word)
+/*Gpu device MD5*/
+constexpr const int blocksize = 64;
+class MD5Gpu
 {
-    return ((word >> 24) & 0x000000FF) | ((word >> 8) & 0x0000FF00) | ((word << 8) & 0x00FF0000) |
-           ((word << 24) & 0xFF000000);
+  public:
+    typedef unsigned int size_type; // must be 32bit
+
+   __device__ MD5Gpu();
+   __device__ MD5Gpu(const char * data, size_t size);
+   __device__ void update(const unsigned char *buf, size_type length);
+   __device__ MD5Gpu &finalize();
+   __device__ const uint8_t* getdigest() const{return digest;}
+
+  private:
+   __device__  void init();
+   __device__  void transform(const uint8_t block[blocksize]);
+   __device__  static void decode(uint32_t output[], const uint8_t input[], size_type len);
+   __device__  static void encode(uint8_t output[], const uint32_t input[], size_type len);
+    bool finalized;
+    uint8_t buffer[blocksize]{}; // bytes that didn't fit in last 64 byte chunk
+    uint32_t count[2]{};          // 64bit counter for number of bits (lo, hi)
+    uint32_t state[4]{};          // digest so far
+    uint8_t digest[16]{};        // the result
+};
+
+__device__ void MD5Gpu::init() {
+  finalized = false;
+  memcpy(&state, &md5_magic_const, sizeof(state));
 }
 
-__device__ void transform(uint32_t state[4], const uint8_t block[block_size])
-{
-    uint32_t a = state[0], b = state[1], c = state[2], d = state[3];
-    uint32_t x[16];
 
-    for (uint32_t i = 0, j = 0; j < block_size && i < 16; i++, j += 4)
-    {
-        x[i] = (uint)block[j] | ((uint)block[j + 1] << 8) | ((uint)block[j + 2] << 16) | ((uint)block[j + 3] << 24);
-    }
-
-    FF(a, b, c, d, x[0], S11, 0xd76aa478);
-    FF(d, a, b, c, x[1], S12, 0xe8c7b756);
-    FF(c, d, a, b, x[2], S13, 0x242070db);
-    FF(b, c, d, a, x[3], S14, 0xc1bdceee);
-    FF(a, b, c, d, x[4], S11, 0xf57c0faf);
-    FF(d, a, b, c, x[5], S12, 0x4787c62a);
-    FF(c, d, a, b, x[6], S13, 0xa8304613);
-    FF(b, c, d, a, x[7], S14, 0xfd469501);
-    FF(a, b, c, d, x[8], S11, 0x698098d8);
-    FF(d, a, b, c, x[9], S12, 0x8b44f7af);
-    FF(c, d, a, b, x[10], S13, 0xffff5bb1);
-    FF(b, c, d, a, x[11], S14, 0x895cd7be);
-    FF(a, b, c, d, x[12], S11, 0x6b901122);
-    FF(d, a, b, c, x[13], S12, 0xfd987193);
-    FF(c, d, a, b, x[14], S13, 0xa679438e);
-    FF(b, c, d, a, x[15], S14, 0x49b40821);
-
-    GG(a, b, c, d, x[1], S21, 0xf61e2562);
-    GG(d, a, b, c, x[6], S22, 0xc040b340);
-    GG(c, d, a, b, x[11], S23, 0x265e5a51);
-    GG(b, c, d, a, x[0], S24, 0xe9b6c7aa);
-    GG(a, b, c, d, x[5], S21, 0xd62f105d);
-    GG(d, a, b, c, x[10], S22, 0x2441453);
-    GG(c, d, a, b, x[15], S23, 0xd8a1e681);
-    GG(b, c, d, a, x[4], S24, 0xe7d3fbc8);
-    GG(a, b, c, d, x[9], S21, 0x21e1cde6);
-    GG(d, a, b, c, x[14], S22, 0xc33707d6);
-    GG(c, d, a, b, x[3], S23, 0xf4d50d87);
-    GG(b, c, d, a, x[8], S24, 0x455a14ed);
-    GG(a, b, c, d, x[13], S21, 0xa9e3e905);
-    GG(d, a, b, c, x[2], S22, 0xfcefa3f8);
-    GG(c, d, a, b, x[7], S23, 0x676f02d9);
-    GG(b, c, d, a, x[12], S24, 0x8d2a4c8a);
-
-    HH(a, b, c, d, x[5], S31, 0xfffa3942);
-    HH(d, a, b, c, x[8], S32, 0x8771f681);
-    HH(c, d, a, b, x[11], S33, 0x6d9d6122);
-    HH(b, c, d, a, x[14], S34, 0xfde5380c);
-    HH(a, b, c, d, x[1], S31, 0xa4beea44);
-    HH(d, a, b, c, x[4], S32, 0x4bdecfa9);
-    HH(c, d, a, b, x[7], S33, 0xf6bb4b60);
-    HH(b, c, d, a, x[10], S34, 0xbebfbc70);
-    HH(a, b, c, d, x[13], S31, 0x289b7ec6);
-    HH(d, a, b, c, x[0], S32, 0xeaa127fa);
-    HH(c, d, a, b, x[3], S33, 0xd4ef3085);
-    HH(b, c, d, a, x[6], S34, 0x4881d05);
-    HH(a, b, c, d, x[9], S31, 0xd9d4d039);
-    HH(d, a, b, c, x[12], S32, 0xe6db99e5);
-    HH(c, d, a, b, x[15], S33, 0x1fa27cf8);
-    HH(b, c, d, a, x[2], S34, 0xc4ac5665);
-
-    II(a, b, c, d, x[0], S41, 0xf4292244);
-    II(d, a, b, c, x[7], S42, 0x432aff97);
-    II(c, d, a, b, x[14], S43, 0xab9423a7);
-    II(b, c, d, a, x[5], S44, 0xfc93a039);
-    II(a, b, c, d, x[12], S41, 0x655b59c3);
-    II(d, a, b, c, x[3], S42, 0x8f0ccc92);
-    II(c, d, a, b, x[10], S43, 0xffeff47d);
-    II(b, c, d, a, x[1], S44, 0x85845dd1);
-    II(a, b, c, d, x[8], S41, 0x6fa87e4f);
-    II(d, a, b, c, x[15], S42, 0xfe2ce6e0);
-    II(c, d, a, b, x[6], S43, 0xa3014314);
-    II(b, c, d, a, x[13], S44, 0x4e0811a1);
-    II(a, b, c, d, x[4], S41, 0xf7537e82);
-    II(d, a, b, c, x[11], S42, 0xbd3af235);
-    II(c, d, a, b, x[2], S43, 0x2ad7d2bb);
-    II(b, c, d, a, x[9], S44, 0xeb86d391);
-
-    state[0] += a;
-    state[1] += b;
-    state[2] += c;
-    state[3] += d;
+__device__ MD5Gpu::MD5Gpu(){
+  init();
 }
 
-__device__  void md5(const uint8_t *data, const uint32_t size, uint8_t *result)
-{
-
-    uint32_t i = 0;
-    uint32_t state[4];
-    memcpy(state,md5_magic_const,sizeof(state));
-    for (i = 0; i + block_size <= size; i += block_size)
-    {
-        transform(state, data + i);
-    }
-
-    uint32_t size_in_bits = size << 3;
-    uint8_t buffer[block_size];
-
-    memcpy(buffer, data + i, size - i);
-    memcpy(buffer + size - i, padding, block_size - (size - i));
-    memcpy(buffer + block_size - (2 * sizeof(uint)), &size_in_bits, sizeof(uint));
-
-    transform(state, buffer);
-
-    memcpy(result, state, 4 * sizeof(uint));
+__device__ MD5Gpu::MD5Gpu(const char*data, size_t size){
+  init();
+  update(reinterpret_cast<const uint8_t*>(data),size);
+  finalize();
 }
 
-__global__ void md5_gpu_comparer(const uint8_t *digests, const uint8_t *targetDigest, uint32_t size, uint32_t *result)
-{
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-    if (i < size)
-    {
-        uint8_t eq = 1;
-        for (int j = 0; j < 16; j++)
-        {
-            if (digests[j + i * 16] != targetDigest[j])
-            {
-                eq = 0;
-                break;
-            }
-        }
-        if (eq)
-            *result = i+1;
-    }
+
+// decodes input (unsigned char) into output (uint4). Assumes len is a multiple
+// of 4.
+__device__ void MD5Gpu::decode(uint32_t output[], const uint8_t input[], size_type len) {
+  for (unsigned int i = 0, j = 0; j < len; i++, j += 4)
+    output[i] = ((uint32_t)input[j]) | (((uint32_t)input[j + 1]) << 8) |
+                (((uint32_t)input[j + 2]) << 16) |
+                (((uint32_t)input[j + 3]) << 24);
 }
 
-__global__ void md5_call_gpu(const uint8_t *data, const uint32_t *sizes, uint32_t *offsets, uint8_t *result,
-                             uint32_t size)
-{
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-    if (i < size)
-        md5(data + offsets[i], sizes[i], result + i * sizeof(uint32_t) * 4);
+//////////////////////////////
+
+// encodes input (uint4) into output (unsigned char). Assumes len is
+// a multiple of 4.
+__device__ void MD5Gpu::encode(uint8_t output[], const uint32_t input[], size_type len) {
+  for (size_type i = 0, j = 0; j < len; i++, j += 4) {
+    output[j] = input[i] & 0xff;
+    output[j + 1] = (input[i] >> 8) & 0xff;
+    output[j + 2] = (input[i] >> 16) & 0xff;
+    output[j + 3] = (input[i] >> 24) & 0xff;
+  }
 }
 
+//////////////////////////////
+
+// apply MD5 algo on a block
+__device__ void MD5Gpu::transform(const uint8_t block[blocksize]) {
+  uint32_t a = state[0], b = state[1], c = state[2], d = state[3], x[16];
+  decode(x, block, blocksize);
+
+  /* Round 1 */
+  FF(a, b, c, d, x[0], S11, 0xd76aa478);  /* 1 */
+  FF(d, a, b, c, x[1], S12, 0xe8c7b756);  /* 2 */
+  FF(c, d, a, b, x[2], S13, 0x242070db);  /* 3 */
+  FF(b, c, d, a, x[3], S14, 0xc1bdceee);  /* 4 */
+  FF(a, b, c, d, x[4], S11, 0xf57c0faf);  /* 5 */
+  FF(d, a, b, c, x[5], S12, 0x4787c62a);  /* 6 */
+  FF(c, d, a, b, x[6], S13, 0xa8304613);  /* 7 */
+  FF(b, c, d, a, x[7], S14, 0xfd469501);  /* 8 */
+  FF(a, b, c, d, x[8], S11, 0x698098d8);  /* 9 */
+  FF(d, a, b, c, x[9], S12, 0x8b44f7af);  /* 10 */
+  FF(c, d, a, b, x[10], S13, 0xffff5bb1); /* 11 */
+  FF(b, c, d, a, x[11], S14, 0x895cd7be); /* 12 */
+  FF(a, b, c, d, x[12], S11, 0x6b901122); /* 13 */
+  FF(d, a, b, c, x[13], S12, 0xfd987193); /* 14 */
+  FF(c, d, a, b, x[14], S13, 0xa679438e); /* 15 */
+  FF(b, c, d, a, x[15], S14, 0x49b40821); /* 16 */
+
+  /* Round 2 */
+  GG(a, b, c, d, x[1], S21, 0xf61e2562);  /* 17 */
+  GG(d, a, b, c, x[6], S22, 0xc040b340);  /* 18 */
+  GG(c, d, a, b, x[11], S23, 0x265e5a51); /* 19 */
+  GG(b, c, d, a, x[0], S24, 0xe9b6c7aa);  /* 20 */
+  GG(a, b, c, d, x[5], S21, 0xd62f105d);  /* 21 */
+  GG(d, a, b, c, x[10], S22, 0x2441453);  /* 22 */
+  GG(c, d, a, b, x[15], S23, 0xd8a1e681); /* 23 */
+  GG(b, c, d, a, x[4], S24, 0xe7d3fbc8);  /* 24 */
+  GG(a, b, c, d, x[9], S21, 0x21e1cde6);  /* 25 */
+  GG(d, a, b, c, x[14], S22, 0xc33707d6); /* 26 */
+  GG(c, d, a, b, x[3], S23, 0xf4d50d87);  /* 27 */
+  GG(b, c, d, a, x[8], S24, 0x455a14ed);  /* 28 */
+  GG(a, b, c, d, x[13], S21, 0xa9e3e905); /* 29 */
+  GG(d, a, b, c, x[2], S22, 0xfcefa3f8);  /* 30 */
+  GG(c, d, a, b, x[7], S23, 0x676f02d9);  /* 31 */
+  GG(b, c, d, a, x[12], S24, 0x8d2a4c8a); /* 32 */
+
+  /* Round 3 */
+  HH(a, b, c, d, x[5], S31, 0xfffa3942);  /* 33 */
+  HH(d, a, b, c, x[8], S32, 0x8771f681);  /* 34 */
+  HH(c, d, a, b, x[11], S33, 0x6d9d6122); /* 35 */
+  HH(b, c, d, a, x[14], S34, 0xfde5380c); /* 36 */
+  HH(a, b, c, d, x[1], S31, 0xa4beea44);  /* 37 */
+  HH(d, a, b, c, x[4], S32, 0x4bdecfa9);  /* 38 */
+  HH(c, d, a, b, x[7], S33, 0xf6bb4b60);  /* 39 */
+  HH(b, c, d, a, x[10], S34, 0xbebfbc70); /* 40 */
+  HH(a, b, c, d, x[13], S31, 0x289b7ec6); /* 41 */
+  HH(d, a, b, c, x[0], S32, 0xeaa127fa);  /* 42 */
+  HH(c, d, a, b, x[3], S33, 0xd4ef3085);  /* 43 */
+  HH(b, c, d, a, x[6], S34, 0x4881d05);   /* 44 */
+  HH(a, b, c, d, x[9], S31, 0xd9d4d039);  /* 45 */
+  HH(d, a, b, c, x[12], S32, 0xe6db99e5); /* 46 */
+  HH(c, d, a, b, x[15], S33, 0x1fa27cf8); /* 47 */
+  HH(b, c, d, a, x[2], S34, 0xc4ac5665);  /* 48 */
+
+  /* Round 4 */
+  II(a, b, c, d, x[0], S41, 0xf4292244);  /* 49 */
+  II(d, a, b, c, x[7], S42, 0x432aff97);  /* 50 */
+  II(c, d, a, b, x[14], S43, 0xab9423a7); /* 51 */
+  II(b, c, d, a, x[5], S44, 0xfc93a039);  /* 52 */
+  II(a, b, c, d, x[12], S41, 0x655b59c3); /* 53 */
+  II(d, a, b, c, x[3], S42, 0x8f0ccc92);  /* 54 */
+  II(c, d, a, b, x[10], S43, 0xffeff47d); /* 55 */
+  II(b, c, d, a, x[1], S44, 0x85845dd1);  /* 56 */
+  II(a, b, c, d, x[8], S41, 0x6fa87e4f);  /* 57 */
+  II(d, a, b, c, x[15], S42, 0xfe2ce6e0); /* 58 */
+  II(c, d, a, b, x[6], S43, 0xa3014314);  /* 59 */
+  II(b, c, d, a, x[13], S44, 0x4e0811a1); /* 60 */
+  II(a, b, c, d, x[4], S41, 0xf7537e82);  /* 61 */
+  II(d, a, b, c, x[11], S42, 0xbd3af235); /* 62 */
+  II(c, d, a, b, x[2], S43, 0x2ad7d2bb);  /* 63 */
+  II(b, c, d, a, x[9], S44, 0xeb86d391);  /* 64 */
+
+  state[0] += a;
+  state[1] += b;
+  state[2] += c;
+  state[3] += d;
+}
+
+//////////////////////////////
+
+// MD5 block update operation. Continues an MD5 message-digest
+// operation, processing another message block
+__device__ void MD5Gpu::update(const uint8_t input[], size_type length) {
+  // compute number of bytes mod 64
+  size_type index = count[0] / 8 % blocksize;
+
+  // Update number of bits
+  if ((count[0] += (length << 3)) < (length << 3))
+    count[1]++;
+  count[1] += (length >> 29);
+  // number of bytes we need to fill in buffer
+  size_type firstpart = 64 - index;
+
+  size_t i = 0;
+
+  // transform as many times as possible.
+  if (length >= firstpart) {
+    // fill buffer first, transform
+    memcpy(&buffer[index], input, firstpart);
+    transform(buffer);
+
+    // transform chunks of blocksize (64 bytes)
+    for (i = firstpart; i + blocksize <= length; i += blocksize)
+      transform(&input[i]);
+
+    index = 0;
+  } 
+  memcpy(&buffer[index],&input[i],length-i);
+}
+
+
+
+//////////////////////////////
+
+// MD5 finalization. Ends an MD5 message-digest operation, writing the
+// the message digest and zeroizing the context.
+__device__ MD5Gpu &MD5Gpu::finalize() {
+  static unsigned char padding[64] = {
+      0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+  if (!finalized) {
+    // Save number of bits
+    unsigned char bits[8];
+    encode(bits, count, 8);
+
+    // pad out to 56 mod 64.
+    size_type index = count[0] / 8 % 64;
+    size_type padLen = (index < 56) ? (56 - index) : (120 - index);
+    update(padding, padLen);
+
+    // Append length (before padding)
+    update(bits, 8);
+
+    // Store state in digest
+    encode(digest, state, 16);
+    
+    finalized = true;
+  }
+
+  return *this;
+}
+
+__global__ void md5_apply_gpu(uint8_t* data, uint32_t* sizes, uint32_t * offsets, uint32_t* result, size_t numofstring){
+  int i = threadIdx.x + blockIdx.x*blockDim.x;
+  if(i < numofstring){
+    auto size = sizes[i];
+    char* str = reinterpret_cast<char*>(&data[offsets[i]]);
+    MD5Gpu alg{str,size};
+    auto digest = alg.getdigest();
+    memcpy(&result[i*4],digest,16);
+  }
+}
+
+/*Routines implementation*/
 __host__ void select_cuda_device(){
     int devices;
     cudaGetDeviceCount(&devices);
@@ -249,97 +320,57 @@ __host__ void select_cuda_device(){
             betterDevice = i;
         }
     }
+    cudaInitDevice(betterDevice, 0, 0);
     cudaSetDevice(betterDevice);
     cudaDeviceReset();
 }
 
-struct _gpudata {
-  uint8_t *_data = nullptr;
-  uint32_t _size = 0;
-  uint8_t *_result = nullptr;
-  uint32_t *_displacements = nullptr;
-  uint32_t *_sizes = nullptr;
-  uint8_t *_target = nullptr;
-  _gpudata(size_t num_of_strings, const uint8_t *local_data,
-           const uint32_t *local_sizes, uint8_t *local_target) {
-    uint32_t data_size = 0;
-    for (size_t i = 0; i < num_of_strings; i++) {
-      data_size += local_sizes[i];
-    }
-    uint32_t *local_displacements =
-        (uint32_t *)alloca(num_of_strings * sizeof(uint32_t));
-    memset(local_displacements, 0, num_of_strings * sizeof(uint32_t));
-    for (size_t i = 1; i < num_of_strings; i++) {
-      local_displacements[i] = local_sizes[i - 1] + local_displacements[i - 1];
-    }
-    alloc_gpu(num_of_strings, data_size, local_data, local_sizes,
-              local_displacements, local_target);
-  }
-  void alloc_gpu(size_t num_of_string, size_t data_size,
-                 const uint8_t *local_data, const uint32_t *local_sizes,
-                 uint32_t *displacements, uint8_t *local_target) {
-    _size = num_of_string;
-
-        GpuMalloc(&_data, data_size);
-        GpuMalloc(&_sizes, num_of_string);
-        GpuMalloc(&_displacements, num_of_string);
-        GpuCopy(_data, local_data, data_size, cudaMemcpyHostToDevice);
-        GpuCopy(_sizes, local_sizes, num_of_string, cudaMemcpyHostToDevice);
-        GpuCopy(_displacements, displacements, num_of_string,
-                cudaMemcpyHostToDevice);
-    GpuMalloc(&_result, num_of_string * 16);
-    if (local_target != nullptr) {
-      GpuMalloc(&_target, 16);
-      GpuCopy(_target, local_target, 16, cudaMemcpyHostToDevice);
-    }
-  }
-
-  void dealloc() {
-    GpuFree(_data,_sizes,_displacements,_result);
-    if (_target != NULL)
-     GpuFree(_target);
-  }
-  ~_gpudata() { dealloc(); }
-};
-
 __host__ void CheckGpuCondition() {
   static bool initialized = false;
-  CUresult result;
-  if (!initialized && (result = cuInit(0)) != CUDA_SUCCESS)
-    printf("Error %d on gpu initialization: %s\n", result,
-           cudaGetErrorString((cudaError)result));  
-  select_cuda_device();
+  if (!initialized) {
+    select_cuda_device();
+    initialized = true;
+  }
 }
 
-__host__ int md5_gpu_finder(const uint8_t *data, const uint32_t *sizes,
-                            uint32_t num_of_strings, uint8_t *targetDigest) {
-  CheckGpuCondition();
-  dim3 grid(1, num_of_strings);
-  _gpudata gpudata{num_of_strings, data, sizes, targetDigest};
-  md5_call_gpu<<<grid.x, grid.y>>>(gpudata._data, gpudata._sizes,
-                                   gpudata._displacements, gpudata._result,
-                                   num_of_strings);
+static bool inited = false;
+constexpr size_t max_threads = 100000;
+
+void md5_gpu_transform(uint8_t *data, uint32_t *sizes, uint32_t *result,
+                       size_t num_of_strings) {
+  if (!inited) {
+    cuInit(0);
+    CheckGpuCondition();
+    inited = true;
+  }
+  uint8_t *_devdata = nullptr;
+  uint32_t *_devsizes = nullptr,*_devresult = nullptr,
+      *offsets = new uint32_t[num_of_strings]{},
+      *_devoffsets = nullptr;
+
+  // CheckGpuCondition();
+  size_t cumsizes = sizes[0];
+  offsets[0] = 0;
+  for (uint32_t i = 1; i < num_of_strings; i++) {
+    offsets[i] = cumsizes;
+    cumsizes += sizes[i];
+  }
+  cudaMallocManaged(&_devdata, cumsizes);
+  cudaMallocManaged(&_devresult, 4 * num_of_strings*sizeof(uint32_t));
+  cudaMallocManaged(&_devsizes, num_of_strings*sizeof(uint32_t));
+  cudaMallocManaged(&_devoffsets, num_of_strings*sizeof(uint32_t));
+
+  cudaMemcpy(_devdata, data, cumsizes, cudaMemcpyHostToDevice);
+  cudaMemcpy(_devsizes, sizes, num_of_strings*sizeof(uint32_t), cudaMemcpyHostToDevice);
+  cudaMemcpy(_devoffsets, offsets, num_of_strings*sizeof(uint32_t) , cudaMemcpyHostToDevice);
   cudaDeviceSynchronize();
+  md5_apply_gpu<<<min(max_threads,num_of_strings),(num_of_strings/max_threads) + 1>>>(_devdata, _devsizes, _devoffsets, _devresult, num_of_strings);
+  cudaDeviceSynchronize();
+  auto err = cudaGetLastError();
+  if(err != cudaSuccess){
+    //throw CudaMemoryError(err);
+  }
+  cudaMemcpy(result, _devresult, 4 * num_of_strings*sizeof(uint32_t), cudaMemcpyDeviceToHost);
+  free(offsets);
 
-  md5_gpu_comparer<<<grid.x, grid.y>>>(gpudata._result, gpudata._target,
-                                       num_of_strings, gpudata._displacements);
-
- cudaDeviceSynchronize();
-  return 0;
 }
-
-__host__ void md5_gpu_transform(const uint8_t *data, const uint32_t *sizes,
-                                uint8_t *result, uint32_t num_of_strings) {
-  CheckGpuCondition();
-  _gpudata gpudata{num_of_strings, data, sizes, NULL};
-  cudaDeviceSynchronize();
-  md5_call_gpu<<<1, num_of_strings>>>(gpudata._data, gpudata._sizes,
-                                      gpudata._displacements, gpudata._result,
-                                      num_of_strings);
-
-  cudaDeviceSynchronize();
-  GpuCopy(result, gpudata._result, 16 * num_of_strings, cudaMemcpyDeviceToHost);
-
-}
-
-

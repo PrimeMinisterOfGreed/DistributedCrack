@@ -36,16 +36,9 @@ documentation and/or software.
 #include <iostream>
 #include <cstddef>
 #include <cstdint>
-// a small class for calculating MD5 hashes of strings or byte arrays
-// it is not meant to be fast or secure
-//
-// usage: 1) feed it blocks of uchars with update()
-//      2) finalize()
-//      3) get hexdigest() string
-//      or
-//      MD5(std::string).hexdigest()
-//
-// assumes that char is 8 bit and int is 32 bit
+
+
+constexpr const int blocksize = 64;
 class MD5
 {
   public:
@@ -61,21 +54,15 @@ class MD5
 
   private:
     void init();
-    enum
-    {
-        blocksize = 64
-    }; // VC6 won't eat a const static int here
-
     void transform(const uint8_t block[blocksize]);
     static void decode(uint32_t output[], const uint8_t input[], size_type len);
     static void encode(uint8_t output[], const uint32_t input[], size_type len);
 
-    bool finalized;
+    bool finalized = false;
     uint8_t buffer[blocksize]{}; // bytes that didn't fit in last 64 byte chunk
     uint32_t count[2]{};          // 64bit counter for number of bits (lo, hi)
     uint32_t state[4]{};          // digest so far
     uint8_t digest[16]{};        // the result
-
 };
 
 std::string md5(const std::string str);

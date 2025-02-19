@@ -15,6 +15,12 @@ int main(int argc, char **argv) {
   return res;
 }
 
+TEST(TestGpu, test_simple_calc){
+    std::string tgt = "5eb63bbbe01eeed093cb22bb8f5acdc3";
+    auto index = md5_gpu({"hello world"});
+    ASSERT_EQ(index[0],tgt);
+}
+
 TEST(TestGpuResponse, test_md5_calc) {
     std::vector<std::string> chunk{"foo","bar","hello world"};
     std::string tgt = "5eb63bbbe01eeed093cb22bb8f5acdc3";
@@ -24,15 +30,15 @@ TEST(TestGpuResponse, test_md5_calc) {
 
 TEST(TestGpuResponse, test_regime_response){
   AssignedSequenceGenerator generator{4};
-  auto chunk = generator.generate_chunk(10000);
+  auto chunk = generator.generate_chunk(100000);
   auto digests = std::vector<std::string>{chunk.size()};
   #pragma omp parallel
   for(auto i = 0 ; i < chunk.size(); i++){
     digests[i] = md5(chunk[i]);
   }
+  auto gpucomputed = md5_gpu(chunk);
+  for(auto i = 0 ; i < chunk.size(); i++){
+    ASSERT_EQ(gpucomputed[i], digests[i]);
+  }
 
-  for(int i = 0; i < chunk.size(); i++){
-    auto res = md5_gpu(chunk,digests[i]);
-    ASSERT_EQ(res, i);
-  } 
 }
