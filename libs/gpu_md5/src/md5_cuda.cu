@@ -334,7 +334,7 @@ __host__ void CheckGpuCondition() {
 }
 
 static bool inited = false;
-constexpr size_t max_threads = 100000;
+constexpr size_t max_threads = 1000000;
 
 void md5_gpu_transform(uint8_t *data, uint32_t *sizes, uint32_t *result,
                        size_t num_of_strings) {
@@ -355,10 +355,10 @@ void md5_gpu_transform(uint8_t *data, uint32_t *sizes, uint32_t *result,
     offsets[i] = cumsizes;
     cumsizes += sizes[i];
   }
-  cudaMallocManaged(&_devdata, cumsizes);
-  cudaMallocManaged(&_devresult, 4 * num_of_strings*sizeof(uint32_t));
-  cudaMallocManaged(&_devsizes, num_of_strings*sizeof(uint32_t));
-  cudaMallocManaged(&_devoffsets, num_of_strings*sizeof(uint32_t));
+  cudaMalloc(&_devdata, cumsizes);
+  cudaMalloc(&_devresult, 4 * num_of_strings*sizeof(uint32_t));
+  cudaMalloc(&_devsizes, num_of_strings*sizeof(uint32_t));
+  cudaMalloc(&_devoffsets, num_of_strings*sizeof(uint32_t));
 
   cudaMemcpy(_devdata, data, cumsizes, cudaMemcpyHostToDevice);
   cudaMemcpy(_devsizes, sizes, num_of_strings*sizeof(uint32_t), cudaMemcpyHostToDevice);
@@ -372,5 +372,8 @@ void md5_gpu_transform(uint8_t *data, uint32_t *sizes, uint32_t *result,
   }
   cudaMemcpy(result, _devresult, 4 * num_of_strings*sizeof(uint32_t), cudaMemcpyDeviceToHost);
   free(offsets);
-
+  cudaFree(_devdata);
+  cudaFree(_devresult);
+  cudaFree(_devsizes);
+  cudaFree(_devoffsets);  
 }

@@ -57,11 +57,11 @@ public:
     if (options.use_gpu && !gpu_busy) {
       gpu_busy = true;
       gpu_fptr = async([=, this]() {
-        auto res = md5_gpu(chunk, chunk.size(), options.target_md5);
-        if (res > -1) {
-          auto str = chunk[res];
-          send_result(str);
-          dbgln("Password found:{}",str);
+        auto res = md5_gpu(chunk);
+        for(int i = 0 ; i < chunk.size(); i++){
+          if(res[i] == options.target_md5){
+            send_result(chunk[i]);
+          }
         }
         gpu_busy = false;
       });
