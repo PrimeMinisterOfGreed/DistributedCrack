@@ -42,3 +42,26 @@ TEST(TestGpuResponse, test_regime_response){
   }
 
 }
+
+bool target_found(std::string& target, std::vector<std::string>& result){
+  #pragma omp parallel for threads(16)
+    for(int i = 0 ; i < result.size() ; i++){
+      if(result[i] == target) return true;
+    }
+  
+  return false;
+}
+
+TEST(BechMark, gpu_benchmark){
+  AssignedSequenceGenerator generator{4};
+  std::vector<std::string> res{};
+  auto target_md5 =  std::string("df0ab011de60a20038a6d5fd760de52e");
+  auto chunklevel = 1000000;
+  do{
+    auto chunk = generator.generate_chunk(chunklevel);
+    res = md5_gpu(chunk,chunklevel);
+    chunklevel += 100000;
+    printf("current chunk level %d \n",chunklevel);
+    fflush(NULL);
+  } while(!target_found(target_md5, res)); 
+}

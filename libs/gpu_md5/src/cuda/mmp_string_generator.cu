@@ -1,5 +1,4 @@
 #include "mmp_string_generator.cuh"
-#include "cuda_string_generator.hpp"
 /*
 __device__ const char *mmp_string_generator_gpu::next_sequence()
 {

@@ -1,5 +1,5 @@
 #include "md5_gpu.hpp"
-#include "md5_cuda.cuh"
+#include "cuda/md5transform.cuh"
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -43,7 +43,7 @@ std::vector<std::string> hexdigest(const std::vector<std::string> &results) {
 }
 
 
-std::vector<std::string> md5_gpu(const std::vector<std::string> &chunk) {
+std::vector<std::string> md5_gpu(const std::vector<std::string> &chunk, int maxthreads) {
 
   uint32_t * results = new uint32_t[chunk.size()*4]{},
   *sizes = new uint32_t[chunk.size()]{};
@@ -62,7 +62,7 @@ std::vector<std::string> md5_gpu(const std::vector<std::string> &chunk) {
     offset+=sizes[i];
   }
 
-  md5_gpu_transform(data, sizes, results, chunk.size());
+  md5_gpu_transform(data, sizes, results, chunk.size(),maxthreads);
   std::vector<std::string> md5s;
   for(int i = 0 ; i < chunk.size()*4; i+=4){
     char resultstr[33]{};

@@ -11,6 +11,11 @@
 
 ProgramOptions options{};
 
+
+void single_node_routine(){
+
+}
+
 void mpi_routine(int argc, char **argv) {
   using namespace boost::mpi;
   MPI_Init(&argc, &argv);
@@ -65,7 +70,9 @@ int main(int argc, char *argv[]) {
           .default_value("NONE")
           .store_into(options.dictionary);
   parser.parse_args(argc, argv);
-  mpi_routine(argc, argv);
-
+  if(options.use_mpi)
+    mpi_routine(argc, argv);
+  else
+    single_node_routine();
   return 0;
 }

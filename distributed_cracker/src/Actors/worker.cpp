@@ -3,9 +3,12 @@
 #include "log_engine.hpp"
 #include "md5_gpu.hpp"
 #include "options_bag.hpp"
+#include "string_generator.hpp"
 #include <future>
 using namespace boost::mpi;
 using namespace std;
+
+// Mpi Node
 
 void operator<<(std::string &val, char *buffer) {
   for (int i = 0; i < val.size(); i++) {
@@ -15,7 +18,7 @@ void operator<<(std::string &val, char *buffer) {
 
 struct operations_control {
 private:
-  bool gpu_busy = false;
+  int gpu_req = 0;
   future<void> gpu_fptr;
   communicator &comm;
   request stoprecv;
@@ -51,20 +54,13 @@ public:
   }
 
   void compute(std::vector<std::string> chunk) {
-    if(!std::all_of(chunk.begin(),chunk.end(),[](auto&str){return str.size()>0;})){
-      dbgln("Malformed chunk, rejecting");
-    }
-    if (options.use_gpu && !gpu_busy) {
-      gpu_busy = true;
-      gpu_fptr = async([=, this]() {
+    if (options.use_gpu) {
         auto res = md5_gpu(chunk);
         for(int i = 0 ; i < chunk.size(); i++){
           if(res[i] == options.target_md5){
             send_result(chunk[i]);
           }
         }
-        gpu_busy = false;
-      });
     } else {
       auto res = compute_chunk(chunk, options.target_md5, options.num_threads);
       if (res.has_value()) {
@@ -76,7 +72,9 @@ public:
 
   bool is_stop_recv() { return stoprecv.test().has_value(); }
 
-  ~operations_control() { gpu_fptr.wait(); }
+  ~operations_control() { 
+    //gpu_fptr.wait();
+     }
 };
 
 void worker_routine(communicator &comm) {
@@ -91,3 +89,16 @@ void worker_routine(communicator &comm) {
     comm.send(0, available_resp_tag);
   }
 }
+
+// Single Worker
+
+
+struct SingleWorker{
+  
+};
+
+
+void single_node_routine(ISequenceGenerator& generator) {
+    
+}
+
