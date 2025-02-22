@@ -69,6 +69,9 @@ int main(int argc, char *argv[]) {
       make_arg("--dictionary", "use a dictionary")
           .default_value("NONE")
           .store_into(options.dictionary);
+          make_arg("--brutestart", "start from a string of length n for bruteforce")
+          .default_value(4)
+          .store_into(options.brutestart);
   parser.parse_args(argc, argv);
   if(options.use_mpi)
     mpi_routine(argc, argv);

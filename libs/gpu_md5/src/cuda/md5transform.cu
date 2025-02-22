@@ -1,4 +1,3 @@
-#include "cuda_memory_support.cuh"
 #include "md5gpu.cuh"
 #include "md5transform.cuh"
 // Constants for MD5Transform routine.

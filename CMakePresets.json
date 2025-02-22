@@ -24,9 +24,16 @@
                 "CMAKE_INSTALL_PREFIX": "install",
                 "CMAKE_C_COMPILER": "/usr/bin/gcc",
                 "CMAKE_CXX_COMPILER": "/usr/bin/g++",
-                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": true,
                 "ENABLE_UNIT_TEST": true
+            }
+        },
+        {
+            "name": "gcc-release",
+            "inherits":"gcc",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE":"Release"
             }
         }
     ],

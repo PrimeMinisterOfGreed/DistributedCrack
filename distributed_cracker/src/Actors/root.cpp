@@ -1,94 +1,139 @@
 #include "root.hpp"
 #include "chunk_loader.hpp"
 #include "log_engine.hpp"
-#include "string_generator.hpp"
 #include "options_bag.hpp"
+#include "string_generator.hpp"
 #include <mpi.h>
 using namespace boost::mpi;
 using namespace std;
 
-struct chunk_sender{
-  private:
-  vector<request> pending{};
-  request result_req;
-  vector<bool> first{};
-  char _result[result_size]{};
-  ChunkLoader loader{};
-  boost::mpi::communicator & comm;
-  public:
-  chunk_sender(boost::mpi::communicator&comm): comm(comm){
-    pending.resize(comm.size());
-    first.resize(comm.size(),false);
-    result_req = comm.irecv(any_source,result_tag,_result,result_size);
+struct GeneratorNode {
+  virtual void send(int dest) = 0;
+  virtual ~GeneratorNode() = default;
+};
+
+struct MpiAwaiter {
+  communicator &_comm;
+  vector<request> _pending{};
+  vector<int> _toprocess{};
+  bool _result_available = false;
+  char _result[RESULT_SIZE]{};
+
+  MpiAwaiter(communicator &comm) : _comm(comm) {
+    _pending.resize(comm.size());
+    for (int i = 0; i < comm.size(); i++) {
+      if (i != comm.rank())
+        _toprocess.push_back(i);
+    }
+    _pending.push_back(comm.irecv(any_source, RESULT_TAG, _result, RESULT_SIZE));
   }
 
-  bool send_chunks(int chunks, int target) {
-    if (first[target] && !pending[target].test().has_value()) {
-      return false;
+  bool result_received() { return _result_available; }
+
+  std::string result() const { return _result; }
+  void scan() {
+    auto itr = _pending.begin();
+    while (itr != _pending.end()) {
+      if (itr->test().has_value()) {
+        if (itr->test().value().tag() == RESULT_TAG) {
+          _result_available = true;
+        } else {
+          _toprocess.push_back(itr->test()->source());
+        }
+        _pending.erase(itr);
+      }
+      itr++;
     }
-    char *buffer = new char[max_elem_alloc * chunks]{};
+  }
+
+  int get_next() {
+    if (_toprocess.size() > 0) {
+      auto res = _toprocess.front();
+      _toprocess.erase(_toprocess.begin());
+      _pending.push_back(_comm.irecv(res, AVAILABLE_RESP_TAG));
+      return res;
+    }
+    return -1;
+  }
+
+  void wait_any_request() {
+    auto res = boost::mpi::wait_any(_pending.begin(), _pending.end());
+    _toprocess.push_back(res.first.source());
+    if(res.first.tag() == RESULT_TAG){
+      _result_available = true;
+    }
+    _pending.erase(res.second);
+  }
+
+  ~MpiAwaiter() {
+    for (int i = 0; i < _comm.size(); i++)
+      if (i != _comm.rank()) {
+        _comm.send(i, STOP_TAG);
+        _comm.send(i,UNLOCK_TAG);
+      }
+  }
+};
+
+struct ChunkGenerator : GeneratorNode {
+private:
+  ChunkLoader loader{};
+  boost::mpi::communicator &comm;
+
+public:
+  ChunkGenerator(boost::mpi::communicator &comm) : comm(comm) {}
+
+  bool send_chunks(int chunks, int target) {
+    char *buffer = new char[MAX_ELEM_ALLOC * chunks]{};
     size_t sizes[chunks];
     memset(sizes, 0, chunks * sizeof(size_t));
     auto res = loader.get_chunk(chunks, buffer);
-    memcpy(sizes, res.data(),chunks * sizeof(size_t));
-    comm.send(target, sizes_tag, sizes, chunks);
-    comm.send(target, chunk_tag, buffer, max_elem_alloc * chunks);
-    pending[target] = comm.irecv(target, available_resp_tag);
-    first[target] = true;
+    memcpy(sizes, res.data(), chunks * sizeof(size_t));
+    comm.send(target, SIZES_TAG, sizes, chunks);
+    comm.send(target, CHUNK_TAG, buffer, MAX_ELEM_ALLOC * chunks);
     delete[] buffer;
     return true;
   }
 
-  bool result_received() { return result_req.test().has_value(); }
-  int wait_any_pending() {
-      if (!std::all_of(pending.begin(), pending.end(), [](request &elem) {
-            return elem.test().is_initialized();
-          })) {
-        return -1;
-      }
+  void send(int dest) override { send_chunks(options.chunk_size, dest); }
+};
 
-    for (auto &pend : pending) {
-      if (pend.test().has_value()) {
-        return pend.test().get().source();
-      }
-    }
+struct TaskGenerator : GeneratorNode {
+  size_t current_address = 0;
+  communicator &_comm;
+  TaskGenerator(communicator &comm)
+      :  _comm(comm) {}
 
-    auto towait = pending;
-    towait.push_back(result_req);
-    auto res = wait_any(pending.begin(), pending.end());
-    return res.first.source();
+  void send(int dest) override {
+    auto s2 = current_address + options.chunk_size;
+    size_t send[]{current_address, s2};
+    current_address = s2;
+    _comm.send(dest, BRUTE_TASK_TAG, send, 2);
   }
-
-  int get_next_process() {
-    static bool allinit = false;
-    if (!allinit)
-      for (int i = 1; i < first.size(); i++) {
-        if (!first[i])
-          return i;
-      }
-    allinit = true;
-    return wait_any_pending();
-  }
-  const char* result() const{return _result;}
 };
 
 void root_routine(boost::mpi::communicator &comm) {
-  chunk_sender sender{comm};
-  dbgln("Sending all processes a chunk");
-
-  while (!sender.result_received()) {
-    auto next = sender.get_next_process();
-    if (next != -1) {
-      dbgln("Sending chunk to {}", next);
-      sender.send_chunks(options.chunk_size, next);
+  GeneratorNode *node =
+      options.use_dictionary()
+          ? static_cast<GeneratorNode *>(new ChunkGenerator(comm))
+          : new TaskGenerator(comm); // should be the bruter
+  MpiAwaiter awaiter{comm};
+  dbgln("Sending to {} nodes, dictionary mode:{}", awaiter._toprocess.size(),options.use_dictionary());
+  while (!awaiter.result_received()) {
+    dbgln("Scanning");
+    awaiter.scan();
+    auto next = awaiter.get_next();
+    dbgln("next is {}",next);
+    if (next > -1) {
+      dbgln("Sending to {}", next);
+      comm.send(next,UNLOCK_TAG);
+      node->send(next);
     }
     else{
-      for(int i = 1; i < comm.size(); i++){
-        sender.send_chunks(options.chunk_size, i);
-      }
+      dbgln("awaiting message");
+      awaiter.wait_any_request();
     }
   }
-  for (int i = 1; i < comm.size(); i++)
-    comm.send(i, stop_tag);
-  println("Password found:{}", sender.result());
+
+  println("Password found:{}", awaiter.result());
+  delete node;
 }

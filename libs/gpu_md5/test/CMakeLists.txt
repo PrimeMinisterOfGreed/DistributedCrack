@@ -1,7 +1,7 @@
 find_package(GTest REQUIRED CONFIG)
 set(UT_TARGET_NAME md5_gpu_ut)
 
-add_executable(${UT_TARGET_NAME} test_main.cpp test_memory.cu ${SRC_FILES})
+add_executable(${UT_TARGET_NAME} test_main.cpp ${SRC_FILES})
 target_include_directories(${UT_TARGET_NAME} PUBLIC 
 ${CMAKE_CURRENT_SOURCE_DIR}/../src 
 ${CMAKE_CURRENT_SOURCE_DIR}/../include)

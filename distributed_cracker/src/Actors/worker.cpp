@@ -16,24 +16,32 @@ void operator<<(std::string &val, char *buffer) {
   }
 }
 
-struct operations_control {
-private:
-  int gpu_req = 0;
-  future<void> gpu_fptr;
-  communicator &comm;
-  request stoprecv;
 
-public:
-  operations_control(communicator &comm) : comm(comm) {
-    stoprecv = comm.irecv(0, stop_tag);
+struct WorkerNode{
+  private:
+  public:
+  virtual void recv_phase() = 0;
+  virtual void compute_phase() = 0;
+  static void send_result(std::string str, communicator&comm) {
+    char buffer[RESULT_SIZE]{};
+    memcpy(buffer, str.c_str(), str.size());
+    comm.send(0, RESULT_TAG, buffer, sizeof(buffer));
+  }
+  virtual ~WorkerNode() = default;
+};
+
+struct ChunkNode : WorkerNode {
+  communicator &comm;
+
+  ChunkNode(communicator &comm) : comm(comm) {
   }
 
-  std::vector<std::string> recv_chunks(int chunks, int root) {
-    char *buffer = new char[max_elem_alloc * chunks]{};
+  std::vector<std::string> recv_chunks(int chunks) {
+    char *buffer = new char[MAX_ELEM_ALLOC * chunks]{};
     size_t sizes[chunks];
     memset(sizes, 0, chunks * sizeof(size_t));
-    comm.recv(root, sizes_tag, sizes, chunks);
-    comm.recv(root, chunk_tag, buffer, max_elem_alloc * chunks);
+    comm.recv(any_source, SIZES_TAG, sizes, chunks);
+    comm.recv(any_source, CHUNK_TAG, buffer, MAX_ELEM_ALLOC * chunks);
     std::vector<std::string> res{};
     res.resize(chunks, "");
     for (size_t i = 0, disp = 0; i < chunks; i++) {
@@ -47,58 +55,107 @@ public:
     return res;
   }
 
-  void send_result(std::string str) {
-    char buffer[result_size]{};
-    memcpy(buffer, str.c_str(), str.size());
-    comm.send(0, result_tag, buffer, sizeof(buffer));
-  }
+
+
+
 
   void compute(std::vector<std::string> chunk) {
     if (options.use_gpu) {
         auto res = md5_gpu(chunk);
         for(int i = 0 ; i < chunk.size(); i++){
           if(res[i] == options.target_md5){
-            send_result(chunk[i]);
+            send_result(chunk[i], comm);
           }
         }
     } else {
       auto res = compute_chunk(chunk, options.target_md5, options.num_threads);
       if (res.has_value()) {
         dbgln("Value found {}",res.value());
-        send_result(res.value());
+        send_result(res.value(), comm);
       }
     }
   }
 
-  bool is_stop_recv() { return stoprecv.test().has_value(); }
-
-  ~operations_control() { 
+  ~ChunkNode() { 
     //gpu_fptr.wait();
      }
+
+     //interface
+     std::vector<std::string> chunk;
+     void recv_phase() override{
+      chunk = recv_chunks(options.chunk_size);
+     }
+
+     void compute_phase() override{
+      compute(chunk);
+     }
+
 };
 
+
+
+struct TaskNode : WorkerNode{
+  communicator& comm;
+  AssignedSequenceGenerator generator;
+  TaskNode(communicator&comm):comm(comm),generator(options.brutestart){}
+
+  std::pair<size_t, size_t> recv_task(){ 
+    size_t sizes[4]{};
+    comm.recv(any_source,BRUTE_TASK_TAG,sizes,2);
+    return {sizes[0],sizes[1]};
+  }
+
+  void compute_task(std::pair<size_t, size_t> task){
+    auto res = optional<std::string>{};
+    res.reset(); //just in case
+    if(options.use_gpu){
+      res= md5_bruter(task.first, task.second, options.target_md5);
+    }
+    else{
+      generator.assign_address(task.first);
+      auto chunk = generator.generate_chunk(task.second-task.first);
+      res = compute_chunk(chunk, options.target_md5, options.num_threads);
+    }
+
+    if(res.has_value()){
+      send_result(res.value(), comm);
+    }
+  }
+
+  //interface
+  std::pair<size_t, size_t> task;
+  void compute_phase() override{
+    compute_task(task);
+  }
+
+  void recv_phase() override{
+    task = recv_task();
+  }
+};
+
+
+
 void worker_routine(communicator &comm) {
-  static operations_control controller{comm};
-  while (!controller.is_stop_recv()) {
+  request stop_request;
+  request unlock_request;
+  stop_request = comm.irecv(any_source, STOP_TAG); //wait for someone to say stop
+  auto node = std::unique_ptr<WorkerNode>(options.use_dictionary()
+               ? static_cast<WorkerNode*>(new ChunkNode(comm))
+               : new TaskNode(comm));
+  std::vector<request> reqs{stop_request, unlock_request};
+  while (!stop_request.test().has_value()) {
+    comm.recv(any_source, UNLOCK_TAG);
+    if(stop_request.test().has_value()){
+      dbgln("shutting down");
+      return;
+    }
     dbgln("Process{}: waiting for message", comm.rank());
-    auto chunk = controller.recv_chunks(options.chunk_size, 0);
+    node->recv_phase();
     dbgln("Process{}: computing phase", comm.rank());
-    if (chunk.size() > 0)
-      controller.compute(chunk);
-    dbgln("Process{}: computing phase done",comm.rank());
-    comm.send(0, available_resp_tag);
+    node->compute_phase();
+    dbgln("Process{}: computing phase done", comm.rank());
+    comm.isend(0, AVAILABLE_RESP_TAG);
   }
 }
 
 // Single Worker
-
-
-struct SingleWorker{
-  
-};
-
-
-void single_node_routine(ISequenceGenerator& generator) {
-    
-}
-
