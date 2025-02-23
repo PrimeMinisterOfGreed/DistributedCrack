@@ -11,19 +11,17 @@ constexpr int maxUpperCaseLetter = 90;
 constexpr int minLowerCaseLetter = 97;
 constexpr int maxLowerCaseLetter = 122;
 
-class MMPStringGenerator
+struct GpuStringGenerator
 {
-      private:
       int _initialSequenceLength = 0;
       size_t _currentAddress = 0;
       size_t _currentSequenceLength = 0;
       char * _current;
-     __device__ const char * next_sequence();
+      bool _current_used= false;
+     __device__ GpuStringGenerator(int initialSequenceLength);
 
-   public:
-     MMPStringGenerator(int initialSequenceLength);
+     __device__ void assign_address(size_t address);
+     __device__ void generate_chunk(size_t size, char* data);
+     __device__ void next_sequence(char* data);
+    };
 
-     __device__ void assign_address(size_t address, const char* seq, size_t* seqsize);
-};
-
-__global__ void generate_chunk(int num, size_t *sizes, const char **chunk);

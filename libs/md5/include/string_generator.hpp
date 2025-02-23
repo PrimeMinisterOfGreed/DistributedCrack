@@ -56,7 +56,7 @@ class AssignedSequenceGenerator : public SequentialGenerator, public IAddressabl
 {
   private:
     uint64_t _currentSequenceIndex;
-
+    bool _currentUsed = false;
   public:
     AssignedSequenceGenerator(int initialSequenceLength);
     std::string next_sequence() override;

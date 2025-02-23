@@ -21,14 +21,14 @@ TEST(TestGpu, test_simple_calc){
     ASSERT_EQ(index[0],tgt);
 }
 
-TEST(TestGpuResponse, test_md5_calc) {
+TEST(TestGpu, test_md5_calc) {
     std::vector<std::string> chunk{"foo","bar","hello world"};
     std::string tgt = "5eb63bbbe01eeed093cb22bb8f5acdc3";
     auto index = md5_gpu(chunk);
     ASSERT_EQ(index[2],tgt);
 }
 
-TEST(TestGpuResponse, test_regime_response){
+TEST(TestGpu, test_regime_response){
   AssignedSequenceGenerator generator{4};
   auto chunk = generator.generate_chunk(100000);
   auto digests = std::vector<std::string>{chunk.size()};
@@ -52,7 +52,7 @@ bool target_found(std::string& target, std::vector<std::string>& result){
   return false;
 }
 
-TEST(BechMark, gpu_benchmark){
+TEST(BenchMark, gpu_benchmark){
   AssignedSequenceGenerator generator{4};
   std::vector<std::string> res{};
   auto target_md5 =  std::string("df0ab011de60a20038a6d5fd760de52e");
@@ -64,4 +64,12 @@ TEST(BechMark, gpu_benchmark){
     printf("current chunk level %d \n",chunklevel);
     fflush(NULL);
   } while(!target_found(target_md5, res)); 
+}
+
+TEST(TestGpu, test_bruter){
+  std::string target = "98abe3a28383501f4bfd2d9077820f11";
+  std::string orig = "!!!!";
+  auto res = md5_bruter(0, 10, target,10,4);
+  ASSERT_TRUE(res.has_value());
+  ASSERT_EQ(res.value(), orig);
 }

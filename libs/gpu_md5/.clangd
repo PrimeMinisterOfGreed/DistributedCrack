@@ -6,8 +6,10 @@ CompileFlags:                     # Tweak the parse settings
   Remove: [
     -forward-unknown-to-host-compiler,
     --options-file,
+    "--generate-code=arch=compute_75,code=[compute_75,sm_75]",
     "--generate-code=arch=compute_52,code=[compute_52,sm_52]",
     -allow-unsupported-compiler,
+    "-rdc=true",
     -G,
     -Xcompiler=-fPIC
     ]

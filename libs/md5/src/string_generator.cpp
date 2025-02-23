@@ -78,10 +78,15 @@ void AssignedSequenceGenerator::assign_address(uint64_t address)
         _current.at(_current.size() - it - 1) = (char)(r + minCharInt);
         it++;
     }
+    _currentUsed = false;
 }
 
 std::string AssignedSequenceGenerator::next_sequence()
 {
+    if(!_currentUsed){
+        _currentUsed = true;
+        return _current;
+    }
     _currentSequenceIndex++;
     return SequentialGenerator::next_sequence();
 }
