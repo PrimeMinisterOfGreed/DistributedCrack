@@ -7,6 +7,7 @@
 #include "string_generator.hpp"
 #include "cuda.h"
 #include "cuda_runtime_api.h"
+#include "cuda/gpu_string_generator.cuh"
 
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
@@ -72,4 +73,17 @@ TEST(TestGpu, test_bruter){
   auto res = md5_bruter(0, 10, target,10,4);
   ASSERT_TRUE(res.has_value());
   ASSERT_EQ(res.value(), orig);
+}
+
+
+TEST(BenchMark, test_gpu_bruting){
+  std::string target = "5d41402abc4b2a76b9719d911017c592";
+  std::optional<std::string> res{};
+  res.reset();
+  size_t currentaddress=0, chunksize =10000;
+  while(!res.has_value()){
+    printf("computing with %ld threads \n",chunksize);
+    res=md5_bruter(currentaddress, currentaddress+chunksize, target,chunksize,5);
+    chunksize+=1000;
+  }
 }

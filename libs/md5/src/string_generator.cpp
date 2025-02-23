@@ -6,6 +6,18 @@
 #include <string>
 #include <vector>
 
+constexpr int minCharInt = 33;
+constexpr int maxCharint = 126;
+constexpr int minDigit = 48;
+constexpr int maxDigit = 57;
+constexpr int minUpperCaseLetter = 65;
+constexpr int maxUpperCaseLetter = 90;
+constexpr int minLowerCaseLetter = 97;
+constexpr int maxLowerCaseLetter = 122;
+
+
+
+
 SequentialGenerator::SequentialGenerator(int initialSequenceLength) : _current()
 {
     for (int i = 0; i < (initialSequenceLength>0?initialSequenceLength:1); i++)

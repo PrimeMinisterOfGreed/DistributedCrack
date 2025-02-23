@@ -154,7 +154,7 @@ void worker_routine(communicator &comm) {
     dbgln("Process{}: computing phase", comm.rank());
     node->compute_phase();
     dbgln("Process{}: computing phase done", comm.rank());
-    comm.isend(0, AVAILABLE_RESP_TAG);
+    comm.send(0, AVAILABLE_RESP_TAG);
   }
 }
 

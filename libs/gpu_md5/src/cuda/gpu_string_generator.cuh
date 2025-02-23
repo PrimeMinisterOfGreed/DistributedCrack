@@ -2,15 +2,6 @@
 #include <cuda_runtime.h>
 #include <string>
 
-constexpr int minCharInt = 33;
-constexpr int maxCharint = 126;
-constexpr int minDigit = 48;
-constexpr int maxDigit = 57;
-constexpr int minUpperCaseLetter = 65;
-constexpr int maxUpperCaseLetter = 90;
-constexpr int minLowerCaseLetter = 97;
-constexpr int maxLowerCaseLetter = 122;
-
 struct GpuStringGenerator
 {
       int _initialSequenceLength = 0;
@@ -23,5 +14,6 @@ struct GpuStringGenerator
      __device__ void assign_address(size_t address);
      __device__ void generate_chunk(size_t size, char* data);
      __device__ void next_sequence(char* data);
+     __device__ ~GpuStringGenerator();
     };
 
