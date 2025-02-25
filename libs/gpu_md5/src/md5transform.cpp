@@ -73,6 +73,7 @@ std::vector<std::string> md5_gpu(const std::vector<std::string> &chunk, int maxt
   free(sizes);
   free(data);
   return md5s;
-
 }
+
+
 

@@ -1,11 +1,16 @@
 project(massive_parallel_cracker C CXX)
-
 find_package(Boost CONFIG COMPONENTS mpi)
 set(TARGET_NAME mpc)
+
+set(USE_CUDA TRUE) #this should be selectionable
 file(GLOB_RECURSE SRC_LIST src/*.cpp src/*.c)
 add_executable(${TARGET_NAME} ${SRC_LIST})
 set(TARGET_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src ${MPI_INCLUDE_DIRS} /usr/lib/x86_64-linux-gnu/openmpi/include/)
 set(TARGET_LINK_LIBS fmt::fmt mpi MPI::MPI_CXX  OpenMP::OpenMP_CXX Boost::mpi md5::gpu md5::md5 )
+if(USE_CUDA)
+    list(APPEND TARGET_LINK_LIBS cuda)
+    target_compile_definitions(${TARGET_NAME} PRIVATE USE_CUDA)
+endif()
 target_include_directories(${TARGET_NAME} PRIVATE  ${TARGET_INCLUDE_DIRS})
 target_compile_options(${TARGET_NAME} PUBLIC -fopenmp)
 target_link_libraries(${TARGET_NAME} PUBLIC ${TARGET_LINK_LIBS})

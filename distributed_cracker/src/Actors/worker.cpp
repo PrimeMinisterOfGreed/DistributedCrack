@@ -94,6 +94,9 @@ struct ChunkNode : WorkerNode {
 
 
 
+
+
+
 struct TaskNode : WorkerNode{
   communicator& comm;
   AssignedSequenceGenerator generator;
