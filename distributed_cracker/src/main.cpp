@@ -7,9 +7,12 @@
 #include "options_bag.hpp"
 #include <log_engine.hpp>
 #include <boost/mpi.hpp>
-
+#include <chrono>
+#include "clock_register.hpp"
 
 ProgramOptions options{};
+
+
 
 void single_node_routine(){
 
@@ -68,11 +71,18 @@ int main(int argc, char *argv[]) {
       make_arg("--dictionary", "use a dictionary")
           .default_value("NONE")
           .store_into(options.dictionary);
-          make_arg("--brutestart", "start from a string of length n for bruteforce")
-          .default_value(4)
-          .store_into(options.brutestart);
+  make_arg("--brutestart", "start from a string of length n for bruteforce")
+      .default_value(4)
+      .store_into(options.brutestart);
+  make_arg("--gpu-only", "Compute on gpu only")
+      .default_value(false)
+      .store_into(options.gpu_only);
+  make_arg("--num-gpu", "Number of gpu to use")
+      .default_value(1)
+      .store_into(options.num_gpu);
   parser.parse_args(argc, argv);
-  if(options.use_mpi)
+  ClockRegister::init();
+  if (options.use_mpi)
     mpi_routine(argc, argv);
   else
     single_node_routine();

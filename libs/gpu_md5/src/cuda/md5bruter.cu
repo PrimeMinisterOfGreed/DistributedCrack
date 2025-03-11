@@ -41,7 +41,6 @@ __global__ void md5_brute_apply(const char target_md5[33],size_t address_start,s
     }
 }
 
-__host__ void CheckGpuCondition();
 
 char *_dev_res = nullptr;
 char * _dev_target = nullptr;
@@ -57,7 +56,6 @@ void bruter_initialize(){
 
 void md5_gpu_brute(const char target_md5[33], size_t address_start,size_t address_end, int base_str_len, char target_found[64], int threads){
     if (!_inited) {
-      CheckGpuCondition();
       bruter_initialize();
       _inited = true;
 

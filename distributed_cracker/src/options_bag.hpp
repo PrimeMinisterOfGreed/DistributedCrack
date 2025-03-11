@@ -15,6 +15,9 @@ struct ProgramOptions {
   bool use_mpi;
   std::string dictionary;
   int brutestart;
+
+  bool gpu_only;
+  int num_gpu;
   bool use_dictionary() {return dictionary.compare("NONE") !=0; }
 };
 

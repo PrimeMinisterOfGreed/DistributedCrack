@@ -6,7 +6,10 @@
 struct CudaResource : Resource{
     
     CudaResource();
-    size_t compute(ComputeContext &context) override;
+    void compute(ComputeContext &context) override;
+    bool available() override;
+    std::vector<ResourceStats> get_stats() override;
+    ResourceType type() override{return ResourceType::GPU;}
 };
 
 

@@ -13,45 +13,13 @@ __global__ void md5_apply_gpu(uint8_t* data, uint32_t* sizes, uint32_t * offsets
   }
 }
 
-/*Routines implementation*/
-__host__ void select_cuda_device(){
-    int devices;
-    cudaGetDeviceCount(&devices);
-    size_t maxFreeMem = 0;
-    int betterDevice = 0;
-    for(int i= 0; i < devices; i++)
-    {
-        cudaSetDevice(i);
-        size_t freeMem;
-        size_t totalMem;
-        cudaMemGetInfo(&freeMem, &totalMem);
-        if (freeMem > maxFreeMem){
-            maxFreeMem= freeMem;
-            betterDevice = i;
-        }
-    }
-    cudaInitDevice(betterDevice, 0, 0);
-    cudaSetDevice(betterDevice);
-    cudaDeviceReset();
-}
 
-__host__ void CheckGpuCondition() {
-  static bool initialized = false;
-  if (!initialized) {
-    select_cuda_device();
-    initialized = true;
-  }
-}
 
-static bool inited = false;
+
 
 void md5_gpu_transform(uint8_t *data, uint32_t *sizes, uint32_t *result,
                        size_t num_of_strings, int maxthreads) {
-  if (!inited) {
-    cuInit(0);
-    CheckGpuCondition();
-    inited = true;
-  }
+
   uint8_t *_devdata = nullptr;
   uint32_t *_devsizes = nullptr,*_devresult = nullptr,
       *offsets = new uint32_t[num_of_strings]{},
