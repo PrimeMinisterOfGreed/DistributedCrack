@@ -1,7 +1,7 @@
 #include "md5bruter.cuh"
 #include "md5gpu.cuh"
 #include "gpu_string_generator.cuh"
-
+#include "cuda_manager.hpp"
 
 inline __device__ void hexdigest(const uint8_t digest[16], char hex_output[33]) {
     static const char hex_chars[] = "0123456789abcdef";
@@ -57,13 +57,13 @@ void bruter_initialize(){
 
 void md5_gpu_brute(const char target_md5[33], size_t address_start,size_t address_end, int base_str_len, char target_found[64], int threads){
     if (!_inited) {
-      CheckGpuCondition();
       bruter_initialize();
       _inited = true;
-
     }
+    CudaManager::instance()->select_gpu();
     if (cudaError_t error = cudaMemcpy(_dev_target, target_md5, 32, cudaMemcpyHostToDevice);error) {
         printf("error %s\n", cudaGetErrorString(error));
+        exit(1);
         // return;
       }
     int span = address_end - address_start;
@@ -75,6 +75,9 @@ void md5_gpu_brute(const char target_md5[33], size_t address_start,size_t addres
     cudaDeviceSynchronize();
     if(auto error = cudaGetLastError();error){
         printf("error on computing %s \n",cudaGetErrorString(error));
+        CudaManager::instance()->disable_current_gpu();
+        md5_gpu_brute(target_md5, address_start, address_end, base_str_len, target_found, threads);
+        return;
     }
     memset(target_found, 0, 64);
     cudaMemcpy(target_found, _dev_res, 64, cudaMemcpyDeviceToHost);

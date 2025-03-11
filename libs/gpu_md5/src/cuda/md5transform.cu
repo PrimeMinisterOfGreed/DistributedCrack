@@ -1,5 +1,6 @@
 #include "md5gpu.cuh"
 #include "md5transform.cuh"
+#include "cuda_manager.hpp"
 // Constants for MD5Transform routine.
 
 __global__ void md5_apply_gpu(uint8_t* data, uint32_t* sizes, uint32_t * offsets, uint32_t* result, size_t numofstring){
@@ -43,15 +44,10 @@ __host__ void CheckGpuCondition() {
   }
 }
 
-static bool inited = false;
 
 void md5_gpu_transform(uint8_t *data, uint32_t *sizes, uint32_t *result,
                        size_t num_of_strings, int maxthreads) {
-  if (!inited) {
-    cuInit(0);
-    CheckGpuCondition();
-    inited = true;
-  }
+  CudaManager::instance()->select_gpu();
   uint8_t *_devdata = nullptr;
   uint32_t *_devsizes = nullptr,*_devresult = nullptr,
       *offsets = new uint32_t[num_of_strings]{},
