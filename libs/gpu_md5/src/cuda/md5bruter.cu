@@ -41,6 +41,7 @@ __global__ void md5_brute_apply(const char target_md5[33],size_t address_start,s
     }
 }
 
+
 __host__ void CheckGpuCondition();
 
 char *_dev_res = nullptr;
@@ -55,17 +56,21 @@ void bruter_initialize(){
     cudaMalloc(&_dev_target,33);
 }
 
+void bruter_destroy(){
+    cudaFree(_dev_res);
+    cudaFree(_dev_target);
+}
+
 void md5_gpu_brute(const char target_md5[33], size_t address_start,size_t address_end, int base_str_len, char target_found[64], int threads){
-    if (!_inited) {
-      bruter_initialize();
-      _inited = true;
-    }
+
     CudaManager::instance()->select_gpu();
+    bruter_initialize();
     if (cudaError_t error = cudaMemcpy(_dev_target, target_md5, 32, cudaMemcpyHostToDevice);error) {
         printf("error %s\n", cudaGetErrorString(error));
         exit(1);
         // return;
       }
+
     int span = address_end - address_start;
     int blocks = ceil(static_cast<double>(span) / threads);
     cudaDeviceSynchronize();
@@ -81,4 +86,5 @@ void md5_gpu_brute(const char target_md5[33], size_t address_start,size_t addres
     }
     memset(target_found, 0, 64);
     cudaMemcpy(target_found, _dev_res, 64, cudaMemcpyDeviceToHost);
+    bruter_destroy();
 }

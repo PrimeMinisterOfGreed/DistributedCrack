@@ -5,7 +5,7 @@ set(TARGET_NAME md5_gpu)
 file(GLOB_RECURSE SRC_FILES src/*.cpp src/*.cu)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CUDA_ARCHITECTURES 75)
+set(CMAKE_CUDA_ARCHITECTURES 61)
 add_library(${TARGET_NAME} SHARED ${SRC_FILES})
 add_library(md5::gpu ALIAS ${TARGET_NAME})
 target_include_directories(
@@ -13,7 +13,7 @@ target_include_directories(
     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
     ${CMAKE_CURRENT_SOURCE_DIR}/src 
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(${TARGET_NAME} PRIVATE cuda)
+target_link_libraries(${TARGET_NAME} PRIVATE cuda nvidia-ml)
 
 
 

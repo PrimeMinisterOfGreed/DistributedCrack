@@ -1,12 +1,12 @@
 #include <string>
 #include "md5_gpu.hpp"
-
+#include "cuda_manager.hpp"
 int main(){
-
+  CudaManager::instance()->force_gpu(1);
   std::string target = "5d41402abc4b2a76b9719d911017c592";
   std::optional<std::string> res{};
   res.reset();
-  size_t currentaddress=0, chunksize =10000;
+  size_t currentaddress=0, chunksize =3;
   for(int i = 0 ; i < 10; i++){
     printf("computing with %ld threads \n",chunksize);
     res=md5_bruter(currentaddress, currentaddress+chunksize, target,chunksize);
