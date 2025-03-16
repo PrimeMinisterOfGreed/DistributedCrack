@@ -6,6 +6,7 @@
 #include "md5_gpu.hpp"
 #include "string_generator.hpp"
 #include "cuda.h"
+#include "cuda_manager.hpp"
 #include "cuda_runtime_api.h"
 #include "cuda/gpu_string_generator.cuh"
 
@@ -86,4 +87,9 @@ TEST(BenchMark, test_gpu_bruting){
     res=md5_bruter(currentaddress, currentaddress+chunksize, target,chunksize,5);
     chunksize+=1000;
   }
+}
+
+TEST(TestGenerator, test_chunk_generation){
+  AssignedSequenceGenerator generator{4};
+  while(generator.next_sequence() != "hello");
 }

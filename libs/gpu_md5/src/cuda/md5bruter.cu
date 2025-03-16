@@ -1,7 +1,7 @@
-#include "md5bruter.cuh"
 #include "md5gpu.cuh"
 #include "gpu_string_generator.cuh"
-#include "cuda_manager.hpp"
+#include "../cuda_manager.hpp"
+#include "md5bruter.cuh"
 
 inline __device__ void hexdigest(const uint8_t digest[16], char hex_output[33]) {
     static const char hex_chars[] = "0123456789abcdef";
@@ -13,29 +13,34 @@ inline __device__ void hexdigest(const uint8_t digest[16], char hex_output[33]) 
     hex_output[32] = '\0'; // Null-terminate la stringa
 }
 
+#define dbgline() printf("process %d line reached %d\n",i,__LINE__);
 __device__ bool cmpstr(const char* a, const char* b, size_t size){
-    for(size_t i = 0 ; i < size; i++){
-        if(a[i]!=b[i]) return false;
+    for(size_t i = 0 ; i < size/8; i++){
+        if(((uint64_t*)a)[i] != ((uint64_t*)b)[i]){
+            return false;
+        }
     }
     return true;
 }
 
+#define print_request(request)  printf("request: %s %s %d %ld %ld\n",request->target_md5,request->target_found,request->base_str_len,request->address_start,request->address_end);
 
-__global__ void md5_brute_apply(const char target_md5[33],size_t address_start,size_t address_end, int base_str_len, char * target_found){
+
+__global__ void md5_brute_apply(struct md5_bruter_request * request){
     int i = threadIdx.x+blockDim.x*blockIdx.x;
-    size_t span = address_end - address_start;
+    size_t span = request->address_end - request->address_start;
     if(i < span){
-        GpuStringGenerator gen{base_str_len};
-        gen.assign_address(address_start + i);
+        GpuStringGenerator gen{request->base_str_len};
+        gen.assign_address(request->address_start + i);
         char * sequence = new char[gen._currentSequenceLength]{};
         gen.next_sequence(sequence);
         MD5Gpu algo{sequence,gen._currentSequenceLength};
         const uint8_t* digest = algo.getdigest();
         char result[33]{};
         hexdigest(digest,result);
-        if(cmpstr(result, target_md5, 32)){
-            memcpy(target_found,sequence,gen._currentSequenceLength);
-            target_found[gen._currentSequenceLength] = 0;
+        if(cmpstr(result, request->target_md5, 32)){
+            memcpy(request->target_found,sequence,gen._currentSequenceLength);
+            request->target_found[gen._currentSequenceLength] = 0;
         }
         free(sequence);
     }
@@ -44,47 +49,47 @@ __global__ void md5_brute_apply(const char target_md5[33],size_t address_start,s
 
 __host__ void CheckGpuCondition();
 
-char *_dev_res = nullptr;
-char * _dev_target = nullptr;
-bool _inited = false;
+struct md5_bruter_request * dev_request = nullptr;
 
-void bruter_initialize(){
-    if(cudaError_t error = cudaMalloc(&_dev_res,64);error){
-        printf("error %s\n",cudaGetErrorString(error));
-        //return;
-    }
-    cudaMalloc(&_dev_target,33);
+__host__ cudaError_t alloc_request(){
+    return cudaMalloc(&dev_request, sizeof(md5_bruter_request));
 }
 
-void bruter_destroy(){
-    cudaFree(_dev_res);
-    cudaFree(_dev_target);
+__host__ cudaError_t free_request(){
+    return cudaFree(dev_request);
 }
 
-void md5_gpu_brute(const char target_md5[33], size_t address_start,size_t address_end, int base_str_len, char target_found[64], int threads){
+__host__ cudaError_t copy_request_to_device(struct md5_bruter_request* request){
+    return cudaMemcpy(dev_request, request, sizeof(md5_bruter_request), cudaMemcpyHostToDevice);
+}
 
+__host__ cudaError_t copy_request_to_host(struct md5_bruter_request * request){
+    return cudaMemcpy(request, dev_request, sizeof(md5_bruter_request), cudaMemcpyDeviceToHost);
+}
+
+#define handle(op) error = op; if(error) goto ERROR;
+
+
+void md5_gpu_brute(struct md5_bruter_request* request, int threads){
+    cudaError_t error = cudaSuccess;
     CudaManager::instance()->select_gpu();
-    bruter_initialize();
-    if (cudaError_t error = cudaMemcpy(_dev_target, target_md5, 32, cudaMemcpyHostToDevice);error) {
-        printf("error %s\n", cudaGetErrorString(error));
-        exit(1);
-        // return;
-      }
-
-    int span = address_end - address_start;
+    int span = request->address_end - request->address_start;
     int blocks = ceil(static_cast<double>(span) / threads);
+    handle(alloc_request());
+    handle(copy_request_to_device(request));
     cudaDeviceSynchronize();
 
-    md5_brute_apply<<<threads, blocks>>>(_dev_target, address_start,
-                                         address_end, base_str_len, _dev_res);
+    md5_brute_apply<<<threads, blocks>>>(dev_request);
     cudaDeviceSynchronize();
-    if(auto error = cudaGetLastError();error){
+   // handle(cudaGetLastError());
+    handle(copy_request_to_host(request));
+    handle(free_request());
+    return;
+    ERROR:
         printf("error on computing %s \n",cudaGetErrorString(error));
         CudaManager::instance()->disable_current_gpu();
-        md5_gpu_brute(target_md5, address_start, address_end, base_str_len, target_found, threads);
+        md5_gpu_brute(request, threads);
         return;
-    }
-    memset(target_found, 0, 64);
-    cudaMemcpy(target_found, _dev_res, 64, cudaMemcpyDeviceToHost);
-    bruter_destroy();
 }
+
+

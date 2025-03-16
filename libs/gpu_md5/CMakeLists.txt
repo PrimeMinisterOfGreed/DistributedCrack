@@ -12,7 +12,9 @@ target_include_directories(
     ${TARGET_NAME} PUBLIC
     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
     ${CMAKE_CURRENT_SOURCE_DIR}/src 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/cuda
+    )
 target_link_libraries(${TARGET_NAME} PRIVATE cuda nvidia-ml)
 
 
