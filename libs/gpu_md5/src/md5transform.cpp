@@ -76,3 +76,7 @@ std::vector<std::string> md5_gpu(const std::vector<std::string> &chunk, int maxt
 
 }
 
+
+extern "C" void pong(){
+  
+}

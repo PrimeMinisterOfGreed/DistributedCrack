@@ -30,17 +30,18 @@ __global__ void md5_brute_apply(struct md5_bruter_request * request){
     int i = threadIdx.x+blockDim.x*blockIdx.x;
     size_t span = request->address_end - request->address_start;
     if(i < span){
-        GpuStringGenerator gen{request->base_str_len};
-        gen.assign_address(request->address_start + i);
-        char * sequence = new char[gen._currentSequenceLength]{};
-        gen.next_sequence(sequence);
-        MD5Gpu algo{sequence,gen._currentSequenceLength};
+        char sequence[24];
+        memset(sequence,0,24);
+        GpuStringGenerator gen = new_generator(request->base_str_len);
+        assign_address(&gen,request->address_start + i);
+        next_sequence(&gen,sequence);
+        MD5Gpu algo{sequence,(size_t)gen.currentSequenceLength};
         const uint8_t* digest = algo.getdigest();
         char result[33]{};
         hexdigest(digest,result);
         if(cmpstr(result, request->target_md5, 32)){
-            memcpy(request->target_found,sequence,gen._currentSequenceLength);
-            request->target_found[gen._currentSequenceLength] = 0;
+            memcpy(request->target_found,sequence,gen.currentSequenceLength);
+            request->target_found[gen.currentSequenceLength] = 0;
         }
         free(sequence);
     }

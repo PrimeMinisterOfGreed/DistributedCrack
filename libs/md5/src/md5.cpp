@@ -322,3 +322,7 @@ std::string md5(const std::string str) {
   MD5 md5 = MD5(str);
   return md5.hexdigest();
 }
+
+extern "C" void ping(){
+  
+}

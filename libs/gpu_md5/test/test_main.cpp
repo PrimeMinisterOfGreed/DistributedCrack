@@ -83,9 +83,8 @@ TEST(BenchMark, test_gpu_bruting){
   res.reset();
   size_t currentaddress=0, chunksize =10000;
   while(!res.has_value()){
-    printf("computing with %ld threads \n",chunksize);
+
     res=md5_bruter(currentaddress, currentaddress+chunksize, target,chunksize,5);
-    chunksize+=1000;
   }
 }
 
