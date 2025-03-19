@@ -16,21 +16,7 @@ void single_node_routine(){
 
 }
 
-void mpi_routine(int argc, char **argv) {
-  using namespace boost::mpi;
-  MPI_Init(&argc, &argv);
-  communicator comm{};
-  auto rank = comm.rank();
-  if (rank == 0) {
-    println("Master PID:{}",getpid());
-    root_routine(comm);
-  } else {
-    println("Process {}, pid {}",rank,getpid());
-    worker_routine(comm);
-  }
 
-  MPI_Finalize();
-}
 
 int main(int argc, char *argv[]) {
   using namespace std;
