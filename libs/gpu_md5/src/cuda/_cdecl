@@ -1,0 +1,8 @@
+#pragma once
+#ifdef __cplusplus
+#define CDECL extern "C"{
+#define END } 
+#else
+#define CDECL
+#define END
+#endif

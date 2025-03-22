@@ -1,5 +1,7 @@
 #include "gpu_string_generator.cuh"
- 
+#include "_cdecl"
+CDECL 
+
 constexpr int minCharInt = 33;
 constexpr int maxCharint = 126;
 constexpr int minDigit = 48;
@@ -79,3 +81,5 @@ __device__ void next_sequence(GpuStringGenerator* self,char* data){
 __device__ void destroy_generator(GpuStringGenerator* self){
     
 }
+
+END

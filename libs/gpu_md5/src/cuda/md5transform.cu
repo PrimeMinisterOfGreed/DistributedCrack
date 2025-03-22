@@ -1,84 +1,97 @@
-#include "md5gpu.cuh"
+#include "md5.cuh"
 #include "md5transform.cuh"
-#include "cuda_manager.hpp"
+#include "_cdecl"
+CDECL
 // Constants for MD5Transform routine.
 
-__global__ void md5_apply_gpu(uint8_t* data, uint32_t* sizes, uint32_t * offsets, uint32_t* result, size_t numofstring){
-  int i = threadIdx.x + blockIdx.x*blockDim.x;
-  if(i < numofstring){
-    auto size = sizes[i];
-    char* str = reinterpret_cast<char*>(&data[offsets[i]]);
-    MD5Gpu alg{str,size};
-    auto digest = alg.getdigest();
-    memcpy(&result[i*4],digest,16);
-  }
-}
+struct exception{
+  cudaError_t error;
+  int line;
+  const char* file;
+};
+#define dbgline printf("process %d line reached %d\n",i,__LINE__);
+#define try(expr) if((_exc.error = expr) != cudaSuccess){_exc.line = __LINE__; _exc.file = __FILE_NAME__ ; goto ERROR;}
+#define decl_exc struct exception _exc;
+#define handle ERROR: printf("Error: %s at %s:%d\n",cudaGetErrorString(_exc.error),_exc.file,_exc.line);
 
-/*Routines implementation*/
-__host__ void select_cuda_device(){
-    int devices;
-    cudaGetDeviceCount(&devices);
-    size_t maxFreeMem = 0;
-    int betterDevice = 0;
-    for(int i= 0; i < devices; i++)
-    {
-        cudaSetDevice(i);
-        size_t freeMem;
-        size_t totalMem;
-        cudaMemGetInfo(&freeMem, &totalMem);
-        if (freeMem > maxFreeMem){
-            maxFreeMem= freeMem;
-            betterDevice = i;
-        }
-    }
-    cudaInitDevice(betterDevice, 0, 0);
-    cudaSetDevice(betterDevice);
-    cudaDeviceReset();
-}
-
-__host__ void CheckGpuCondition() {
-  static bool initialized = false;
-  if (!initialized) {
-    select_cuda_device();
-    initialized = true;
-  }
-}
-
-
-void md5_gpu_transform(uint8_t *data, uint32_t *sizes, uint32_t *result,
-                       size_t num_of_strings, int maxthreads) {
-  CudaManager::instance()->select_gpu();
-  uint8_t *_devdata = nullptr;
-  uint32_t *_devsizes = nullptr,*_devresult = nullptr,
-      *offsets = new uint32_t[num_of_strings]{},
-      *_devoffsets = nullptr;
-
-  // CheckGpuCondition();
+__host__ size_t static inline get_data_size(uint32_t *sizes, size_t num_of_strings){
   size_t cumsizes = sizes[0];
-  offsets[0] = 0;
   for (uint32_t i = 1; i < num_of_strings; i++) {
-    offsets[i] = cumsizes;
     cumsizes += sizes[i];
   }
-  cudaMalloc(&_devdata, cumsizes);
-  cudaMalloc(&_devresult, 4 * num_of_strings*sizeof(uint32_t));
-  cudaMalloc(&_devsizes, num_of_strings*sizeof(uint32_t));
-  cudaMalloc(&_devoffsets, num_of_strings*sizeof(uint32_t));
-
-  cudaMemcpy(_devdata, data, cumsizes, cudaMemcpyHostToDevice);
-  cudaMemcpy(_devsizes, sizes, num_of_strings*sizeof(uint32_t), cudaMemcpyHostToDevice);
-  cudaMemcpy(_devoffsets, offsets, num_of_strings*sizeof(uint32_t) , cudaMemcpyHostToDevice);
-  cudaDeviceSynchronize();
-  md5_apply_gpu<<<min((size_t)maxthreads,num_of_strings),(num_of_strings/(size_t)maxthreads) + 1>>>(_devdata, _devsizes, _devoffsets, _devresult, num_of_strings);
-  cudaDeviceSynchronize();
-  auto err = cudaGetLastError();
-  if(err != cudaSuccess){
-    //throw CudaMemoryError(err);
-  }
-  cudaMemcpy(result, _devresult, 4 * num_of_strings*sizeof(uint32_t), cudaMemcpyDeviceToHost);
-  free(offsets);
-  cudaFree(_devdata);
-  cudaFree(_devresult);
-  cudaFree(_devsizes);
-  cudaFree(_devoffsets);  
+  return cumsizes;
 }
+
+__global__ void md5_apply_gpu(struct md5_transform_request req){
+  int i = threadIdx.x + blockIdx.x*blockDim.x;
+  if(i < req.num_of_strings){
+    size_t size = req.sizes[i];
+    uint8_t *data = req.data + req.offsets[i];
+    uint8_t digest[16];
+    char result[33];
+    memset(result,0,33);
+    md5String((char*)data,digest,size);
+    md5HexDigest(digest, result);
+    memcpy(req.result + i*33,result,32);
+    printf("result: %s\n",req.result + i*33);
+  }
+}
+
+__host__ static inline struct md5_transform_request copy_trasform_request(struct md5_transform_request * req){
+  decl_exc;
+  struct md5_transform_request devptr;
+  memset(&devptr,0,sizeof(struct md5_transform_request));
+  devptr.num_of_strings = req->num_of_strings;
+  size_t data_size = get_data_size(req->sizes, req->num_of_strings);
+  try(cudaMalloc(&devptr.data, data_size));
+  try(cudaMalloc(&devptr.sizes, req->num_of_strings*sizeof(uint32_t)));
+  try(cudaMalloc(&devptr.result, req->num_of_strings*33));
+  try(cudaMalloc(&devptr.offsets, req->num_of_strings*sizeof(uint32_t)));
+  try(cudaMemcpy(devptr.data, req->data, data_size, cudaMemcpyHostToDevice));
+  try(cudaMemcpy(devptr.sizes, req->sizes, req->num_of_strings*sizeof(uint32_t), cudaMemcpyHostToDevice));
+  try(cudaMemcpy(devptr.offsets, req->offsets, req->num_of_strings*sizeof(uint32_t), cudaMemcpyHostToDevice));
+  return devptr;
+  handle;
+  return devptr;
+}
+
+__host__ static inline void free_transform_request(struct md5_transform_request req){
+  decl_exc;
+  try(cudaFree(req.data));
+  try(cudaFree(req.sizes));
+  try(cudaFree(req.result));
+  try(cudaFree(req.offsets));
+  return;
+  handle;
+}
+
+void md5_gpu_transform(struct md5_transform_request request, int maxthreads) {
+  decl_exc;
+  struct md5_transform_request devptr= copy_trasform_request(&request);
+  cudaDeviceSynchronize();
+  md5_apply_gpu<<<min((size_t)maxthreads,request.num_of_strings),(request.num_of_strings/(size_t)maxthreads) + 1>>>(devptr);
+  cudaDeviceSynchronize();
+  try(cudaGetLastError());
+  cudaMemcpy(request.result, devptr.result, request.num_of_strings*33, cudaMemcpyDeviceToHost);
+  free_transform_request(devptr);
+  return;
+  handle;
+}
+
+
+struct md5_transform_request new_request(uint8_t *data, uint32_t *sizes, size_t num_of_strings){
+  struct md5_transform_request req;
+  req.data = data;
+  req.sizes = sizes;
+  req.num_of_strings = num_of_strings;
+  req.offsets = (uint32_t*)malloc(num_of_strings*sizeof(uint32_t));
+  req.result = (char*)malloc(num_of_strings*33);
+  req.offsets[0] = 0;
+  for (uint32_t i = 1; i < num_of_strings; i++) {
+    req.offsets[i] = req.offsets[i-1] + sizes[i-1];
+  }
+  return req;
+}
+
+
+END

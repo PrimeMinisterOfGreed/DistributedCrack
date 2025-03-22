@@ -1,17 +1,7 @@
-#include "md5gpu.cuh"
+#include "md5.cuh"
 #include "gpu_string_generator.cuh"
-#include "../cuda_manager.hpp"
 #include "md5bruter.cuh"
-
-inline __device__ void hexdigest(const uint8_t digest[16], char hex_output[33]) {
-    static const char hex_chars[] = "0123456789abcdef";
-
-    for (int i = 0; i < 16; i++) {
-        hex_output[i * 2] = hex_chars[(digest[i] >> 4) & 0xF];
-        hex_output[i * 2 + 1] = hex_chars[digest[i] & 0xF];
-    }
-    hex_output[32] = '\0'; // Null-terminate la stringa
-}
+CDECL 
 
 #define dbgline() printf("process %d line reached %d\n",i,__LINE__);
 __device__ bool cmpstr(const char* a, const char* b, size_t size){
@@ -21,6 +11,14 @@ __device__ bool cmpstr(const char* a, const char* b, size_t size){
         }
     }
     return true;
+}
+
+__device__ size_t devstrlen(const char* str){
+    size_t i = 0;
+    while(str[i] != 0){
+        i++;
+    }
+    return i;
 }
 
 #define print_request(request)  printf("request: %s %s %d %ld %ld\n",request->target_md5,request->target_found,request->base_str_len,request->address_start,request->address_end);
@@ -33,12 +31,13 @@ __global__ void md5_brute_apply(struct md5_bruter_request * request){
         char sequence[24];
         memset(sequence,0,24);
         GpuStringGenerator gen = new_generator(request->base_str_len);
+        char result[33];
+        uint8_t digest[16];
+        memset(result,0,33);
         assign_address(&gen,request->address_start + i);
         next_sequence(&gen,sequence);
-        MD5Gpu algo{sequence,(size_t)gen.currentSequenceLength};
-        const uint8_t* digest = algo.getdigest();
-        char result[33]{};
-        hexdigest(digest,result);
+        md5String(sequence, digest,devstrlen(sequence));
+        md5HexDigest(digest,result);
         if(cmpstr(result, request->target_md5, 32)){
             memcpy(request->target_found,sequence,gen.currentSequenceLength);
             request->target_found[gen.currentSequenceLength] = 0;
@@ -73,7 +72,6 @@ __host__ cudaError_t copy_request_to_host(struct md5_bruter_request * request){
 
 void md5_gpu_brute(struct md5_bruter_request* request, int threads){
     cudaError_t error = cudaSuccess;
-    CudaManager::instance()->select_gpu();
     int span = request->address_end - request->address_start;
     int blocks = ceil(static_cast<double>(span) / threads);
     handle(alloc_request());
@@ -88,9 +86,9 @@ void md5_gpu_brute(struct md5_bruter_request* request, int threads){
     return;
     ERROR:
         printf("error on computing %s \n",cudaGetErrorString(error));
-        CudaManager::instance()->disable_current_gpu();
         md5_gpu_brute(request, threads);
         return;
 }
 
 
+END
