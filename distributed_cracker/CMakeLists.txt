@@ -1,11 +1,11 @@
-project(massive_parallel_cracker C CXX)
+project(massive_parallel_cracker C)
 
 find_package(Boost CONFIG COMPONENTS mpi)
 set(TARGET_NAME mpc)
 file(GLOB_RECURSE SRC_LIST src/*.cpp src/*.c)
 add_executable(${TARGET_NAME} ${SRC_LIST})
 set(TARGET_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src ${MPI_INCLUDE_DIRS} /usr/lib/x86_64-linux-gnu/openmpi/include/)
-set(TARGET_LINK_LIBS  mpi MPI::MPI_CXX  OpenMP::OpenMP_CXX md5::gpu md5::md5 cracker::rustapp )
+set(TARGET_LINK_LIBS  mpi MPI::MPI_C  md5::gpu md5::md5 cracker::rustapp )
 target_include_directories(${TARGET_NAME} PRIVATE  ${TARGET_INCLUDE_DIRS})
 target_compile_options(${TARGET_NAME} PUBLIC -fopenmp)
 target_link_libraries(${TARGET_NAME} PUBLIC ${TARGET_LINK_LIBS})

@@ -4,19 +4,14 @@
 
 const int minCharInt = 33;
 const int maxCharint = 126;
-const int minDigit = 48;
-const int maxDigit = 57;
-const int minUpperCaseLetter = 65;
-const int maxUpperCaseLetter = 90;
-const int minLowerCaseLetter = 97;
-const int maxLowerCaseLetter = 122;
+
 
 
 struct SequenceGeneratorCtx{
-  char buffer[32];
   uint64_t index;
   uint8_t base_len;
   uint8_t current_len;
+  char buffer[32]; // placed at the end, so that it can be extended
 };
 
 struct SequenceIterator{
