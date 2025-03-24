@@ -1,3 +1,8 @@
+use mpi::{
+    datatype::UserDatatype,
+    traits::{AsDatatype, Buffer, Equivalence},
+};
+
 #[derive(Debug)]
 #[repr(C)]
 struct SequenceGeneratorCtx {
@@ -40,7 +45,13 @@ impl SequenceGenerator {
         let mut chunk: Vec<i8> = Vec::with_capacity((self.ctx.curren_len as usize + 1) * span);
         for _ in 0..chunks {
             let buffer = self.ctx.buffer;
-            buffer.iter().for_each(|&x| chunk.push(x));
+            chunk.push(self.ctx.curren_len as i8);
+            for c in buffer {
+                if c == 0 {
+                    break;
+                }
+                chunk.push(c);
+            }
             self.next_sequence();
         }
         chunk
@@ -84,5 +95,12 @@ mod tests {
             println!("{}", generator.current());
             generator.next_sequence();
         }
+    }
+
+    #[test]
+    fn test_compact_generation() {
+        let mut generator = SequenceGenerator::new(4);
+        let chunk = generator.generate_flatten_chunk(10);
+        println!("{:?}", chunk);
     }
 }
