@@ -41,7 +41,7 @@ __device__ void assign_address(GpuStringGenerator* self,size_t address)
 
 }
 
-__device__ GpuStringGenerator new_generator(int initialSequenceLength)
+__device__ GpuStringGenerator new_generator(uint8_t initialSequenceLength)
 {
     GpuStringGenerator gen{};
     memset(&gen,0,sizeof(GpuStringGenerator));

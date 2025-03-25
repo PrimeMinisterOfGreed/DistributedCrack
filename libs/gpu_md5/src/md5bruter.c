@@ -17,6 +17,7 @@ struct Md5BruterResult md5_bruter(size_t start_address, size_t end_address, cons
 
 struct md5_bruter_request new_bruter_request(char *target_md5, size_t address_start, size_t address_end, int base_str_len){
   struct md5_bruter_request request;
+  memset(&request, 0, sizeof(request));
   request.address_start = address_start;
   request.address_end = address_end;
   request.base_str_len = base_str_len;

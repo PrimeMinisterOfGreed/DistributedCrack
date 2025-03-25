@@ -24,6 +24,11 @@ pub struct SequenceGenerator {
     ctx: SequenceGeneratorCtx,
 }
 
+pub struct GeneratorResult {
+    pub strings: Vec<i8>,
+    pub sizes: Vec<u8>,
+}
+
 impl SequenceGenerator {
     pub fn new(base_len: u8) -> Self {
         unsafe {
@@ -41,11 +46,12 @@ impl SequenceGenerator {
         93 * (self.ctx.curren_len as usize + 1) - self.absolute_index()
     }
 
-    pub fn generate_flatten_chunk(&mut self, chunks: usize) -> Vec<i8> {
+    pub fn generate_flatten_chunk(&mut self, chunks: usize) -> GeneratorResult {
         let mut chunk: Vec<i8> = Vec::with_capacity((self.ctx.curren_len as usize + 1) * span);
+        let mut sizes: Vec<u8> = Vec::with_capacity(chunks);
         for _ in 0..chunks {
             let buffer = self.ctx.buffer;
-            chunk.push(self.ctx.curren_len as i8);
+            sizes.push(self.ctx.curren_len);
             for c in buffer {
                 if c == 0 {
                     break;
@@ -54,7 +60,10 @@ impl SequenceGenerator {
             }
             self.next_sequence();
         }
-        chunk
+        GeneratorResult {
+            strings: chunk,
+            sizes: sizes,
+        }
     }
 
     pub fn next_sequence(&mut self) {
@@ -101,6 +110,6 @@ mod tests {
     fn test_compact_generation() {
         let mut generator = SequenceGenerator::new(4);
         let chunk = generator.generate_flatten_chunk(10);
-        println!("{:?}", chunk);
+        println!("{:?}", chunk.strings);
     }
 }

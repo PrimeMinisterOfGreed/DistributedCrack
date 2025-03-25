@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
 TEST(TestMd5Gpu, test_bruter){
   const char * target = "98abe3a28383501f4bfd2d9077820f11";
   const char * expected = "!!!!";
-  struct Md5BruterResult result = md5_bruter(0, 4, target, 4, 4);
+  struct Md5BruterResult result = md5_bruter(0, 10000, target, 10000, 4);
   ASSERT_TRUE(result.found);
   ASSERT_STREQ(expected, result.data);
 }
@@ -30,9 +30,11 @@ TEST(TestMd5Gpu, test_transformer){
   const char * target = "98abe3a28383501f4bfd2d9077820f11";
   struct SequenceGeneratorCtx ctx = new_seq_generator(4);
   char buffer[4*1000]; 
-  uint32_t sizes[1000];
+  memset(buffer, 0, 4*1000);
+  uint8_t sizes[1000];
+  memset(sizes, 0, 1000);
   for(int i = 0 ; i < 1000 ; i ++){
-    memcpy(ctx.buffer, buffer + i*4, 4);
+    memcpy(buffer+ i*4, ctx.buffer, 4);
     sizes[i] = 4;
     seq_gen_next_sequence(&ctx);
   }

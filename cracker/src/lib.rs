@@ -7,6 +7,7 @@ use std::{
     sync::Mutex,
 };
 mod compute_context;
+pub mod gpu;
 mod mpi;
 pub mod sequence_generator;
 /// Program options parsed from command-line arguments

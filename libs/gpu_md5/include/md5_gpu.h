@@ -16,7 +16,7 @@ struct Md5BruterResult{
 };
 
 
-struct Md5TransformResult md5_gpu(char* data, uint32_t * sizes, size_t array_size, int maxthreads);
+struct Md5TransformResult md5_gpu(char* data, uint8_t * sizes, size_t array_size, int maxthreads);
 struct Md5BruterResult md5_bruter(size_t start_address, size_t end_address, const char* target_md5, int maxthreads,int base_str_len);
 #ifdef __cplusplus
 }

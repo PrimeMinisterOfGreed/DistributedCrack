@@ -12,12 +12,20 @@ use mpi::{
     },
 };
 
-use crate::ARGS;
+use crate::{ARGS, sequence_generator::SequenceGenerator};
 
+#[repr(i32)]
 enum MpiTags {
     DATA,
     RESULT,
     TERMINATE,
+    ALIVE,
+}
+
+impl Into<i32> for MpiTags {
+    fn into(self) -> i32 {
+        self as i32
+    }
 }
 
 pub fn run_mpi() {}
@@ -38,19 +46,26 @@ pub fn completed<'a, T>(request: &Request<'a, T, &LocalScope<'a>>) -> bool {
 
 pub fn root(communicator: SimpleCommunicator) {
     let mut result = [0i8; 32];
+
     mpi::request::scope(|f| {
-        let stopreq = communicator.this_process().immediate_receive_into_with_tag(
+        let mut stopreq = communicator.this_process().immediate_receive_into_with_tag(
             f,
             &mut result,
-            MpiTags::RESULT as i32,
+            MpiTags::RESULT.into(),
         );
-        while !completed(&stopreq) {}
+        while !completed(&stopreq) {
+            if ARGS.lock().unwrap().use_dictionary() {}
+        }
     });
 }
 
 pub fn root_bruter(communicator: SimpleCommunicator) {}
 
-pub fn root_chunked(communicator: SimpleCommunicator) {}
+pub fn root_chunked(communicator: SimpleCommunicator) {
+    let req = communicator
+        .this_process()
+        .receive_with_tag::<u8>(MpiTags::ALIVE.into());
+}
 
 pub fn worker(communicator: SimpleCommunicator) {}
 

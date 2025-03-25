@@ -34,15 +34,15 @@ __global__ void md5_brute_apply(struct md5_bruter_request * request){
         char result[33];
         uint8_t digest[16];
         memset(result,0,33);
+        memset(digest,0,16);
         assign_address(&gen,request->address_start + i);
         next_sequence(&gen,sequence);
-        md5String(sequence, digest,devstrlen(sequence));
+        md5String(sequence, digest,gen.currentSequenceLength);
         md5HexDigest(digest,result);
         if(cmpstr(result, request->target_md5, 32)){
             memcpy(request->target_found,sequence,gen.currentSequenceLength);
             request->target_found[gen.currentSequenceLength] = 0;
         }
-        free(sequence);
     }
 }
 
@@ -80,14 +80,14 @@ void md5_gpu_brute(struct md5_bruter_request* request, int threads){
 
     md5_brute_apply<<<threads, blocks>>>(dev_request);
     cudaDeviceSynchronize();
-   // handle(cudaGetLastError());
+    handle(cudaGetLastError());
     handle(copy_request_to_host(request));
     handle(free_request());
     return;
     ERROR:
         printf("error on computing %s \n",cudaGetErrorString(error));
-        md5_gpu_brute(request, threads);
         return;
+        //md5_gpu_brute(request, threads);
 }
 
 
