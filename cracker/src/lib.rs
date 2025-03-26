@@ -7,9 +7,11 @@ use std::{
     sync::Mutex,
 };
 mod compute_context;
+mod dictionary_reader;
 pub mod gpu;
 mod mpi;
 pub mod sequence_generator;
+mod timers;
 /// Program options parsed from command-line arguments
 #[derive(Parser, Debug, Default, Clone)]
 pub struct ProgramOptions {

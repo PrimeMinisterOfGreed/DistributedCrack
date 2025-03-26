@@ -1,0 +1,1 @@
+wget https://gist.githubusercontent.com/YZLRYO/6ac700bec42f7563bf809d8d92ae4906/raw/ec9669870b097a3f9cb8407fa7430904fd991487/dictionary.txt
