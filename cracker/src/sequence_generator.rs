@@ -24,8 +24,12 @@ pub struct SequenceGenerator {
     ctx: SequenceGeneratorCtx,
 }
 
+pub trait ChunkGenerator {
+    fn generate_flatten_chunk(&mut self, chunks: usize) -> GeneratorResult;
+}
+
 pub struct GeneratorResult {
-    pub strings: Vec<i8>,
+    pub strings: Vec<u8>,
     pub sizes: Vec<u8>,
 }
 
@@ -44,26 +48,6 @@ impl SequenceGenerator {
 
     pub fn remaining_this_size(&self) -> usize {
         93 * (self.ctx.curren_len as usize + 1) - self.absolute_index()
-    }
-
-    pub fn generate_flatten_chunk(&mut self, chunks: usize) -> GeneratorResult {
-        let mut chunk: Vec<i8> = Vec::with_capacity((self.ctx.curren_len as usize + 1) * span);
-        let mut sizes: Vec<u8> = Vec::with_capacity(chunks);
-        for _ in 0..chunks {
-            let buffer = self.ctx.buffer;
-            sizes.push(self.ctx.curren_len);
-            for c in buffer {
-                if c == 0 {
-                    break;
-                }
-                chunk.push(c);
-            }
-            self.next_sequence();
-        }
-        GeneratorResult {
-            strings: chunk,
-            sizes: sizes,
-        }
     }
 
     pub fn next_sequence(&mut self) {
@@ -88,6 +72,28 @@ impl SequenceGenerator {
             s.push(self.ctx.buffer[i] as u8 as char);
         }
         s
+    }
+}
+
+impl ChunkGenerator for SequenceGenerator {
+    fn generate_flatten_chunk(&mut self, chunks: usize) -> GeneratorResult {
+        let mut chunk: Vec<u8> = Vec::with_capacity((self.ctx.curren_len as usize + 1) * span);
+        let mut sizes: Vec<u8> = Vec::with_capacity(chunks);
+        for _ in 0..chunks {
+            let buffer = self.ctx.buffer;
+            sizes.push(self.ctx.curren_len);
+            for c in buffer {
+                if c == 0 {
+                    break;
+                }
+                chunk.push(c as u8);
+            }
+            self.next_sequence();
+        }
+        GeneratorResult {
+            strings: chunk,
+            sizes: sizes,
+        }
     }
 }
 

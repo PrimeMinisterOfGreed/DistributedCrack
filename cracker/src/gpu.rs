@@ -32,7 +32,7 @@ unsafe extern "C" {
     ) -> Md5BruterResult;
 }
 
-pub fn md5_transform(data: Vec<i8>, sizes: Vec<u8>, maxthreads: u32) -> Vec<String> {
+pub fn md5_transform(data: Vec<u8>, sizes: Vec<u8>, maxthreads: u32) -> Vec<String> {
     let dataptr = data.as_ptr();
     let sizeptr = sizes.as_ptr();
     let array_size = sizes.len();
@@ -86,7 +86,7 @@ pub fn md5_brute(
 
 #[cfg(test)]
 mod tests {
-    use crate::sequence_generator::SequenceGenerator;
+    use crate::sequence_generator::{ChunkGenerator, SequenceGenerator};
 
     use super::*;
 

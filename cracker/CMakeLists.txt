@@ -26,3 +26,4 @@ set_target_properties (crackerrustapp PROPERTIES
   IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/libcracker.a
 )
 
+
