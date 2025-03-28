@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.24)
 project(distributed_cracker)
 
 include(CheckCXXCompilerFlag)
-find_package(fmt REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(MPI REQUIRED)
 set(CMAKE_CXX_STANDARD 20)
