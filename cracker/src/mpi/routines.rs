@@ -1,7 +1,7 @@
 use std::{any::Any, mem::MaybeUninit, vec};
 
 use mpi::{
-    Rank,
+    Rank, Tag,
     ffi::{
         MPI_F_STATUS_IGNORE, MPI_Finalize, MPI_Request, MPI_Status, MPI_Test, MPI_Wait, MPI_Waitany,
     },
@@ -28,7 +28,7 @@ enum MpiTags {
     DATA,
     RESULT,
     TERMINATE,
-    ALIVE,
+    BRUTE,
     SIZES,
 }
 
@@ -38,13 +38,13 @@ impl Into<i32> for MpiTags {
     }
 }
 
-impl From<i32> for MpiTags{
+impl From<i32> for MpiTags {
     fn from(value: i32) -> Self {
         match value {
             0 => MpiTags::DATA,
             1 => MpiTags::RESULT,
             2 => MpiTags::TERMINATE,
-            3 => MpiTags::ALIVE,
+            3 => MpiTags::BRUTE,
             4 => MpiTags::SIZES,
             _ => panic!("Invalid MPI tag"),
         }
@@ -53,16 +53,13 @@ impl From<i32> for MpiTags{
 
 pub fn run_mpi() {}
 
-
 struct MpiRequestCollection {
     requests: Vec<*mut MPI_Request>,
 }
 
 impl MpiRequestCollection {
     pub fn new() -> Self {
-        Self {
-            requests: vec![],
-        }
+        Self { requests: vec![] }
     }
 
     pub fn wait_any(&mut self) -> Option<(usize, MPI_Status)> {
@@ -78,13 +75,12 @@ impl MpiRequestCollection {
         }
         if index != -1 {
             None
-        }
-        else {
+        } else {
             Some((index as usize, unsafe { status.assume_init() }))
         }
     }
 
-    pub fn add_request<'a,T>(&mut self, request: &Request<'a, T, &LocalScope<'a>>) {
+    pub fn add_request<'a, T>(&mut self, request: &Request<'a, T, &LocalScope<'a>>) {
         self.requests.push(request.as_raw() as *mut MPI_Request);
     }
 }
@@ -103,10 +99,10 @@ pub fn completed<'a, T>(request: &Request<'a, T, &LocalScope<'a>>) -> bool {
     }
 }
 
-enum SendContext{
+enum SendContext {
     DATA(DictionaryReader),
-    BRUTE([usize;2]),
-    None
+    BRUTE([usize; 2]),
+    None,
 }
 
 pub fn root(communicator: SimpleCommunicator) {
@@ -128,65 +124,108 @@ pub fn root(communicator: SimpleCommunicator) {
         }
         while !completed(&stopreq) {
             if ARGS.lock().unwrap().use_dictionary() {
-                root_chunked(&communicator, &mut generator.into(), &mut requests);
+                if let SendContext::DATA(ref mut chunker) = generator {
+                    root_chunked(&communicator, chunker, &mut requests);
+                } else {
+                    panic!("Invalid generator");
+                }
             } else {
-                root_bruter(&communicator,&mut requests);
+                if let SendContext::BRUTE(ref mut brute) = generator {
+                    root_bruter(&communicator, &mut requests, brute);
+                } else {
+                    panic!("Invalid generator");
+                }
             }
         }
     });
 }
 
-pub fn root_bruter(communicator: &SimpleCommunicator, requests: &mut MpiRequestCollection) {
-    let mut buf : u8 = 0 ;
+pub fn root_bruter(
+    communicator: &SimpleCommunicator,
+    requests: &mut MpiRequestCollection,
+    brute: &mut [usize; 2],
+) {
+    let mut buf: u8 = 0;
     scope(|f| {
-        let mut data_request = communicator.this_process().
-        immediate_receive_into_with_tag(f, &mut buf, MpiTags::DATA.into());
+        let mut data_request = communicator.this_process().immediate_receive_into_with_tag(
+            f,
+            &mut buf,
+            MpiTags::DATA.into(),
+        );
         requests.add_request(&data_request);
         let mut req = requests.wait_any();
-        if let Some(result) = req{
+        if let Some(result) = req {
             match MpiTags::from(result.1.MPI_TAG) {
                 MpiTags::DATA => {
-                    
-                },
-                _=>{}
+                    communicator
+                        .process_at_rank(result.1.MPI_SOURCE)
+                        .send_with_tag(brute, MpiTags::BRUTE.into());
+                }
+                _ => {}
             }
-        }
-        else{
+        } else {
             println!("Error: No request completed");
             return;
         }
-
     });
 }
 
-pub fn root_chunked(communicator: &SimpleCommunicator, generator: &mut impl ChunkGenerator, requests: &mut MpiRequestCollection) {
-    let mut buf : u8= 0;
-    scope(|f|{
-        let mut data_request = communicator.this_process().
-        immediate_receive_into_with_tag(f, &mut buf, MpiTags::DATA.into());
+pub fn root_chunked(
+    communicator: &SimpleCommunicator,
+    generator: &mut impl ChunkGenerator,
+    requests: &mut MpiRequestCollection,
+) {
+    let mut buf: u8 = 0;
+    scope(|f| {
+        let mut data_request = communicator.this_process().immediate_receive_into_with_tag(
+            f,
+            &mut buf,
+            MpiTags::DATA.into(),
+        );
         requests.add_request(&data_request);
 
         let mut req = requests.wait_any();
-        if let Some(result) = req{
+        if let Some(result) = req {
             match MpiTags::from(result.1.MPI_TAG) {
                 MpiTags::DATA => {
-                    let mut chunk= generator.generate_flatten_chunk(ARGS.lock().unwrap().chunk_size as usize);
-                    communicator.process_at_rank(result.1.MPI_SOURCE).send_with_tag(&chunk.strings, MpiTags::DATA.into());
-                    communicator.process_at_rank(result.1.MPI_SOURCE).send_with_tag(&chunk.sizes, MpiTags::SIZES.into());
-                },
+                    let mut chunk =
+                        generator.generate_flatten_chunk(ARGS.lock().unwrap().chunk_size as usize);
+                    communicator
+                        .process_at_rank(result.1.MPI_SOURCE)
+                        .send_with_tag(&chunk.strings, MpiTags::DATA.into());
+                    communicator
+                        .process_at_rank(result.1.MPI_SOURCE)
+                        .send_with_tag(&chunk.sizes, MpiTags::SIZES.into());
+                }
                 MpiTags::TERMINATE => {
                     return;
                 }
-                _=>{}   
+                _ => {}
             }
-        }
-        else{
+        } else {
             println!("Error: No request completed");
         }
     });
 }
+type ScopedRequest<'a, T> = Request<'a, T, &'a LocalScope<'a>>;
 
-pub fn worker(communicator: SimpleCommunicator) {}
+pub fn worker(communicator: SimpleCommunicator) {
+    let mut requests = MpiRequestCollection::new();
+    let mut stop_buf = 0;
+    scope(|scope| {
+        let mut stop_request = communicator.this_process().immediate_receive_into_with_tag(
+            scope,
+            &mut stop_buf,
+            MpiTags::TERMINATE.into(),
+        );
+        requests.add_request(&stop_request);
+        while !completed(&stop_request) {
+            let mut data_request = communicator
+                .this_process()
+                .immediate_receive_with_tag::<u8>(MpiTags::DATA.into());
+        }
+    });
+}
 
 pub fn worker_bruter(communicator: SimpleCommunicator) {}
 

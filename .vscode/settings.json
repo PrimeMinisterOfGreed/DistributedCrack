@@ -1,4 +1,8 @@
 {
+      "rust-analyzer.cargo.cfgs": [
+            "debug_assertions",
+            "miri"
+      ],
       "editor.tabCompletion": "on",
       "diffEditor.codeLens": true,
       "files.associations": {

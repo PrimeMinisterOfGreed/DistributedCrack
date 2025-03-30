@@ -3,6 +3,7 @@
 #include <memory.h>
 #include <stdbool.h>
 
+
 struct Md5BruterResult md5_bruter(size_t start_address, size_t end_address, const char* target_md5, int maxthreads,int base_str_len){
     struct Md5BruterResult result;
     memset(&result, 0, sizeof(result));

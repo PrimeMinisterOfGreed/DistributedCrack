@@ -1,4 +1,5 @@
 use clap::Parser;
+use mpi::ffi::{MPI_Finalize, MPI_Init};
 
 use std::{
     env,
@@ -6,6 +7,7 @@ use std::{
     ptr::{null_mut, write},
     sync::Mutex,
 };
+
 mod compute_context;
 mod dictionary_reader;
 pub mod gpu;
@@ -82,6 +84,17 @@ pub fn rust_main() {
     let options = ProgramOptions::parse();
     ARGS.lock().unwrap().clone_from(&options);
     if ARGS.lock().unwrap().use_mpi {
-        mpi::run_mpi();
+        // Initialize MPI
+        unsafe {
+            let mut argc = 0;
+            let mut argv: *mut *mut i8 = null_mut();
+            MPI_Init(&mut argc, &mut argv);
+            run_mpi_work();
+            MPI_Finalize();
+        }
     }
+}
+
+pub fn run_mpi_work() {
+    println!("Running MPI work");
 }

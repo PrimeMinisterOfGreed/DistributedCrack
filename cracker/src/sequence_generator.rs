@@ -1,8 +1,3 @@
-use mpi::{
-    datatype::UserDatatype,
-    traits::{AsDatatype, Buffer, Equivalence},
-};
-
 #[derive(Debug)]
 #[repr(C)]
 struct SequenceGeneratorCtx {

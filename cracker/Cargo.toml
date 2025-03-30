@@ -7,13 +7,14 @@ edition = "2024"
 crate-type = ["staticlib"]
 
 [dependencies]
-mpi ={version = "*"}
 clap={version = "*", features = ["std","derive","env"]}
 lazy_static = { version = "*" }
 [build-dependencies]
 cc = { version = "*" }
 cmake = { version = "*" }
 libloading = {version = "*"}
+pkg-config = { version = "*" }
+bindgen = { version = "*" }
 
 [profile.dev]
 opt-level = 0
