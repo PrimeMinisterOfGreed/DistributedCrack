@@ -49,7 +49,11 @@ pub fn main() {
         .header("/usr/lib/x86_64-linux-gnu/mpich/include/mpi.h")
         .clang_arg("-I/usr/lib/x86_64-linux-gnu/mpich/include")
         .fit_macro_constants(false)
-        .default_macro_constant_type(bindgen::MacroTypeVariation::Unsigned)
+        .use_core()
+        .clang_macro_fallback()
+        .derive_debug(true)
+        .derive_default(true)
+        .default_macro_constant_type(bindgen::MacroTypeVariation::Signed)
         .generate()
         .expect("Unable to generate bindings");
     let out_path = Path::new(&env::var("OUT_DIR").unwrap()).join("bindings.rs");

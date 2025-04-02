@@ -1,6 +1,5 @@
 use clap::Parser;
 use mpi::ffi::{MPI_Finalize, MPI_Init};
-
 use std::{
     env,
     fmt::Arguments,

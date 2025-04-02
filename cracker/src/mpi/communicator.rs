@@ -31,6 +31,10 @@ impl Communicator {
         self.comm
     }
 
+    pub fn size(&self) -> i32 {
+        self.size
+    }
+
     pub fn send<T>(&self, buf: &T, mpi_type: i32, dest: i32, tag: i32)
     where
         T: Sized,
@@ -107,8 +111,8 @@ mod tests {
 
     use crate::mpi::{
         ffi::{
-            MPI_Finalize, MPI_Get_count, MPI_Init, MPI_PROC_NULL, MPI_Probe, MPI_Recv,
-            MPI_STATUS_IGNORE, MPI_Send, MPI_Send_c, MPI_Status, MPI_UINT64_T, MpiType,
+            MPI_F_STATUS_IGNORE, MPI_Finalize, MPI_Get_count, MPI_Init, MPI_PROC_NULL, MPI_Probe,
+            MPI_Recv, MPI_Send, MPI_Send_c, MPI_Status, MPI_UINT64_T, MpiType,
         },
         scope::init,
     };
