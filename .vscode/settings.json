@@ -3,6 +3,14 @@
             "debug_assertions",
             "miri"
       ],
+      "rust-analyzer.runnables.command": "mpiexec -n 2 cargo",
+      "rust-analyzer.runnables.extraTestBinaryArgs": [
+            "--show-output",
+            "--nocapture"
+      ],
+      "rust-analyzer.runnables.extraEnv": {
+            "LD_PRELOAD": "${workspaceFolder}/build/libs/gpu_md5/libmd5_gpu.so"
+      },
       "editor.tabCompletion": "on",
       "diffEditor.codeLens": true,
       "files.associations": {

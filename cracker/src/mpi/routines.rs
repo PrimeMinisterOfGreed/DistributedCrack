@@ -1,26 +1,18 @@
-use std::{any::Any, mem::MaybeUninit, vec};
+use std::{any::Any, mem::MaybeUninit, process::exit, vec};
 
-use mpi::{
-    Rank, Tag,
-    ffi::{
-        MPI_F_STATUS_IGNORE, MPI_Finalize, MPI_Request, MPI_Status, MPI_Test, MPI_Wait, MPI_Waitany,
-    },
-    point_to_point::ReceiveFuture,
-    raw::AsRaw,
-    request::{
-        self, CancelGuard, LocalScope, Request, RequestCollection, Scope, WaitGuard, scope,
-        wait_any,
-    },
-    topology::SimpleCommunicator,
-    traits::{
-        AsDatatype, Buffer, Communicator, CommunicatorCollectives, Destination, Root, Source,
-    },
-};
+use log::{debug, info, trace};
 
 use crate::{
     ARGS,
     dictionary_reader::DictionaryReader,
+    gpu::md5_transform,
     sequence_generator::{ChunkGenerator, SequenceGenerator},
+};
+
+use super::{
+    communicator::Communicator,
+    ffi::{MPI_AINT, MPI_ANY_SOURCE, MPI_Status, MPI_UINT8_T, MPI_UINT64_T},
+    promise::{MpiFuture, waitany},
 };
 
 #[repr(i32)]
@@ -28,6 +20,7 @@ enum MpiTags {
     DATA,
     RESULT,
     TERMINATE,
+    REQUEST,
     BRUTE,
     SIZES,
 }
@@ -44,189 +37,314 @@ impl From<i32> for MpiTags {
             0 => MpiTags::DATA,
             1 => MpiTags::RESULT,
             2 => MpiTags::TERMINATE,
-            3 => MpiTags::BRUTE,
-            4 => MpiTags::SIZES,
+            3 => MpiTags::REQUEST,
+            4 => MpiTags::BRUTE,
+            5 => MpiTags::SIZES,
             _ => panic!("Invalid MPI tag"),
         }
     }
 }
 
-pub fn run_mpi() {}
-
-struct MpiRequestCollection {
-    requests: Vec<*mut MPI_Request>,
+struct MpiProcess<'a> {
+    comm: &'a Communicator,
+    futures: Vec<Box<dyn MpiFuture>>,
 }
 
-impl MpiRequestCollection {
-    pub fn new() -> Self {
-        Self { requests: vec![] }
-    }
-
-    pub fn wait_any(&mut self) -> Option<(usize, MPI_Status)> {
-        let mut status = MaybeUninit::<MPI_Status>::zeroed();
-        let mut index: i32 = 0;
-        unsafe {
-            MPI_Waitany(
-                self.requests.len() as i32,
-                *self.requests.as_mut_ptr(),
-                &raw mut index,
-                status.as_mut_ptr(),
-            );
-        }
-        if index != -1 {
-            None
-        } else {
-            Some((index as usize, unsafe { status.assume_init() }))
+impl<'a> MpiProcess<'a> {
+    fn new(comm: &'a Communicator) -> Self {
+        Self {
+            comm,
+            futures: Vec::new(),
         }
     }
 
-    pub fn add_request<'a, T>(&mut self, request: &Request<'a, T, &LocalScope<'a>>) {
-        self.requests.push(request.as_raw() as *mut MPI_Request);
+    fn add_future(&mut self, future: Box<dyn MpiFuture>) {
+        self.futures.push(future);
+    }
+    fn remove_future(&mut self, index: usize) {
+        if index < self.futures.len() {
+            self.futures.remove(index);
+        }
+    }
+
+    fn wait_any(&mut self) -> (usize, MPI_Status) {
+        let res = waitany(self.futures.as_mut_slice());
+        let index = res.index;
+        let status = res.status;
+        (index, status)
+    }
+
+    fn stop_workers(&mut self) {
+        for i in 0..self.comm.size() {
+            if i == self.comm.rank() {
+                continue;
+            }
+            self.comm
+                .send(&[1], MPI_UINT8_T, i as i32, MpiTags::TERMINATE.into());
+        }
+    }
+
+    fn send_result(&mut self, result: &[u8]) {
+        self.comm
+            .send_vector(&result, MPI_UINT8_T, 0, MpiTags::RESULT.into());
     }
 }
 
-pub fn completed<'a, T>(request: &Request<'a, T, &LocalScope<'a>>) -> bool {
-    let ptr: *mut MPI_Request = request.as_raw() as *mut MPI_Request;
-    unsafe {
-        let mut flag = 0;
+pub fn generator_process(communicator: &Communicator) {
+    let use_dict = {
+        let args = ARGS.lock().unwrap();
+        args.use_dictionary()
+    };
+    debug!("Generator process started");
+    let mut process = MpiProcess::new(communicator);
+    let mut stop_future: Box<dyn MpiFuture> =
+        communicator.irecv::<u8>(100, MPI_UINT8_T, MPI_ANY_SOURCE, MpiTags::RESULT.into());
+    process.add_future(stop_future);
+    if use_dict {
+        chunked_generator_process(&mut process);
+    } else {
+        brute_generator_process(&mut process);
+    }
+}
 
-        MPI_Test(
-            ptr,
-            &mut flag,
-            MPI_F_STATUS_IGNORE as *mut mpi::ffi::MPI_Status,
+fn chunked_generator_process(process: &mut MpiProcess) {
+    let filepath = {
+        let args = ARGS.lock().unwrap();
+        args.dictionary.clone()
+    };
+    let chunk = {
+        let args = ARGS.lock().unwrap();
+        args.chunk_size
+    };
+
+    let mut request =
+        process
+            .comm
+            .recv_init::<u8>(1, MPI_UINT8_T, MPI_ANY_SOURCE, MpiTags::REQUEST.into());
+    request.start();
+    process.add_future(request);
+    let mut reader = DictionaryReader::new(filepath.as_str()).unwrap_or_else(|df| exit(-1));
+    loop {
+        let res = {
+            // Extract the mutable borrow of `process.futures` into a separate block
+            waitany(process.futures.as_mut_slice())
+        };
+        match MpiTags::from(res.status.MPI_TAG) {
+            MpiTags::REQUEST => {
+                let data = reader.generate_flatten_chunk(chunk as usize);
+                process.comm.send(
+                    &data.sizes.as_slice(),
+                    MPI_UINT8_T,
+                    res.status.MPI_SOURCE,
+                    MpiTags::SIZES.into(),
+                );
+                process.comm.send(
+                    &data.strings.as_slice(),
+                    MPI_UINT8_T,
+                    res.status.MPI_SOURCE,
+                    MpiTags::DATA.into(),
+                );
+                res.future.as_mut_persistent_promise::<u8>().start();
+            }
+            MpiTags::RESULT => {
+                let result = res.future.as_promise::<u8>();
+                info!(
+                    "Received result: {}",
+                    String::from_utf8_lossy(&result.data())
+                );
+                return;
+            }
+            _ => {}
+        }
+    }
+}
+
+fn brute_generator_process(process: &mut MpiProcess) {
+    let mut address: [usize; 2] = [0; 2];
+    let chunks = {
+        let args = ARGS.lock().unwrap();
+        args.chunk_size
+    };
+    address[1] = chunks as usize;
+
+    let mut request =
+        process
+            .comm
+            .irecv::<u8>(1, MPI_UINT8_T, MPI_ANY_SOURCE, MpiTags::REQUEST.into());
+    process.add_future(request);
+    loop {
+        trace!("Waiting for request");
+        let (index, status) = process.wait_any();
+        trace!(
+            "Promise completed, message from rank {} , with tag {}, index {}",
+            status.MPI_SOURCE, status.MPI_TAG, index
         );
-        flag != 0
+        process.remove_future(index);
+        match MpiTags::from(status.MPI_TAG) {
+            MpiTags::REQUEST => {
+                process.comm.send_vector(
+                    &address,
+                    MPI_UINT64_T,
+                    status.MPI_SOURCE,
+                    MpiTags::SIZES.into(),
+                );
+
+                address[0] += chunks as usize;
+                address[1] += chunks as usize;
+                process.add_future(process.comm.irecv::<u8>(
+                    1,
+                    MPI_UINT8_T,
+                    MPI_ANY_SOURCE,
+                    MpiTags::REQUEST.into(),
+                ));
+            }
+            MpiTags::RESULT => {
+                let mut future = process.futures[index].as_mut();
+                let result = future.as_promise::<u8>();
+                info!(
+                    "Received result: {}",
+                    String::from_utf8_lossy(&result.data())
+                );
+                return;
+            }
+            _ => {}
+        }
     }
 }
 
-enum SendContext {
-    DATA(DictionaryReader),
-    BRUTE([usize; 2]),
-    None,
+pub fn worker_process(communicator: &Communicator) {
+    let rank = communicator.rank();
+    let use_dict = {
+        let args = ARGS.lock().unwrap();
+        args.use_dictionary()
+    };
+    debug!("Worker process started");
+    let mut process = MpiProcess::new(communicator);
+    let mut stop_future: Box<dyn MpiFuture> =
+        communicator.irecv::<u8>(1, MPI_UINT8_T, MPI_ANY_SOURCE, MpiTags::TERMINATE.into());
+    process.add_future(stop_future);
+    if use_dict {
+        chunked_worker_process(&mut process);
+    } else {
+        brute_worker_process(&mut process);
+    }
 }
 
-pub fn root(communicator: SimpleCommunicator) {
-    let mut result = [0i8; 32];
-    let mut requests = MpiRequestCollection::new();
-    mpi::request::scope(|f| {
-        let mut stopreq = communicator.this_process().immediate_receive_into_with_tag(
-            f,
-            &mut result,
-            MpiTags::RESULT.into(),
-        );
-
-        requests.add_request(&stopreq);
-        let mut generator: SendContext = SendContext::None;
-        if ARGS.lock().unwrap().use_dictionary() {
-            let mut loader =
-                DictionaryReader::new(ARGS.lock().unwrap().dictionary.as_str()).unwrap();
-            generator = SendContext::DATA(loader);
+fn receive_size_or_stop(process: &mut MpiProcess, chunks: i32) -> Option<Vec<u8>> {
+    process.add_future(process.comm.irecv::<u8>(
+        chunks as usize,
+        MPI_UINT8_T,
+        0,
+        MpiTags::SIZES.into(),
+    ));
+    let (index, result) = process.wait_any();
+    return match MpiTags::from(result.MPI_TAG) {
+        MpiTags::SIZES => {
+            let future = process.futures[index].as_mut();
+            let sizes = future.as_promise::<u8>();
+            Some(sizes.data().to_vec())
         }
-        while !completed(&stopreq) {
-            if ARGS.lock().unwrap().use_dictionary() {
-                if let SendContext::DATA(ref mut chunker) = generator {
-                    root_chunked(&communicator, chunker, &mut requests);
-                } else {
-                    panic!("Invalid generator");
+        MpiTags::TERMINATE => None,
+        _ => panic!("Unexpected message"),
+    };
+}
+
+fn receive_string_or_stop(process: &mut MpiProcess, sizes: &Vec<u8>) -> Option<Vec<u8>> {
+    let total_size: usize = sizes.iter().map(|f| *f as usize).sum();
+
+    process.add_future(process.comm.irecv::<u8>(
+        total_size as usize,
+        MPI_UINT8_T,
+        0,
+        MpiTags::DATA.into(),
+    ));
+    let (index, result) = process.wait_any();
+    return match MpiTags::from(result.MPI_TAG) {
+        MpiTags::DATA => {
+            let future = process.futures[index].as_mut();
+            let data = future.as_promise::<u8>();
+            Some(data.data().to_vec())
+        }
+
+        MpiTags::TERMINATE => None,
+        _ => panic!("Unexpected message"),
+    };
+}
+
+fn chunked_worker_process(process: &mut MpiProcess) {
+    let mut send_request =
+        process
+            .comm
+            .send_init::<u8>(&[0], MPI_UINT8_T, 0, MpiTags::REQUEST.into());
+    let chunks = {
+        let args = ARGS.lock().unwrap();
+        args.chunk_size
+    };
+    let threads = {
+        let args = ARGS.lock().unwrap();
+        args.num_threads
+    };
+    let target = {
+        let args = ARGS.lock().unwrap();
+        args.target_md5.clone()
+    };
+    loop {
+        if let Some(size) = receive_size_or_stop(process, chunks) {
+            if let Some(chunks) = receive_string_or_stop(process, &size) {
+                // Here you should also manage resources
+                let transform = md5_transform(&chunks, &size, threads as u32);
+                // this can be done in mt
+                let result = transform.iter().find(|md5| **md5 == target);
+                if result.is_some() {
+                    process.send_result(result.unwrap().as_bytes());
                 }
+                send_request.start();
             } else {
-                if let SendContext::BRUTE(ref mut brute) = generator {
-                    root_bruter(&communicator, &mut requests, brute);
-                } else {
-                    panic!("Invalid generator");
-                }
-            }
-        }
-    });
-}
-
-pub fn root_bruter(
-    communicator: &SimpleCommunicator,
-    requests: &mut MpiRequestCollection,
-    brute: &mut [usize; 2],
-) {
-    let mut buf: u8 = 0;
-    scope(|f| {
-        let mut data_request = communicator.this_process().immediate_receive_into_with_tag(
-            f,
-            &mut buf,
-            MpiTags::DATA.into(),
-        );
-        requests.add_request(&data_request);
-        let mut req = requests.wait_any();
-        if let Some(result) = req {
-            match MpiTags::from(result.1.MPI_TAG) {
-                MpiTags::DATA => {
-                    communicator
-                        .process_at_rank(result.1.MPI_SOURCE)
-                        .send_with_tag(brute, MpiTags::BRUTE.into());
-                }
-                _ => {}
+                debug!("Stop requested");
+                return;
             }
         } else {
-            println!("Error: No request completed");
             return;
         }
-    });
+    }
 }
 
-pub fn root_chunked(
-    communicator: &SimpleCommunicator,
-    generator: &mut impl ChunkGenerator,
-    requests: &mut MpiRequestCollection,
-) {
-    let mut buf: u8 = 0;
-    scope(|f| {
-        let mut data_request = communicator.this_process().immediate_receive_into_with_tag(
-            f,
-            &mut buf,
-            MpiTags::DATA.into(),
-        );
-        requests.add_request(&data_request);
+fn brute_worker_process(process: &mut MpiProcess) {}
 
-        let mut req = requests.wait_any();
-        if let Some(result) = req {
-            match MpiTags::from(result.1.MPI_TAG) {
-                MpiTags::DATA => {
-                    let mut chunk =
-                        generator.generate_flatten_chunk(ARGS.lock().unwrap().chunk_size as usize);
-                    communicator
-                        .process_at_rank(result.1.MPI_SOURCE)
-                        .send_with_tag(&chunk.strings, MpiTags::DATA.into());
-                    communicator
-                        .process_at_rank(result.1.MPI_SOURCE)
-                        .send_with_tag(&chunk.sizes, MpiTags::SIZES.into());
-                }
-                MpiTags::TERMINATE => {
-                    return;
-                }
-                _ => {}
-            }
+#[cfg(test)]
+mod tests {
+    use std::{thread::sleep, time::Duration};
+
+    use log::logger;
+
+    use crate::mpi::{communicator, scope::init};
+
+    use super::*;
+
+    #[test]
+    fn test_generator_routine() {
+        let universe = init();
+        let comm = universe.world();
+        simple_logger::init_with_level(log::Level::Trace).unwrap();
+        debug!("Rank: {}", comm.rank());
+        {
+            let mut args = ARGS.lock();
+            let mut bind = args.as_mut().unwrap();
+            bind.chunk_size = 100;
+            bind.use_mpi = true;
+            bind.ismpi = true;
+            bind.dictionary = "NONE".to_string();
+            bind.brutestart = 4;
+        }
+        let rank = comm.rank();
+        if rank == 0 {
+            generator_process(&comm);
         } else {
-            println!("Error: No request completed");
+            trace!("Sending message");
+            comm.send(&[1], MPI_UINT8_T, 0, MpiTags::REQUEST.into());
+            let mut sizes = comm.recv_vector::<u64>(MPI_UINT64_T, 0, MpiTags::SIZES.into());
+            assert_eq!(sizes.len(), 2);
+            comm.send(&"hello world", MPI_UINT8_T, 0, MpiTags::RESULT.into());
         }
-    });
+    }
 }
-type ScopedRequest<'a, T> = Request<'a, T, &'a LocalScope<'a>>;
-
-pub fn worker(communicator: SimpleCommunicator) {
-    let mut requests = MpiRequestCollection::new();
-    let mut stop_buf = 0;
-    scope(|scope| {
-        let mut stop_request = communicator.this_process().immediate_receive_into_with_tag(
-            scope,
-            &mut stop_buf,
-            MpiTags::TERMINATE.into(),
-        );
-        requests.add_request(&stop_request);
-        while !completed(&stop_request) {
-            let mut data_request = communicator
-                .this_process()
-                .immediate_receive_with_tag::<u8>(MpiTags::DATA.into());
-        }
-    });
-}
-
-pub fn worker_bruter(communicator: SimpleCommunicator) {}
-
-pub fn worker_chunked(communicator: SimpleCommunicator) {}

@@ -3,7 +3,7 @@ use super::{
     ffi::{
         MPI_Cancel, MPI_Comm, MPI_Get_count, MPI_Iprobe, MPI_Irecv, MPI_Isend, MPI_Recv_init,
         MPI_Request, MPI_Request_free, MPI_Send_init, MPI_Start, MPI_Status, MPI_Test, MPI_Wait,
-        MPI_Waitany,
+        MPI_Waitall, MPI_Waitany,
     },
 };
 use std::{any::Any, mem::MaybeUninit, path::Display};
@@ -21,6 +21,7 @@ pub trait MpiFuture {
     fn cancel(&mut self) -> i32;
     fn status(&self) -> MPI_Status;
     fn request(&self) -> MPI_Request;
+    fn set_status(&mut self, status: MPI_Status);
 }
 
 /// MpiBufferedFuture is a trait that extends MpiFuture to support
@@ -175,7 +176,9 @@ impl<T> MpiFuture for MpiPromise<T> {
         self.wait();
         0
     }
-
+    fn set_status(&mut self, status: MPI_Status) {
+        self.status = status;
+    }
     fn test(&mut self) -> bool {
         self.test()
     }
@@ -268,7 +271,7 @@ impl Communicator {
         unsafe {
             MPI_Irecv(
                 result.buffer.as_mut_ptr() as *mut _,
-                count as i32,
+                (count) as i32,
                 mpi_type,
                 source,
                 tag,
@@ -292,7 +295,7 @@ impl Communicator {
         unsafe {
             MPI_Isend(
                 result.buffer.as_mut_ptr() as *mut _,
-                result.buffer.len() as i32,
+                (result.buffer.len()) as i32,
                 mpi_type,
                 dest,
                 tag,
@@ -363,6 +366,10 @@ where
         0
     }
 
+    fn set_status(&mut self, status: MPI_Status) {
+        self.innerPromise.status = status;
+    }
+
     fn test(&mut self) -> bool {
         self.innerPromise.test()
     }
@@ -423,7 +430,7 @@ impl Communicator {
         unsafe {
             MPI_Recv_init(
                 result.innerPromise.buffer.as_mut_ptr() as *mut _,
-                count as i32,
+                (count) as i32,
                 mpi_type,
                 source,
                 tag,
@@ -452,7 +459,7 @@ impl Communicator {
         unsafe {
             MPI_Send_init(
                 result.innerPromise.buffer.as_mut_ptr() as *mut _,
-                elems.len() as i32,
+                (elems.len()) as i32,
                 mpi_type,
                 dest,
                 tag,
@@ -468,22 +475,89 @@ impl Communicator {
  *                                         Group Functions
  *------------------------------------------------------------------------------------------------*/
 
-pub fn waitany<'a>(futures: &[&'a dyn MpiFuture]) -> (MPI_Status, &'a dyn MpiFuture) {
+pub struct WaitResult<'a> {
+    pub status: MPI_Status,
+    pub future: &'a mut Box<dyn MpiFuture>,
+    pub index: usize,
+}
+
+pub fn waitany(futures: &mut [Box<dyn MpiFuture>]) -> WaitResult {
     let mut reqs = futures.iter().map(|f| f.request()).collect::<Vec<_>>();
-    let mut statuses = futures
-        .iter()
-        .map(|_| MPI_Status::default())
-        .collect::<Vec<_>>();
+    let mut status = MPI_Status::default();
     let mut index = 0;
     unsafe {
         MPI_Waitany(
             futures.len() as i32,
             reqs.as_mut_ptr(),
             &mut index,
+            &mut status,
+        );
+    }
+    futures[index as usize].set_status(status);
+    WaitResult {
+        status: status,
+        future: &mut futures[index as usize],
+        index: index as usize,
+    }
+}
+
+pub fn waitall<'a>(futures: &[&'a dyn MpiFuture]) -> Vec<MPI_Status> {
+    let mut reqs = futures.iter().map(|f| f.request()).collect::<Vec<_>>();
+    let mut statuses = futures
+        .iter()
+        .map(|_| MPI_Status::default())
+        .collect::<Vec<_>>();
+    unsafe {
+        MPI_Waitall(
+            futures.len() as i32,
+            reqs.as_mut_ptr(),
             statuses.as_mut_ptr(),
         );
     }
-    (futures[index as usize].status(), futures[index as usize])
+    statuses
+}
+
+impl dyn MpiFuture {
+    pub fn as_promise<T>(&self) -> &MpiPromise<T>
+    where
+        T: Clone + Default,
+    {
+        unsafe {
+            let future = *(&raw const self as *const *const dyn MpiFuture) as *const MpiPromise<T>;
+            &*future
+        }
+    }
+
+    pub fn as_persistent_promise<T>(&self) -> &PersistentPromise<T>
+    where
+        T: Clone + Default,
+    {
+        unsafe {
+            let future =
+                *(&raw const self as *const *const dyn MpiFuture) as *const PersistentPromise<T>;
+            &*future
+        }
+    }
+
+    pub fn as_mut_persistent_promise<T>(&mut self) -> &mut PersistentPromise<T>
+    where
+        T: Clone + Default,
+    {
+        unsafe {
+            let future =
+                *(&raw const self as *const *const dyn MpiFuture) as *const PersistentPromise<T>;
+            &mut *(future as *mut PersistentPromise<T>)
+        }
+    }
+    pub fn as_mut_promise<T>(&mut self) -> &mut MpiPromise<T>
+    where
+        T: Clone + Default,
+    {
+        unsafe {
+            let future = *(&raw const self as *const *const dyn MpiFuture) as *const MpiPromise<T>;
+            &mut *(future as *mut MpiPromise<T>)
+        }
+    }
 }
 
 /*------------------------------------------------------------------------------------------------
@@ -492,8 +566,10 @@ pub fn waitany<'a>(futures: &[&'a dyn MpiFuture]) -> (MPI_Status, &'a dyn MpiFut
 
 #[cfg(test)]
 mod tests {
+    use std::ops::Deref;
+
     use crate::mpi::{
-        ffi::{MPI_INT32_T, MPI_UINT8_T, MpiType},
+        ffi::{MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_INT32_T, MPI_UINT8_T, MpiType},
         scope::init,
     };
 
@@ -550,7 +626,7 @@ mod tests {
         let comm = universe.world();
         let rank = comm.rank();
         if rank == 0 {
-            let mut promise = comm.recv_init::<i32>(1, MPI_UINT8_T, 1, 1);
+            let mut promise = comm.recv_init::<i32>(1, MPI_UINT8_T, MPI_ANY_TAG, MPI_ANY_SOURCE);
             for i in 0..10 {
                 promise.start();
                 promise.wait();
@@ -570,6 +646,51 @@ mod tests {
                 promise.start();
                 promise.wait();
             }
+        }
+    }
+
+    #[test]
+    fn test_waitany() {
+        let world = init();
+        let comm = world.world();
+        let rank = comm.rank();
+        if rank == 0 {
+            let mut promise1 = comm.irecv::<i32>(1, MPI_UINT8_T, MPI_ANY_SOURCE, MPI_ANY_TAG);
+            let mut promise2 = comm.irecv::<i32>(1, MPI_UINT8_T, 1, 2);
+            let mut futures: [Box<dyn MpiFuture>; 2] = [promise2, promise1];
+            let res = waitany(&mut futures);
+            assert_eq!(res.status.MPI_SOURCE, 1);
+            assert_eq!(res.status.MPI_TAG, 1);
+            assert_eq!(res.future.status().MPI_SOURCE, 1);
+            assert_eq!(res.future.status().MPI_TAG, 1);
+            assert_eq!(res.future.as_promise::<i32>().buffer[0], 42);
+            assert_eq!(res.index, 1);
+        } else {
+            let mut buf = [42u8];
+            comm.send(&buf, MPI_UINT8_T, 0, 1);
+        }
+    }
+
+    #[test]
+    fn test_waitany_vector() {
+        let world = init();
+        let comm = world.world();
+        let rank = comm.rank();
+        if rank == 0 {
+            let mut promise1 = comm.irecv::<i32>(2, MPI_INT32_T, MPI_ANY_SOURCE, MPI_ANY_TAG);
+            let mut promise2 = comm.irecv::<i32>(2, MPI_INT32_T, 1, 2);
+            let mut futures: [Box<dyn MpiFuture>; 2] = [promise2, promise1];
+            let res = waitany(&mut futures);
+            assert_eq!(res.status.MPI_SOURCE, 1);
+            assert_eq!(res.status.MPI_TAG, 1);
+            assert_eq!(res.future.status().MPI_SOURCE, 1);
+            assert_eq!(res.future.status().MPI_TAG, 1);
+            assert_eq!(res.future.as_promise::<i32>().buffer[0], 42);
+            assert_eq!(res.future.as_promise::<i32>().buffer[1], 25);
+            assert_eq!(res.index, 1);
+        } else {
+            let mut buf = [42, 25];
+            comm.send_vector(&buf, MPI_INT32_T, 0, 1);
         }
     }
 }

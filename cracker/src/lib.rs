@@ -1,5 +1,8 @@
 use clap::Parser;
-use mpi::ffi::{MPI_Finalize, MPI_Init};
+use mpi::{
+    ffi::{MPI_Finalize, MPI_Init},
+    scope::MpiGlobalScope,
+};
 use std::{
     env,
     fmt::Arguments,
@@ -9,6 +12,7 @@ use std::{
 
 mod compute_context;
 mod dictionary_reader;
+mod event_bus;
 pub mod gpu;
 mod mpi;
 pub mod sequence_generator;
@@ -87,13 +91,19 @@ pub fn rust_main() {
         unsafe {
             let mut argc = 0;
             let mut argv: *mut *mut i8 = null_mut();
-            MPI_Init(&mut argc, &mut argv);
-            run_mpi_work();
-            MPI_Finalize();
+            let mut global_scope = MpiGlobalScope::new();
+            run_mpi_work(&mut global_scope);
         }
     }
 }
 
-pub fn run_mpi_work() {
+pub fn run_mpi_work(global_scope: &mut MpiGlobalScope) {
     println!("Running MPI work");
+    let world = global_scope.world();
+    let rank = world.rank();
+    if rank == 0 {
+        mpi::routines::generator_process(&world);
+    } else {
+        println!("Worker process: {}", rank);
+    }
 }

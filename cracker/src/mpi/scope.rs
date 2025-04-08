@@ -1,16 +1,17 @@
 use super::{
     communicator::Communicator,
     ffi::{MPI_COMM_WORLD, MPI_Comm, MPI_Comm_rank, MPI_Finalize, MPI_Init},
+    promise::MpiFuture,
 };
 
-pub struct MpiScope {}
+pub struct MpiGlobalScope {}
 
-impl MpiScope {
+impl MpiGlobalScope {
     pub fn new() -> Self {
         unsafe {
             MPI_Init(std::ptr::null_mut(), std::ptr::null_mut());
         }
-        MpiScope {}
+        MpiGlobalScope {}
     }
 
     pub fn world(&self) -> Communicator {
@@ -23,7 +24,7 @@ impl MpiScope {
     }
 }
 
-impl Drop for MpiScope {
+impl Drop for MpiGlobalScope {
     fn drop(&mut self) {
         unsafe {
             MPI_Finalize();
@@ -31,6 +32,10 @@ impl Drop for MpiScope {
     }
 }
 
-pub fn init() -> MpiScope {
-    MpiScope::new()
+pub fn init() -> MpiGlobalScope {
+    MpiGlobalScope::new()
+}
+
+pub struct MpiScope {
+    futures: Vec<Box<dyn MpiFuture>>,
 }

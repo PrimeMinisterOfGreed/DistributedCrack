@@ -32,7 +32,7 @@ unsafe extern "C" {
     ) -> Md5BruterResult;
 }
 
-pub fn md5_transform(data: Vec<u8>, sizes: Vec<u8>, maxthreads: u32) -> Vec<String> {
+pub fn md5_transform(data: &Vec<u8>, sizes: &Vec<u8>, maxthreads: u32) -> Vec<String> {
     let dataptr = data.as_ptr();
     let sizeptr = sizes.as_ptr();
     let array_size = sizes.len();
@@ -94,7 +94,7 @@ mod tests {
     fn test_md5_transform() {
         let mut generator = SequenceGenerator::new(4);
         let data = generator.generate_flatten_chunk(1000);
-        let result = md5_transform(data.strings, data.sizes, 1000);
+        let result = md5_transform(&data.strings, &data.sizes, 1000);
         assert_eq!(result[0], "98abe3a28383501f4bfd2d9077820f11")
     }
 

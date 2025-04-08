@@ -1,5 +1,7 @@
 use std::mem::MaybeUninit;
 
+use log::debug;
+
 use crate::mpi::ffi::MPI_Comm;
 
 use super::ffi::{
@@ -75,7 +77,7 @@ impl Communicator {
         unsafe {
             MPI_Send(
                 buf.as_ptr() as *const std::ffi::c_void,
-                buf.len() as i32,
+                (buf.len()) as i32,
                 mpi_type,
                 dest,
                 tag,
@@ -84,13 +86,16 @@ impl Communicator {
         }
     }
 
-    pub fn recv_vector<T>(&self, mpi_type: i32, source: i32, tag: i32) -> Vec<T> {
+    pub fn recv_vector<T>(&self, mpi_type: i32, source: i32, tag: i32) -> Vec<T>
+    where
+        T: Default + Clone,
+    {
         let mut count = 0;
         unsafe {
             let mut status = MaybeUninit::<MPI_Status>::uninit();
             MPI_Probe(source, tag, self.comm, status.as_mut_ptr());
             MPI_Get_count(status.as_ptr(), mpi_type, &mut count);
-            let mut result = Vec::<T>::with_capacity(count as usize);
+            let mut result = vec![T::default(); count as usize];
             MPI_Recv(
                 result.as_mut_ptr() as *mut std::ffi::c_void,
                 count,
