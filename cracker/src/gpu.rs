@@ -1,4 +1,7 @@
-use std::{ffi::CString, ptr::copy};
+use std::{
+    ffi::{CStr, CString},
+    ptr::copy,
+};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -56,11 +59,10 @@ pub fn md5_transform(data: &Vec<u8>, sizes: &Vec<u8>, maxthreads: u32) -> Vec<St
 pub fn md5_brute(
     start_address: usize,
     end_address: usize,
-    target_md5: String,
+    target_md5: &CString,
     maxthreads: u32,
     base_str_len: u32,
 ) -> Option<String> {
-    let target_md5 = CString::new(target_md5).unwrap();
     let mut buffer = [0u8; 32];
     unsafe {
         let result = md5_bruter(
@@ -86,6 +88,8 @@ pub fn md5_brute(
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use crate::sequence_generator::{ChunkGenerator, SequenceGenerator};
 
     use super::*;
@@ -103,7 +107,7 @@ mod tests {
         let result = md5_brute(
             0,
             1000,
-            "98abe3a28383501f4bfd2d9077820f11".to_string(),
+            &CString::from_str("98abe3a28383501f4bfd2d9077820f11").unwrap(),
             1000,
             4,
         );

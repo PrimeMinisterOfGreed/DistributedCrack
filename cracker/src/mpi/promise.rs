@@ -621,6 +621,30 @@ mod tests {
     }
 
     #[test]
+    pub fn test_promise_vector() {
+        let world = init();
+        let comm = world.world();
+        let rank = comm.rank();
+        assert!(
+            comm.size() >= 2,
+            "This test requires at least 2 processes, provided {}",
+            comm.size()
+        );
+        if rank == 0 {
+            let mut promise = comm.irecv::<u8>(100, MPI_UINT8_T, MPI_ANY_SOURCE, 1);
+            promise.wait();
+            assert!(!promise.test());
+            assert!(promise.status().MPI_SOURCE == 1);
+            assert!(promise.data()[0..10].iter().all(|&x| x == 'a' as u8));
+        } else {
+            let mut buf = ['a' as u8; 10];
+            let mut promise = comm.isend(&buf, MPI_UINT8_T, 0, 1);
+            promise.wait();
+            assert!(!promise.test());
+        }
+    }
+
+    #[test]
     fn test_persistent_promises() {
         let universe = init();
         let comm = universe.world();

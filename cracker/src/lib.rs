@@ -85,6 +85,7 @@ impl ProgramOptions {
 #[unsafe(no_mangle)]
 pub fn rust_main() {
     let options = ProgramOptions::parse();
+    simple_logger::init_with_level(log::Level::Warn).unwrap();
     ARGS.lock().unwrap().clone_from(&options);
     if ARGS.lock().unwrap().use_mpi {
         // Initialize MPI
@@ -98,12 +99,11 @@ pub fn rust_main() {
 }
 
 pub fn run_mpi_work(global_scope: &mut MpiGlobalScope) {
-    println!("Running MPI work");
     let world = global_scope.world();
     let rank = world.rank();
     if rank == 0 {
         mpi::routines::generator_process(&world);
     } else {
-        println!("Worker process: {}", rank);
+        mpi::routines::worker_process(&world);
     }
 }
