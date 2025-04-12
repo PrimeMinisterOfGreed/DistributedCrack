@@ -12,7 +12,6 @@ use std::{
 
 mod compute_context;
 mod dictionary_reader;
-mod event_bus;
 pub mod gpu;
 mod mpi;
 pub mod sequence_generator;

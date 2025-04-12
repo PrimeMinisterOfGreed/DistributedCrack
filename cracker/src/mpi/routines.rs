@@ -1,9 +1,11 @@
 use std::{any::Any, ffi::CString, mem::MaybeUninit, os::unix::thread, process::exit, vec};
 
 use log::{debug, info, trace};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
     ARGS,
+    compute_context::{ComputeContext, compute},
     dictionary_reader::DictionaryReader,
     gpu::{md5_brute, md5_transform},
     sequence_generator::{ChunkGenerator, SequenceGenerator},
@@ -306,7 +308,7 @@ fn chunked_worker_process(process: &mut MpiProcess) {
                 // Here you should also manage resources
                 let transform = md5_transform(&chunks, &size, threads as u32);
                 // this can be done in mt
-                let result = transform.iter().find(|md5| **md5 == target);
+                let result = transform.par_iter().find_any(|md5| **md5 == target);
                 if result.is_some() {
                     process.send_result(result.unwrap().as_bytes());
                 }
@@ -355,13 +357,9 @@ fn brute_worker_process(process: &mut MpiProcess) {
                 let mut sizes = [0u64; 2];
                 sizes[0..2].copy_from_slice(&promise.as_promise().data()[0..2]);
                 process.remove_future(index);
-                let result = md5_brute(
-                    sizes[0] as usize,
-                    sizes[1] as usize,
-                    &target,
-                    threads as u32,
-                    brutestart as u32,
-                );
+                let mut context =
+                    ComputeContext::Brute(sizes[0] as usize, sizes[1] as usize, &target);
+                let result = compute(context).unwrap_brute();
                 if let Some(res) = result {
                     process.send_result(res.as_bytes());
                 }

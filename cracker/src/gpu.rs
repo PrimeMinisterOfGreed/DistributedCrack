@@ -1,5 +1,5 @@
 use std::{
-    ffi::{CStr, CString},
+    ffi::{CStr, CString, c_char},
     ptr::copy,
 };
 
@@ -33,6 +33,21 @@ unsafe extern "C" {
         maxthreads: ::core::ffi::c_int,
         base_str_len: ::core::ffi::c_int,
     ) -> Md5BruterResult;
+}
+
+unsafe extern "C" {
+    fn md5String(input: *const c_char, output: *mut c_char);
+    fn md5HexDigest(input: *const u8, output: *mut c_char);
+}
+
+pub fn md5_cpu(value: &CString) -> String {
+    let mut buffer = [0u8; 16];
+    let mut hexdigest = [0u8; 32];
+    unsafe {
+        md5String(value.as_ptr(), buffer.as_mut_ptr() as *mut i8);
+        md5HexDigest(buffer.as_mut_ptr(), hexdigest.as_mut_ptr() as *mut i8);
+    };
+    String::from_utf8_lossy(&hexdigest).into_owned()
 }
 
 pub fn md5_transform(data: &Vec<u8>, sizes: &Vec<u8>, maxthreads: u32) -> Vec<String> {

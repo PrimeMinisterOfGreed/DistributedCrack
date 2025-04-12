@@ -12,6 +12,7 @@ lazy_static = { version = "*" }
 allocator_api = { version = "*" }
 log={ version = "*" }
 simple_logger = { version = "*" }
+rayon = { version = "*" }
 [build-dependencies]
 cc = { version = "*" }
 cmake = { version = "*" }
