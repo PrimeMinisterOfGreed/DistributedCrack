@@ -9,7 +9,8 @@
             "--nocapture"
       ],
       "rust-analyzer.runnables.extraEnv": {
-            "LD_PRELOAD": "${workspaceFolder}/build/libs/gpu_md5/libmd5_gpu.so"
+            "LD_PRELOAD": "${workspaceFolder}/build/libs/gpu_md5/libmd5_gpu.so",
+            "RUST_BACKTRACE": "full"
       },
       "editor.tabCompletion": "on",
       "diffEditor.codeLens": true,

@@ -1,5 +1,9 @@
 use lazy_static::lazy_static;
-use std::{default, time::Instant};
+use std::{
+    default,
+    sync::{Mutex, MutexGuard},
+    time::Instant,
+};
 #[derive(Clone, Copy)]
 pub struct ClockStats {
     pub busy_time: u64,
@@ -55,7 +59,7 @@ pub struct GlobalClock {
 }
 
 lazy_static! {
-    static ref GLOBAL_CLOCK: GlobalClock = GlobalClock::new();
+    static ref GLOBAL_CLOCK: Mutex<GlobalClock> = Mutex::new(GlobalClock::new());
 }
 
 impl GlobalClock {
@@ -65,8 +69,10 @@ impl GlobalClock {
             contexts: Vec::new(),
         }
     }
-
-    pub fn with_context(&mut self, name: &str, f: impl Fn() -> i32) {
+    pub fn instance() -> MutexGuard<'static, GlobalClock> {
+        GLOBAL_CLOCK.lock().unwrap()
+    }
+    pub fn with_context(&mut self, name: &str, mut f: impl FnMut() -> i32) {
         let start = Instant::now();
         let result = f();
         let elapsed = start.elapsed().as_millis();
@@ -101,5 +107,24 @@ impl GlobalClock {
             println!("Latency: {}", ctx.stats.latency());
             println!("Mean Service Time: {}", ctx.stats.mean_service_time());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clock() {
+        let mut clock = GlobalClock::new();
+        clock.with_context("test", || {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            1
+        });
+        clock.with_context("test", || {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            2
+        });
+        clock.report_stats();
     }
 }
