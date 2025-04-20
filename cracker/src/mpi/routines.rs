@@ -1,5 +1,10 @@
-use std::{ffi::CString, process::exit};
+use std::{
+    ffi::CString,
+    io::{Write, stdout},
+    process::exit,
+};
 
+use allocator_api::Global;
 use log::{debug, trace};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -9,6 +14,7 @@ use crate::{
     dictionary_reader::DictionaryReader,
     gpu::md5_transform,
     sequence_generator::ChunkGenerator,
+    timers::{ClockStats, Context, GlobalClock},
 };
 
 use super::{
@@ -90,6 +96,25 @@ impl<'a> MpiProcess<'a> {
         self.comm
             .send_vector(&result, MPI_UINT8_T, 0, MpiTags::RESULT.into());
     }
+
+    fn exchange_timers(&mut self) {
+        let mut clock = GlobalClock::instance();
+        println!("Clock locked");
+        if self.comm.rank() == 0 {
+            /* --------------------------- Receive clock stats -------------------------- */
+            stdout().flush().unwrap();
+            for i in 1..self.comm.size() {
+                let data: Vec<Context> = self.comm.recv_object_vector(i, 99);
+                for ctx in data {
+                    clock.add_context(ctx);
+                }
+            }
+        } else {
+            /* -------------------------- Send out clock stats -------------------------- */
+            let data = clock.get_contexts().map(|t| t.clone()).collect::<Vec<_>>();
+            self.comm.send_object_vector(data.as_slice(), 0, 99);
+        }
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -106,11 +131,13 @@ pub fn generator_process(communicator: &Communicator) -> String {
     let stop_future: Box<dyn MpiFuture> =
         communicator.irecv::<u8>(100, MPI_UINT8_T, MPI_ANY_SOURCE, MpiTags::RESULT.into());
     process.add_future(stop_future);
-    if use_dict {
+    let res = if use_dict {
         chunked_generator_process(&mut process)
     } else {
         brute_generator_process(&mut process)
-    }
+    };
+    process.exchange_timers();
+    res
 }
 
 fn chunked_generator_process(process: &mut MpiProcess) -> String {
@@ -249,6 +276,7 @@ pub fn worker_process(communicator: &Communicator) {
     } else {
         brute_worker_process(&mut process);
     }
+    process.exchange_timers();
 }
 
 fn receive_size_or_stop(process: &mut MpiProcess, chunks: i32) -> Option<Vec<u8>> {
@@ -316,6 +344,9 @@ fn chunked_worker_process(process: &mut MpiProcess) {
             if let Some(chunks) = receive_string_or_stop(process, &mut size) {
                 let ctx = ComputeContext::Chunked(chunks, size, &target);
                 let result = compute(ctx);
+                if let Some(res) = result {
+                    process.send_result(res.as_bytes());
+                }
             } else {
                 debug!("Stop requested");
                 return;
@@ -331,7 +362,7 @@ fn brute_worker_process(process: &mut MpiProcess) {
         let args = ARGS.lock().unwrap();
         CString::new(args.target_md5.as_bytes()).unwrap()
     };
-
+    let context_compute_name = format!("Node:{}, brute_compute", process.comm.rank());
     loop {
         process.add_future(
             process
@@ -349,8 +380,13 @@ fn brute_worker_process(process: &mut MpiProcess) {
                 let mut sizes = [0u64; 2];
                 sizes[0..2].copy_from_slice(&promise.as_promise().data()[0..2]);
                 process.remove_future(index);
-                let context = ComputeContext::Brute(sizes[0] as usize, sizes[1] as usize, &target);
-                let result = compute(context);
+                let mut result = None;
+                GlobalClock::instance().with_context(&context_compute_name, || {
+                    let context =
+                        ComputeContext::Brute(sizes[0] as usize, sizes[1] as usize, &target);
+                    result = compute(context);
+                    1
+                });
                 if let Some(res) = result {
                     process.send_result(res.as_bytes());
                 }
@@ -368,7 +404,11 @@ fn brute_worker_process(process: &mut MpiProcess) {
 #[cfg(test)]
 mod tests {
 
-    use crate::mpi::scope::init;
+    use std::path::Path;
+
+    use clap::Parser;
+
+    use crate::{ProgramOptions, mpi::scope::init};
 
     use super::*;
 
@@ -414,5 +454,40 @@ mod tests {
     }
 
     #[test]
-    fn test_worker_result() {}
+    fn test_chunked_worker_routine() {
+        let universe = init();
+        let comm = universe.world();
+
+        let options = ProgramOptions::parse_from(
+            "--use-mpi  --target-md5 c4eaf0c0b43f2efcefa870ddbab7950c --num-threads 10 --chunk-size 10"
+            .split_whitespace()
+        );
+        ARGS.lock().unwrap().clone_from(&options);
+        if comm.rank() == 0 {
+            let filepath = Path::new(format!("{}", env!("CARGO_MANIFEST_DIR")).as_str())
+                .parent()
+                .unwrap()
+                .join("dictionary.txt");
+            let mut generator = DictionaryReader::new(filepath.as_os_str().to_str().unwrap())
+                .unwrap_or_else(|_| panic!("Failed to open dictionary"));
+            let mut data = generator.generate_flatten_chunk(10 as usize);
+            comm.recv::<u8>(MPI_UINT8_T, 1, MpiTags::REQUEST.into());
+            comm.send_vector(
+                &data.sizes.as_slice(),
+                MPI_UINT8_T,
+                1,
+                MpiTags::SIZES.into(),
+            );
+            comm.send_vector(
+                &data.strings.as_slice(),
+                MPI_UINT8_T,
+                1,
+                MpiTags::DATA.into(),
+            );
+            let res = comm.recv_vector::<u8>(MPI_UINT8_T, 1, MpiTags::RESULT.into());
+            println!("Received result:{}", String::from_utf8_lossy(&res));
+        } else {
+            chunked_worker_process(&mut MpiProcess::new(&comm));
+        }
+    }
 }

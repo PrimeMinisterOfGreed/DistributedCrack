@@ -4,11 +4,10 @@ use std::{
     sync::{Mutex, MutexGuard},
     time::Instant,
 };
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct ClockStats {
     pub busy_time: u64,
     pub observation_time: u64,
-    pub start: Instant,
     pub task_count: u64,
 }
 
@@ -17,7 +16,6 @@ impl ClockStats {
         ClockStats {
             busy_time: 0,
             observation_time: 0,
-            start: Instant::now(),
             task_count: 0,
         }
     }
@@ -39,17 +37,20 @@ impl ClockStats {
     }
 }
 
-struct Context {
-    name: String,
+#[derive(Clone, Debug)]
+pub struct Context {
+    name: heapless::String<32>,
     stats: ClockStats,
 }
 
 impl Context {
     pub fn new(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
+        let mut this = Self {
+            name: heapless::String::new(),
             stats: ClockStats::new(),
-        }
+        };
+        this.name.push_str(name).unwrap();
+        this
     }
 }
 
@@ -72,6 +73,19 @@ impl GlobalClock {
     pub fn instance() -> MutexGuard<'static, GlobalClock> {
         GLOBAL_CLOCK.lock().unwrap()
     }
+
+    pub fn add_context(&mut self, ctx: Context) {
+        self.contexts.push(ctx);
+    }
+
+    pub fn get_contexts(&self) -> impl Iterator<Item = &Context> {
+        self.contexts.iter()
+    }
+
+    pub fn get_context(&self, name: &str) -> Option<&Context> {
+        self.contexts.iter().find(|ctx| ctx.name == name)
+    }
+
     pub fn with_context(&mut self, name: &str, mut f: impl FnMut() -> i32) {
         let start = Instant::now();
         let result = f();
@@ -112,6 +126,8 @@ impl GlobalClock {
 
 #[cfg(test)]
 mod tests {
+    use std::mem::transmute;
+
     use super::*;
 
     #[test]
@@ -126,5 +142,32 @@ mod tests {
             2
         });
         clock.report_stats();
+    }
+
+    #[test]
+    fn test_context_serialization() {
+        let mut clock = GlobalClock::new();
+        clock.with_context("test", || {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            1
+        });
+        clock.with_context("test", || {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            2
+        });
+        let mut stat = clock.get_context("test").unwrap();
+
+        let mut buffer = [0u8; size_of::<Context>()];
+        unsafe {
+            core::ptr::copy(
+                transmute::<_, *const [u8; size_of::<Context>()]>(stat),
+                buffer.as_mut_ptr() as *mut [u8; size_of::<Context>()],
+                size_of::<Context>(),
+            )
+        };
+        println!("Buffer: {:?}", buffer);
+        let mut stat_copy: Context = unsafe { transmute(buffer) };
+        println!("Stat : {:?}", stat);
+        println!("Stat Copy: {:?}", stat_copy);
     }
 }

@@ -19,6 +19,7 @@ mod dictionary_reader;
 pub mod gpu;
 mod mpi;
 pub mod sequence_generator;
+pub mod single_node;
 mod timers;
 /// Program options parsed from command-line arguments
 #[derive(Parser, Debug, Default, Clone)]
@@ -100,8 +101,9 @@ pub fn rust_main() {
         let mut argv: *mut *mut i8 = null_mut();
         let mut global_scope = MpiGlobalScope::new();
         run_mpi_work(&mut global_scope);
+    } else {
+        single_node_routine();
     }
-
     GlobalClock::instance().report_stats();
 }
 
@@ -109,11 +111,11 @@ pub fn run_mpi_work(global_scope: &mut MpiGlobalScope) -> Option<String> {
     let world = global_scope.world();
     let rank = world.rank();
     if rank == 0 {
-        let mut res = None;
-        GlobalClock::instance().with_context("wallclock", || {
-            res = Some(mpi::routines::generator_process(&world));
-            1
-        });
+        let res = Some(
+            mpi::routines::generator_process(&world)
+                .trim_end_matches('\0')
+                .to_string(),
+        );
         res
     } else {
         mpi::routines::worker_process(&world);
@@ -121,9 +123,11 @@ pub fn run_mpi_work(global_scope: &mut MpiGlobalScope) -> Option<String> {
     }
 }
 
+pub fn single_node_routine() {}
+
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::{path::Path, process::Termination};
 
     use crate::mpi::scope::init;
 
@@ -132,19 +136,55 @@ mod tests {
     #[test]
     fn test_brute_attack_with_gpu() {
         let options = ProgramOptions::parse_from(
-            "--use-mpi --use-gpu --target-md5 4a7d1ed414474e4033ac29ccb8653d9b --num-threads 1000 --chunk-size 1000"
+            "--use-mpi --use-gpu --brutestart 4b --target-md5 98abe3a28383501f4bfd2d9077820f11 --num-threads 100000 --chunk-size 100000"
                 .split_whitespace(),
         );
         ARGS.lock().unwrap().clone_from(&options);
         let mut universe = init();
         let result = run_mpi_work(&mut universe);
         if universe.world().rank() == 0 {
-            assert_eq!(result.unwrap(), "0000");
+            assert_eq!(result.unwrap(), "!!!!");
         }
+        GlobalClock::instance().report_stats();
     }
 
     #[test]
     fn test_brute_attack() {
+        let options = ProgramOptions::parse_from(
+            "--use-mpi  --target-md5 98abe3a28383501f4bfd2d9077820f11 --num-threads 1000 --chunk-size 1000"
+                .split_whitespace(),
+        );
+        ARGS.lock().unwrap().clone_from(&options);
+        let mut universe = init();
+        let result = run_mpi_work(&mut universe);
+        if universe.world().rank() == 0 {
+            assert_eq!(result.unwrap().replace('\0', " ").trim(), "!!!!");
+        }
+        if universe.world().rank() == 0 {
+            GlobalClock::instance().report_stats();
+        }
+    }
+
+    #[test]
+    fn test_chunked_attack() {
+        let options = ProgramOptions::parse_from(format!(
+            "--use-mpi --target-md5 c4eaf0c0b43f2efcefa870ddbab7950c --num-threads 1000 --chunk-size 1000 --dictionary {}/dictionary.txt", Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().display())
+                .split_whitespace(),
+        );
+        ARGS.lock().unwrap().clone_from(&options);
+        let mut universe = init();
+        let result = run_mpi_work(&mut universe);
+        if universe.world().rank() == 0 {
+            assert_eq!(result.unwrap(), "#name?");
+        }
+        if universe.world().rank() == 0 {
+            GlobalClock::instance().report_stats();
+        }
+    }
+
+    #[test]
+
+    fn bench_brute_attack() {
         let options = ProgramOptions::parse_from(
             "--use-mpi  --target-md5 4a7d1ed414474e4033ac29ccb8653d9b --num-threads 1000 --chunk-size 1000"
                 .split_whitespace(),
@@ -155,19 +195,8 @@ mod tests {
         if universe.world().rank() == 0 {
             assert_eq!(result.unwrap().replace('\0', " ").trim(), "0000");
         }
-    }
-
-    #[test]
-    fn test_chunked_attack() {
-        let options = ProgramOptions::parse_from(format!(
-            "--use-mpi --target-md5 45ed7216d59ce25d2ce05470c6bf52d0 --num-threads 1000 --chunk-size 1000 --dictionary {}/dictionary.txt", Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().display())
-                .split_whitespace(),
-        );
-        ARGS.lock().unwrap().clone_from(&options);
-        let mut universe = init();
-        let result = run_mpi_work(&mut universe);
         if universe.world().rank() == 0 {
-            assert_eq!(result.unwrap(), "#name?");
+            GlobalClock::instance().report_stats();
         }
     }
 }

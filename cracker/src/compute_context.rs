@@ -66,11 +66,15 @@ pub fn chunked_mode(string: Vec<u8>, sizes: Vec<u8>, target: &CString) -> Option
     let threads = { ARGS.lock().unwrap().num_threads };
     let gpuon = { ARGS.lock().unwrap().use_gpu };
     if gpuon {
-        md5_transform(&string, &sizes, threads as u32)
-            .iter()
-            .par_bridge()
-            .find_any(|x| **x == target.to_string_lossy().to_string())
-            .cloned()
+        let res = md5_transform(&string, &sizes, threads as u32);
+        let mut itr = SplittedIterator::new(&string, &sizes);
+        for (i, x) in res.iter().enumerate() {
+            if *x == target.to_string_lossy().to_string() {
+                let elem = itr.skip(i - 1).next().unwrap();
+                return Some(elem.to_string_lossy().to_string());
+            }
+        }
+        return None;
     } else {
         let mut itr = SplittedIterator::new(&string, &sizes);
         itr.par_bridge()
@@ -116,6 +120,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_brute_mode_gpu() {
+        let target = CString::new("98abe3a28383501f4bfd2d9077820f11").unwrap();
+
+        {
+            let mut args = ARGS.lock().unwrap();
+            args.num_threads = 4;
+            args.use_gpu = true;
+            args.brutestart = 4; // ASCII '!'
+        }
+
+        let result = brute_mode(0, 1000, &target);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "!!!!");
+    }
+
+    #[test]
     fn test_splitted_iterator() {
         let mut generator = SequenceGenerator::new(4);
         let result = generator.generate_flatten_chunk(100);
@@ -146,11 +166,49 @@ mod tests {
         .expect("Failed to read file");
         let result = reader.generate_flatten_chunk(1000);
         let mut itr = SplittedIterator::new(&result.strings, &result.sizes);
-        let target = md5_cpu(&CString::new("#name?").unwrap());
+        let target = "c4eaf0c0b43f2efcefa870ddbab7950c"; // #name?
         let res = itr
             .par_bridge()
             .map(|x| md5_cpu(&x))
             .find_any(|x| *x == target);
         assert!(res.is_some());
+    }
+
+    #[test]
+    fn test_chunked_mode() {
+        {
+            let mut args = ARGS.lock().unwrap();
+            args.num_threads = 1000;
+            args.use_gpu = false;
+        }
+        let mut reader = DictionaryReader::new(
+            "/home/drfaust/Scrivania/uni/Magistrale/SCPD/Project/DistributedCrack/dictionary.txt",
+        )
+        .expect("Failed to read file");
+        let result = reader.generate_flatten_chunk(1000);
+        let target = "c4eaf0c0b43f2efcefa870ddbab7950c"; // #name?
+        let res = chunked_mode(result.strings, result.sizes, &CString::new(target).unwrap());
+        assert!(res.is_some());
+        println!("Result: {:?}", res);
+        assert_eq!(res.unwrap(), "#name?");
+    }
+
+    #[test]
+    fn test_chunked_mode_gpu() {
+        {
+            let mut args = ARGS.lock().unwrap();
+            args.num_threads = 1000;
+            args.use_gpu = true;
+        }
+        let mut reader = DictionaryReader::new(
+            "/home/drfaust/Scrivania/uni/Magistrale/SCPD/Project/DistributedCrack/dictionary.txt",
+        )
+        .expect("Failed to read file");
+        let result = reader.generate_flatten_chunk(1000);
+        let target = "c4eaf0c0b43f2efcefa870ddbab7950c"; // #name?
+        let res = chunked_mode(result.strings, result.sizes, &CString::new(target).unwrap());
+        assert!(res.is_some());
+        println!("Result: {:?}", res);
+        assert_eq!(res.unwrap(), "#name?");
     }
 }

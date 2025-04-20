@@ -9,8 +9,11 @@ crate-type = ["staticlib"]
 [dependencies]
 clap={version = "*", features = ["std","derive","env"]}
 lazy_static = { version = "*" }
+heapless = { version = "*" }
 allocator_api = { version = "*" }
 log={ version = "*" }
+serde = { version = "*" }
+csv = { version = "*" }
 simple_logger = { version = "*" }
 rayon = { version = "*" }
 [build-dependencies]
