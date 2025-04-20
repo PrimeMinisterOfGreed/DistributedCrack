@@ -393,10 +393,15 @@ where
     T: Clone + Default,
 {
     pub fn start(&mut self) {
-        self.innerPromise.state = self.innerPromise.state.start();
+        //self.innerPromise.state = self.innerPromise.state.start();
         unsafe {
             MPI_Start(&mut self.innerPromise.request);
         }
+    }
+
+    pub fn reset(&mut self) -> &mut Self {
+        self.innerPromise.state = self.innerPromise.state.restart();
+        self
     }
 }
 
@@ -701,8 +706,8 @@ mod tests {
         let comm = world.world();
         let rank = comm.rank();
         if rank == 0 {
-            let mut promise1 = comm.irecv::<i32>(2, MPI_INT32_T, MPI_ANY_SOURCE, MPI_ANY_TAG);
-            let mut promise2 = comm.irecv::<i32>(2, MPI_INT32_T, 1, 2);
+            let promise1 = comm.irecv::<i32>(2, MPI_INT32_T, MPI_ANY_SOURCE, MPI_ANY_TAG);
+            let promise2 = comm.irecv::<i32>(2, MPI_INT32_T, 1, 2);
             let mut futures: [Box<dyn MpiFuture>; 2] = [promise2, promise1];
             let res = waitany(&mut futures);
             assert_eq!(res.status.MPI_SOURCE, 1);
@@ -713,7 +718,7 @@ mod tests {
             assert_eq!(res.future.as_promise::<i32>().buffer[1], 25);
             assert_eq!(res.index, 1);
         } else {
-            let mut buf = [42, 25];
+            let buf = [42, 25];
             comm.send_vector(&buf, MPI_INT32_T, 0, 1);
         }
     }

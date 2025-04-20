@@ -30,8 +30,9 @@ impl ChunkGenerator for DictionaryReader {
                 if line.is_empty() {
                     break;
                 }
-                strings.extend(line.trim().as_bytes());
-                sizes.push(line.len() as u8);
+                let trimmed = line.trim();
+                strings.extend(trimmed.as_bytes());
+                sizes.push(trimmed.len() as u8);
             } else {
                 break;
             }
@@ -51,7 +52,18 @@ mod tests {
             "/home/drfaust/Scrivania/uni/Magistrale/SCPD/Project/DistributedCrack/dictionary.txt",
         )
         .expect("Failed to read file");
-        let result = reader.generate_flatten_chunk(1000);
-        assert_eq!(result.sizes.len(), 1000);
+        for _ in 0..10 {
+            let result = reader.generate_flatten_chunk(1000);
+            let mut dataptr = 0;
+            for i in 0..10 {
+                let chunk = &result.strings[dataptr..dataptr + (result.sizes[i]) as usize];
+                println!("{}: {}", i, String::from_utf8_lossy(chunk));
+                dataptr += (result.sizes[i]) as usize;
+            }
+            assert_eq!(result.sizes.len(), 1000);
+            assert!(result.strings.len() > result.sizes.len());
+            println!("strings length: {}", result.strings.len());
+            println!("sizes length: {}", result.sizes.len());
+        }
     }
 }

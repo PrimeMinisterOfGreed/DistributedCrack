@@ -9,7 +9,8 @@
             "--nocapture"
       ],
       "rust-analyzer.runnables.extraEnv": {
-            "LD_PRELOAD": "${workspaceFolder}/build/libs/gpu_md5/libmd5_gpu.so"
+            "LD_PRELOAD": "${workspaceFolder}/build/libs/gpu_md5/libmd5_gpu.so",
+            "RUST_BACKTRACE": "full"
       },
       "editor.tabCompletion": "on",
       "diffEditor.codeLens": true,
@@ -84,5 +85,11 @@
             "build/DistributedCrack_lcov.info"
       ],
       "OpenCL.server.deviceID": 2298066432,
-      "testMate.cpp.test.executables": "{build,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST,ut}*"
+      "testMate.cpp.test.executables": "{build,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST,ut}*",
+      "github.copilot.enable": {
+            "*": true,
+            "plaintext": false,
+            "markdown": false,
+            "scminput": false
+      }
 }
