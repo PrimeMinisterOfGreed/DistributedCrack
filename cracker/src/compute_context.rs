@@ -70,7 +70,7 @@ pub fn chunked_mode(string: Vec<u8>, sizes: Vec<u8>, target: &CString) -> Option
         let mut itr = SplittedIterator::new(&string, &sizes);
         for (i, x) in res.iter().enumerate() {
             if *x == target.to_string_lossy().to_string() {
-                let elem = itr.skip(i - 1).next().unwrap();
+                let elem = itr.skip(i).next().unwrap();
                 return Some(elem.to_string_lossy().to_string());
             }
         }

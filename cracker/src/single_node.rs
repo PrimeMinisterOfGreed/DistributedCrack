@@ -2,8 +2,8 @@ use std::ffi::CString;
 
 use rayon::result;
 
+use crate::options::ARGS;
 use crate::{
-    ARGS,
     compute_context::{ComputeContext, compute},
     sequence_generator::{ChunkGenerator, SequenceGenerator},
 };
