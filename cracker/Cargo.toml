@@ -12,9 +12,10 @@ lazy_static = { version = "*" }
 heapless = { version = "*" }
 allocator_api = { version = "*" }
 log={ version = "*" }
-serde = { version = "*" }
+serde = { version = "*" , features = ["derive"] }
 csv = { version = "*" }
 simple_logger = { version = "*" }
+toml = { version = "*" }
 rayon = { version = "*" }
 [build-dependencies]
 cc = { version = "*" }

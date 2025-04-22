@@ -1,8 +1,8 @@
-use std::mem::MaybeUninit;
+use std::{mem::MaybeUninit, os::raw::c_void};
 
 use log::debug;
 
-use crate::mpi::ffi::MPI_Comm;
+use crate::mpi::ffi::{MPI_Bcast, MPI_Comm};
 
 use super::ffi::{
     MPI_Comm_rank, MPI_Comm_size, MPI_Datatype, MPI_Finalize, MPI_Get_count, MPI_INT32_T, MPI_Init,
@@ -183,11 +183,27 @@ impl Communicator {
             result
         }
     }
+
+    pub fn broadcast<T>(&self, buffer: &mut [T], root: i32, datatype: i32) -> Result<(), i32> {
+        unsafe {
+            let res = MPI_Bcast(
+                buffer.as_mut_ptr() as *mut c_void,
+                buffer.len() as i32,
+                datatype,
+                root,
+                self.comm,
+            );
+            if res != 0 {
+                return Err(res);
+            }
+            Ok(())
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{mem::MaybeUninit, os::raw::c_void, ptr::null_mut};
+    use std::{mem::MaybeUninit, os::raw::c_void, ptr::null_mut, str::FromStr};
 
     use crate::{
         mpi::{
@@ -289,6 +305,23 @@ mod tests {
                 },
             ];
             comm.send_object_vector(&s, 0, 1);
+        }
+    }
+
+    #[test]
+    fn test_broadcast() {
+        let world = init();
+        let rank = world.world().rank;
+        let comm = world.world();
+        if rank == 0 {
+            let mut s = [0u8; 1024];
+            let data = b"Hello, world!";
+            s[..data.len()].copy_from_slice(data);
+            comm.broadcast(&mut s, 0, MPI_UINT8_T).unwrap();
+        } else {
+            let mut s = [0u8; 1024];
+            comm.broadcast(&mut s, 0, MPI_UINT8_T).unwrap();
+            println!("s.len(): {}", String::from_utf8_lossy(&s));
         }
     }
 }
