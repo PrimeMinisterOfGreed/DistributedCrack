@@ -136,7 +136,7 @@
  
      md5Step(ctx->buffer, input);
  
-     // Move the result into digest (convert from little-endian)
+     // Move the result into digest
      for(unsigned int i = 0; i < 4; ++i){
          ctx->digest[(i * 4) + 0] = (uint8_t)((ctx->buffer[i] & 0x000000FF));
          ctx->digest[(i * 4) + 1] = (uint8_t)((ctx->buffer[i] & 0x0000FF00) >>  8);

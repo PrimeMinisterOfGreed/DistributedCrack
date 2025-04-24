@@ -19,13 +19,13 @@ pub fn main() {
     );
     println!("cargo:rustc-link-lib=dylib=md5_gpu");
     // parse and use mpich pkg config
-    let mpich = Config::new().atleast_version("3.0").probe("mpich").unwrap();
-    println!("cargo:rustc-link-lib=static={}", mpich.libs[0]);
+    let openmpi = Config::new().atleast_version("3.0").probe("mpi").unwrap();
+    println!("cargo:rustc-link-lib=static={}", openmpi.libs[0]);
     println!(
         "cargo:rustc-link-search=native={}",
-        mpich.link_paths[0].display()
+        openmpi.link_paths[0].display()
     );
-    for lib in mpich.libs.iter() {
+    for lib in openmpi.libs.iter() {
         println!("cargo:rustc-link-lib=dylib={}", lib);
     }
     // link to pthread
@@ -46,8 +46,8 @@ pub fn main() {
 
     // Generate bindings for openmpi /usr/lib/x86_64-linux-gnu/openmpi/include/mpi.h
     let bindings = bindgen::Builder::default()
-        .header("/usr/lib/x86_64-linux-gnu/mpich/include/mpi.h")
-        .clang_arg("-I/usr/lib/x86_64-linux-gnu/mpich/include")
+        .header("/usr/lib/x86_64-linux-gnu/openmpi/include/mpi.h")
+        .clang_arg("-I/usr/lib/x86_64-linux-gnu/openmpi/include")
         .fit_macro_constants(false)
         .use_core()
         .clang_macro_fallback()

@@ -1,12 +1,12 @@
 use super::{
-    communicator::Communicator,
+    communicator::{Communicator, MpiDatatype, MpiRequest, MpiStatus},
     ffi::{
-        MPI_Cancel, MPI_Comm, MPI_Get_count, MPI_Iprobe, MPI_Irecv, MPI_Isend, MPI_Recv_init,
-        MPI_Request, MPI_Request_free, MPI_Send_init, MPI_Start, MPI_Status, MPI_Test, MPI_Wait,
-        MPI_Waitall, MPI_Waitany,
+        MPI_Cancel, MPI_Comm, MPI_Datatype, MPI_Get_count, MPI_Iprobe, MPI_Irecv, MPI_Isend,
+        MPI_Recv_init, MPI_Request, MPI_Request_free, MPI_Send_init, MPI_Start, MPI_Status,
+        MPI_Test, MPI_Wait, MPI_Waitall, MPI_Waitany,
     },
 };
-use std::{any::Any, mem::MaybeUninit, path::Display};
+use std::{any::Any, mem::MaybeUninit, path::Display, ptr::null_mut};
 
 /*------------------------------------------------------------------------
  *                           Mpi Future Traits
@@ -19,9 +19,9 @@ pub trait MpiFuture {
     fn wait(&mut self) -> i32;
     fn test(&mut self) -> bool;
     fn cancel(&mut self) -> i32;
-    fn status(&self) -> MPI_Status;
-    fn request(&self) -> MPI_Request;
-    fn set_status(&mut self, status: MPI_Status);
+    fn status(&self) -> MpiStatus;
+    fn request(&self) -> MpiRequest;
+    fn set_status(&mut self, status: MpiStatus);
 }
 
 /// MpiBufferedFuture is a trait that extends MpiFuture to support
@@ -31,8 +31,8 @@ pub trait MpiBufferedFuture<T>: MpiFuture
 where
     T: Clone + Default,
 {
-    fn as_recv(comm: MPI_Comm, count: usize) -> Box<Self>;
-    fn as_send(elems: &[T], comm: MPI_Comm) -> Box<Self>;
+    fn as_recv(comm: &Communicator, count: usize) -> Box<Self>;
+    fn as_send(elems: &[T], comm: &Communicator) -> Box<Self>;
     fn data(&self) -> &[T];
 }
 
@@ -120,11 +120,11 @@ impl PromiseState {
 #[derive(Debug, Default)]
 pub struct MpiPromise<T> {
     buffer: Vec<T>,
-    status: MPI_Status,
-    request: MPI_Request,
-    comm: MPI_Comm,
+    status: MpiStatus,
+    request: MpiRequest,
+    comm: Communicator,
     flag: i32,
-    mpi_type: i32,
+    mpi_type: MpiDatatype,
     state: PromiseState,
     source: i32,
     tag: i32,
@@ -135,15 +135,15 @@ impl<T> MpiBufferedFuture<T> for MpiPromise<T>
 where
     T: Clone + Default,
 {
-    fn as_recv(comm: MPI_Comm, count: usize) -> Box<Self> {
+    fn as_recv(comm: &Communicator, count: usize) -> Box<Self> {
         let mut this = Self {
             buffer: vec![T::default(); count],
-            status: MPI_Status::default(),
-            request: MPI_Request::default(),
-            comm: comm,
+            status: MpiStatus::default(),
+            request: MpiRequest::default(),
+            comm: comm.clone(),
             state: PromiseState::Receiving,
             flag: 0,
-            mpi_type: 0,
+            mpi_type: MpiDatatype::default(),
             source: 0,
             tag: 0,
             dest: 0,
@@ -151,15 +151,15 @@ where
         Box::new(this)
     }
 
-    fn as_send(buf: &[T], comm: MPI_Comm) -> Box<Self> {
+    fn as_send(buf: &[T], comm: &Communicator) -> Box<Self> {
         let mut this = Self {
             buffer: Vec::from(buf),
-            status: MPI_Status::default(),
-            request: MPI_Request::default(),
-            comm: comm,
+            status: MpiStatus::default(),
+            request: MpiRequest::default(),
+            comm: comm.clone(),
             state: PromiseState::Sending,
             flag: 0,
-            mpi_type: 0,
+            mpi_type: MpiDatatype::default(),
             source: 0,
             tag: 0,
             dest: 0,
@@ -176,7 +176,7 @@ impl<T> MpiFuture for MpiPromise<T> {
         self.wait();
         0
     }
-    fn set_status(&mut self, status: MPI_Status) {
+    fn set_status(&mut self, status: MpiStatus) {
         self.status = status;
     }
     fn test(&mut self) -> bool {
@@ -188,11 +188,11 @@ impl<T> MpiFuture for MpiPromise<T> {
         0
     }
 
-    fn status(&self) -> MPI_Status {
+    fn status(&self) -> MpiStatus {
         self.status
     }
 
-    fn request(&self) -> MPI_Request {
+    fn request(&self) -> MpiRequest {
         self.request
     }
 }
@@ -201,14 +201,14 @@ impl<T> MpiPromise<T> {
     pub fn state(&self) -> PromiseState {
         self.state
     }
-    pub fn request(&self) -> MPI_Request {
+    pub fn request(&self) -> MpiRequest {
         self.request
     }
     pub fn cancel(&mut self) {
         self.state = self.state.cancel();
         {
             unsafe {
-                MPI_Cancel(&mut self.request);
+                MPI_Cancel(&mut self.request.request);
             }
         }
     }
@@ -221,19 +221,23 @@ impl<T> MpiPromise<T> {
             return false;
         }
         unsafe {
-            MPI_Test(&mut self.request, &mut self.flag, &mut self.status);
+            MPI_Test(
+                &mut self.request.request,
+                &mut self.flag,
+                &mut self.status.status,
+            );
         }
         self.flag != 0
     }
 
-    pub fn status(&self) -> MPI_Status {
+    pub fn status(&self) -> MpiStatus {
         self.status
     }
 
     pub fn wait(&mut self) {
         self.state = self.state.complete();
         unsafe {
-            MPI_Wait(&raw mut self.request, &mut self.status);
+            MPI_Wait(&raw mut self.request.request, &mut self.status.status);
         }
     }
     pub fn probe(&mut self) {
@@ -244,9 +248,9 @@ impl<T> MpiPromise<T> {
             MPI_Iprobe(
                 self.source,
                 self.tag,
-                self.comm,
+                self.comm.comm(),
                 &mut self.flag,
-                &mut self.status,
+                &mut self.status.status,
             );
         }
     }
@@ -259,11 +263,17 @@ impl<T> MpiPromise<T> {
 /// MpiPromise instances for sending and receiving data
 impl Communicator {
     /// Creates a new MpiPromise instance for receiving data
-    pub fn irecv<T>(&self, count: usize, mpi_type: i32, source: i32, tag: i32) -> Box<MpiPromise<T>>
+    pub fn irecv<T>(
+        &self,
+        count: usize,
+        mpi_type: MpiDatatype,
+        source: i32,
+        tag: i32,
+    ) -> Box<MpiPromise<T>>
     where
         T: Clone + Default,
     {
-        let mut result = MpiPromise::<T>::as_recv(self.comm(), count);
+        let mut result = MpiPromise::<T>::as_recv(self, count);
         result.mpi_type = mpi_type;
         result.source = source;
         result.tag = tag;
@@ -272,22 +282,28 @@ impl Communicator {
             MPI_Irecv(
                 result.buffer.as_mut_ptr() as *mut _,
                 (count) as i32,
-                mpi_type,
+                mpi_type.datatype,
                 source,
                 tag,
                 self.comm(),
-                &mut result.request,
+                &mut result.request.request,
             );
         }
         result
     }
 
     /// Creates a new MpiPromise instance for sending data
-    pub fn isend<T>(&self, elems: &[T], mpi_type: i32, dest: i32, tag: i32) -> Box<MpiPromise<T>>
+    pub fn isend<T>(
+        &self,
+        elems: &[T],
+        mpi_type: MpiDatatype,
+        dest: i32,
+        tag: i32,
+    ) -> Box<MpiPromise<T>>
     where
         T: Clone + Default,
     {
-        let mut result = MpiPromise::<T>::as_send(elems, self.comm());
+        let mut result = MpiPromise::<T>::as_send(elems, self);
         result.mpi_type = mpi_type;
         result.source = self.rank();
         result.tag = tag;
@@ -296,11 +312,11 @@ impl Communicator {
             MPI_Isend(
                 result.buffer.as_mut_ptr() as *mut _,
                 (result.buffer.len()) as i32,
-                mpi_type,
+                mpi_type.datatype,
                 dest,
                 tag,
                 self.comm(),
-                &mut result.request,
+                &mut result.request.request,
             );
         }
         result
@@ -322,26 +338,26 @@ impl<T> MpiBufferedFuture<T> for PersistentPromise<T>
 where
     T: Clone + Default,
 {
-    fn as_recv(comm: MPI_Comm, count: usize) -> Box<Self> {
+    fn as_recv(comm: &Communicator, count: usize) -> Box<Self> {
         let mut this = Self {
             innerPromise: MpiPromise::<T>::default(),
         };
         this.innerPromise.buffer = vec![T::default(); count];
-        this.innerPromise.status = MPI_Status::default();
-        this.innerPromise.request = MPI_Request::default();
-        this.innerPromise.comm = comm;
+        this.innerPromise.status = MpiStatus::default();
+        this.innerPromise.request = MpiRequest::default();
+        this.innerPromise.comm = comm.clone();
         this.innerPromise.state = PromiseState::PreReceiving;
         Box::new(this)
     }
 
-    fn as_send(elems: &[T], comm: MPI_Comm) -> Box<Self> {
+    fn as_send(elems: &[T], comm: &Communicator) -> Box<Self> {
         let mut this = Self {
             innerPromise: MpiPromise::<T>::default(),
         };
         this.innerPromise.buffer = Vec::from(elems);
-        this.innerPromise.status = MPI_Status::default();
-        this.innerPromise.request = MPI_Request::default();
-        this.innerPromise.comm = comm;
+        this.innerPromise.status = MpiStatus::default();
+        this.innerPromise.request = MpiRequest::default();
+        this.innerPromise.comm = comm.clone();
         this.innerPromise.state = PromiseState::PreSending;
         Box::new(this)
     }
@@ -366,7 +382,7 @@ where
         0
     }
 
-    fn set_status(&mut self, status: MPI_Status) {
+    fn set_status(&mut self, status: MpiStatus) {
         self.innerPromise.status = status;
     }
 
@@ -379,11 +395,11 @@ where
         0
     }
 
-    fn status(&self) -> MPI_Status {
+    fn status(&self) -> MpiStatus {
         self.innerPromise.status
     }
 
-    fn request(&self) -> MPI_Request {
+    fn request(&self) -> MpiRequest {
         self.innerPromise.request
     }
 }
@@ -395,7 +411,7 @@ where
     pub fn start(&mut self) {
         //self.innerPromise.state = self.innerPromise.state.start();
         unsafe {
-            MPI_Start(&mut self.innerPromise.request);
+            MPI_Start(&mut self.innerPromise.request.request);
         }
     }
 
@@ -411,7 +427,7 @@ where
 {
     fn drop(&mut self) {
         unsafe {
-            MPI_Request_free(&mut self.innerPromise.request);
+            MPI_Request_free(&mut self.innerPromise.request.request);
         }
     }
 }
@@ -420,14 +436,14 @@ impl Communicator {
     pub fn recv_init<T>(
         &self,
         count: usize,
-        mpi_type: i32,
+        mpi_type: MpiDatatype,
         source: i32,
         tag: i32,
     ) -> Box<PersistentPromise<T>>
     where
         T: Clone + Default,
     {
-        let mut result = PersistentPromise::<T>::as_recv(self.comm(), count);
+        let mut result = PersistentPromise::<T>::as_recv(self, count);
         result.innerPromise.mpi_type = mpi_type;
         result.innerPromise.source = source;
         result.innerPromise.tag = tag;
@@ -436,11 +452,11 @@ impl Communicator {
             MPI_Recv_init(
                 result.innerPromise.buffer.as_mut_ptr() as *mut _,
                 (count) as i32,
-                mpi_type,
+                mpi_type.datatype,
                 source,
                 tag,
                 self.comm(),
-                &mut result.innerPromise.request,
+                &mut result.innerPromise.request.request,
             );
         }
         result
@@ -449,14 +465,14 @@ impl Communicator {
     pub fn send_init<T>(
         &self,
         elems: &[T],
-        mpi_type: i32,
+        mpi_type: MpiDatatype,
         dest: i32,
         tag: i32,
     ) -> Box<PersistentPromise<T>>
     where
         T: Clone + Default,
     {
-        let mut result = PersistentPromise::<T>::as_send(elems, self.comm());
+        let mut result = PersistentPromise::<T>::as_send(elems, self);
         result.innerPromise.mpi_type = mpi_type;
         result.innerPromise.source = self.rank();
         result.innerPromise.tag = tag;
@@ -465,11 +481,11 @@ impl Communicator {
             MPI_Send_init(
                 result.innerPromise.buffer.as_mut_ptr() as *mut _,
                 (elems.len()) as i32,
-                mpi_type,
+                mpi_type.datatype,
                 dest,
                 tag,
                 self.comm(),
-                &mut result.innerPromise.request,
+                &mut result.innerPromise.request.request,
             );
         }
         result
@@ -481,21 +497,24 @@ impl Communicator {
  *------------------------------------------------------------------------------------------------*/
 
 pub struct WaitResult<'a> {
-    pub status: MPI_Status,
+    pub status: MpiStatus,
     pub future: &'a mut Box<dyn MpiFuture>,
     pub index: usize,
 }
 
 pub fn waitany(futures: &mut [Box<dyn MpiFuture>]) -> WaitResult {
-    let mut reqs = futures.iter().map(|f| f.request()).collect::<Vec<_>>();
-    let mut status = MPI_Status::default();
+    let mut reqs = futures
+        .iter()
+        .map(|f| f.request().request)
+        .collect::<Vec<_>>();
+    let mut status = MpiStatus::default();
     let mut index = 0;
     unsafe {
         MPI_Waitany(
             futures.len() as i32,
             reqs.as_mut_ptr(),
             &mut index,
-            &mut status,
+            &mut status.status,
         );
     }
     futures[index as usize].set_status(status);
@@ -507,7 +526,10 @@ pub fn waitany(futures: &mut [Box<dyn MpiFuture>]) -> WaitResult {
 }
 
 pub fn waitall<'a>(futures: &[&'a dyn MpiFuture]) -> Vec<MPI_Status> {
-    let mut reqs = futures.iter().map(|f| f.request()).collect::<Vec<_>>();
+    let mut reqs = futures
+        .iter()
+        .map(|f| f.request().request)
+        .collect::<Vec<_>>();
     let mut statuses = futures
         .iter()
         .map(|_| MPI_Status::default())
@@ -574,7 +596,8 @@ mod tests {
     use std::ops::Deref;
 
     use crate::mpi::{
-        ffi::{MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_INT32_T, MPI_UINT8_T, MpiType},
+        communicator::{MPI_INT32_T, MPI_UINT8_T},
+        ffi::{MPI_ANY_SOURCE, MPI_ANY_TAG},
         scope::init,
     };
 
@@ -615,7 +638,7 @@ mod tests {
             let mut promise = comm.irecv::<i32>(1, MPI_UINT8_T, 1, 1);
             promise.wait();
             assert!(!promise.test());
-            assert!(promise.status().MPI_SOURCE == 1);
+            assert!(promise.status().status.MPI_SOURCE == 1);
             assert!(promise.data()[0] == 42);
         } else {
             let mut buf = [42u8];
@@ -639,7 +662,7 @@ mod tests {
             let mut promise = comm.irecv::<u8>(100, MPI_UINT8_T, MPI_ANY_SOURCE, 1);
             promise.wait();
             assert!(!promise.test());
-            assert!(promise.status().MPI_SOURCE == 1);
+            assert!(promise.status().status.MPI_SOURCE == 1);
             assert!(promise.data()[0..10].iter().all(|&x| x == 'a' as u8));
         } else {
             let mut buf = ['a' as u8; 10];
@@ -664,7 +687,7 @@ mod tests {
                     "Promise state should be Receiving, but is {}",
                     promise.innerPromise.state
                 );
-                assert!(promise.status().MPI_SOURCE == 1);
+                assert!(promise.status().status.MPI_SOURCE == 1);
                 assert!(promise.data()[0] == i);
             }
         } else {
@@ -688,10 +711,10 @@ mod tests {
             let mut promise2 = comm.irecv::<i32>(1, MPI_UINT8_T, 1, 2);
             let mut futures: [Box<dyn MpiFuture>; 2] = [promise2, promise1];
             let res = waitany(&mut futures);
-            assert_eq!(res.status.MPI_SOURCE, 1);
-            assert_eq!(res.status.MPI_TAG, 1);
-            assert_eq!(res.future.status().MPI_SOURCE, 1);
-            assert_eq!(res.future.status().MPI_TAG, 1);
+            assert_eq!(res.status.status.MPI_SOURCE, 1);
+            assert_eq!(res.status.status.MPI_TAG, 1);
+            assert_eq!(res.future.status().status.MPI_SOURCE, 1);
+            assert_eq!(res.future.status().status.MPI_TAG, 1);
             assert_eq!(res.future.as_promise::<i32>().buffer[0], 42);
             assert_eq!(res.index, 1);
         } else {
@@ -710,10 +733,10 @@ mod tests {
             let promise2 = comm.irecv::<i32>(2, MPI_INT32_T, 1, 2);
             let mut futures: [Box<dyn MpiFuture>; 2] = [promise2, promise1];
             let res = waitany(&mut futures);
-            assert_eq!(res.status.MPI_SOURCE, 1);
-            assert_eq!(res.status.MPI_TAG, 1);
-            assert_eq!(res.future.status().MPI_SOURCE, 1);
-            assert_eq!(res.future.status().MPI_TAG, 1);
+            assert_eq!(res.status.status.MPI_SOURCE, 1);
+            assert_eq!(res.status.status.MPI_TAG, 1);
+            assert_eq!(res.future.status().status.MPI_SOURCE, 1);
+            assert_eq!(res.future.status().status.MPI_TAG, 1);
             assert_eq!(res.future.as_promise::<i32>().buffer[0], 42);
             assert_eq!(res.future.as_promise::<i32>().buffer[1], 25);
             assert_eq!(res.index, 1);

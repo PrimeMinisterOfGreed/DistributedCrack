@@ -18,8 +18,8 @@ use crate::{
 };
 
 use super::{
-    communicator::Communicator,
-    ffi::{MPI_ANY_SOURCE, MPI_Status, MPI_UINT8_T, MPI_UINT64_T},
+    communicator::{Communicator, MPI_UINT8_T, MpiStatus},
+    ffi::{MPI_ANY_SOURCE, MPI_Status},
     promise::{MpiFuture, waitany},
 };
 
@@ -75,7 +75,7 @@ impl<'a> MpiProcess<'a> {
         }
     }
 
-    pub(crate) fn wait_any(&mut self) -> (usize, MPI_Status) {
+    pub(crate) fn wait_any(&mut self) -> (usize, MpiStatus) {
         let res = waitany(self.futures.as_mut_slice());
         let index = res.index;
         let status = res.status;
@@ -125,6 +125,7 @@ mod tests {
 
     use crate::{
         mpi::{
+            communicator::MPI_UINT64_T,
             generators::generator_process,
             scope::init,
             workers::{chunked_worker_process, worker_process},

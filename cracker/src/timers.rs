@@ -52,6 +52,14 @@ impl Context {
         this.name.push_str(name).unwrap();
         this
     }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn stats(&self) -> ClockStats {
+        self.stats
+    }
 }
 
 pub struct GlobalClock {

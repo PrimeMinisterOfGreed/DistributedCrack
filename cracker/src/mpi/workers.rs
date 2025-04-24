@@ -9,6 +9,7 @@ use log::debug;
 use crate::{
     compute_context::{ComputeContext, compute},
     mpi::{
+        communicator::MPI_UINT8_T,
         ffi::*,
         promise::MpiFuture,
         routines::{MpiProcess, MpiTags},
@@ -17,7 +18,7 @@ use crate::{
     timers::GlobalClock,
 };
 
-use super::communicator::Communicator;
+use super::communicator::{Communicator, MPI_UINT64_T};
 
 pub fn worker_process(communicator: &Communicator) {
     let use_dict = {
@@ -45,7 +46,7 @@ fn receive_size_or_stop(process: &mut MpiProcess, chunks: i32) -> Option<Vec<u8>
         MpiTags::SIZES.into(),
     ));
     let (index, result) = process.wait_any();
-    return match MpiTags::from(result.MPI_TAG) {
+    return match MpiTags::from(result.status.MPI_TAG) {
         MpiTags::SIZES => {
             let future = process.futures[index].as_mut();
             let sizes = future.as_promise::<u8>();
@@ -67,7 +68,7 @@ fn receive_string_or_stop(process: &mut MpiProcess, sizes: &Vec<u8>) -> Option<V
         MpiTags::DATA.into(),
     ));
     let (index, result) = process.wait_any();
-    return match MpiTags::from(result.MPI_TAG) {
+    return match MpiTags::from(result.status.MPI_TAG) {
         MpiTags::DATA => {
             let future = process.futures[index].as_mut();
             let data = future.as_promise::<u8>();
@@ -90,6 +91,7 @@ pub fn chunked_worker_process(process: &mut MpiProcess) {
         let args = ARGS.lock().unwrap();
         args.num_threads
     };
+
     let target = {
         let args = ARGS.lock().unwrap();
         CString::new(args.target_md5.clone()).unwrap()
@@ -132,7 +134,7 @@ pub fn brute_worker_process(process: &mut MpiProcess) {
             .send(&[0], MPI_UINT8_T, 0, MpiTags::REQUEST.into());
 
         let (index, status) = process.wait_any();
-        match MpiTags::from(status.MPI_TAG) {
+        match MpiTags::from(status.status.MPI_TAG) {
             MpiTags::BRUTE => {
                 let promise = &process.futures[index];
                 let mut sizes = [0u64; 2];

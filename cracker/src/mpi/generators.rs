@@ -9,6 +9,7 @@ use log::{debug, trace};
 use crate::{
     dictionary_reader::DictionaryReader,
     mpi::{
+        communicator::MPI_UINT64_T,
         ffi::*,
         promise::MpiFuture,
         routines::{MpiProcess, MpiTags},
@@ -18,7 +19,7 @@ use crate::{
     state::State,
 };
 
-use super::communicator::Communicator;
+use super::communicator::{Communicator, MPI_UINT8_T};
 
 pub fn generator_process(communicator: &Communicator) -> String {
     let use_dict = {
@@ -59,7 +60,7 @@ fn chunked_generator_process(process: &mut MpiProcess) -> String {
         DictionaryReader::new(filepath.as_str()).unwrap_or_else(|_| panic!("Failed to open file"));
     loop {
         let res = process.wait_any();
-        match MpiTags::from(res.1.MPI_TAG) {
+        match MpiTags::from(res.1.status.MPI_TAG) {
             MpiTags::REQUEST => {
                 let data = reader.generate_flatten_chunk(chunk as usize);
                 if data.strings.is_empty() {
@@ -70,13 +71,13 @@ fn chunked_generator_process(process: &mut MpiProcess) -> String {
                 process.comm.send_vector(
                     &data.sizes.as_slice(),
                     MPI_UINT8_T,
-                    res.1.MPI_SOURCE,
+                    res.1.status.MPI_SOURCE,
                     MpiTags::SIZES.into(),
                 );
                 process.comm.send_vector(
                     &data.strings.as_slice(),
                     MPI_UINT8_T,
-                    res.1.MPI_SOURCE,
+                    res.1.status.MPI_SOURCE,
                     MpiTags::DATA.into(),
                 );
                 process.futures[res.0]
@@ -123,15 +124,15 @@ fn brute_generator_process(process: &mut MpiProcess) -> String {
         let (index, status) = process.wait_any();
         trace!(
             "Promise completed, message from rank {} , with tag {}, index {}",
-            status.MPI_SOURCE, status.MPI_TAG, index
+            status.status.MPI_SOURCE, status.status.MPI_TAG, index
         );
-        match MpiTags::from(status.MPI_TAG) {
+        match MpiTags::from(status.status.MPI_TAG) {
             MpiTags::REQUEST => {
-                debug!("sending sizes to rank {}", status.MPI_SOURCE);
+                debug!("sending sizes to rank {}", status.status.MPI_SOURCE);
                 process.comm.send_vector(
                     &address,
                     MPI_UINT64_T,
-                    status.MPI_SOURCE,
+                    status.status.MPI_SOURCE,
                     MpiTags::BRUTE.into(),
                 );
                 address[0] += chunks as usize;

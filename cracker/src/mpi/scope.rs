@@ -1,6 +1,6 @@
 use super::{
-    communicator::Communicator,
-    ffi::{MPI_COMM_WORLD, MPI_Comm, MPI_Comm_rank, MPI_Finalize, MPI_Init},
+    communicator::{Communicator, MPI_COMM_WORLD},
+    ffi::{MPI_Comm, MPI_Comm_rank, MPI_Finalize, MPI_Init},
     promise::MpiFuture,
 };
 
@@ -18,7 +18,7 @@ impl MpiGlobalScope {
         let comm = MPI_COMM_WORLD;
         let mut rank = 0;
         unsafe {
-            MPI_Comm_rank(comm as i32, &raw mut rank);
+            MPI_Comm_rank(comm, &raw mut rank);
         }
         Communicator::new(comm)
     }

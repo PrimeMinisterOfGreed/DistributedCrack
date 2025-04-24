@@ -27,9 +27,8 @@ pub struct ProgramOptions {
     #[clap(long, default_value = "savefile.dat")]
     pub savefile: String,
 
-    /// Restore from a previously saved file
-    #[clap(long, default_value_t = false)]
-    pub restore_from_file: bool,
+    #[clap(long, default_value = "results.csv")]
+    pub result_file: String,
 
     /// Use MPI for communication
     #[clap(long, default_value_t = true)]
@@ -51,7 +50,7 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    mpi::{communicator::Communicator, ffi::MPI_UINT8_T},
+    mpi::communicator::{Communicator, MPI_UINT8_T},
     state::StateFile,
 };
 
@@ -133,16 +132,13 @@ mod tests {
         let mut universe = init();
         let comm = universe.world();
         if comm.rank() == 0 {
-            let mut options = ProgramOptions::parse_from(
-                format!(
-                    "--config-file {}/launch.toml",
-                    Path::new(env!("CARGO_MANIFEST_DIR"))
-                        .parent()
-                        .unwrap()
-                        .display()
-                )
-                .split_whitespace(),
-            );
+            let mut options = ProgramOptions::parse_from(vec![format!(
+                "--config-file {}/launch.toml",
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .parent()
+                    .unwrap()
+                    .display(),
+            )]);
             ARGS.lock().unwrap().clone_from(&options);
             println!("Options: {:?}", options);
             let config =

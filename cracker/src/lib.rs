@@ -1,4 +1,5 @@
 use clap::Parser;
+use log::logger;
 use mpi::{
     ffi::{MPI_Finalize, MPI_Init},
     scope::MpiGlobalScope,
@@ -20,6 +21,7 @@ mod dictionary_reader;
 pub mod gpu;
 mod mpi;
 pub mod options;
+pub mod result_collector;
 pub mod sequence_generator;
 pub mod single_node;
 pub mod state;
@@ -28,6 +30,16 @@ mod timers;
 #[unsafe(no_mangle)]
 pub fn rust_main() {
     load_options();
+    simple_logger::init_with_level({
+        match ARGS.lock().unwrap().verbosity {
+            0 => log::Level::Error,
+            1 => log::Level::Warn,
+            2 => log::Level::Info,
+            3 => log::Level::Debug,
+            _ => log::Level::Trace,
+        }
+    })
+    .unwrap();
     ThreadPoolBuilder::new()
         .num_threads(min(ARGS.lock().unwrap().num_threads as usize, 32))
         .build_global()
