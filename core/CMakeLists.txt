@@ -15,15 +15,11 @@ endif()
 
 
 
-add_custom_target(rust_cracker   
+add_custom_target(mpc   
     COMMAND cargo build ${RUST_MODULE_FLAGS})
 
 
-add_library(crackerrustapp STATIC IMPORTED GLOBAL)
-add_library(cracker::rustapp ALIAS crackerrustapp)
-add_dependencies(crackerrustapp rust_cracker)
-set_target_properties (crackerrustapp PROPERTIES
-  IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}/libcracker.a
-)
+add_executable(coreapp IMPORTED GLOBAL)
+
 
 

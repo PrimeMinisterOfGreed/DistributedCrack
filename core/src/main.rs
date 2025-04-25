@@ -27,8 +27,7 @@ pub mod single_node;
 pub mod state;
 mod timers;
 
-#[unsafe(no_mangle)]
-pub fn rust_main() {
+pub fn main() {
     load_options();
     simple_logger::init_with_level({
         match ARGS.lock().unwrap().verbosity {

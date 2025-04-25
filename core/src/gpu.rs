@@ -2,7 +2,7 @@ use std::{
     ffi::{CStr, CString, c_char},
     ptr::copy,
 };
-
+/*
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct Md5TransformResult {
@@ -18,7 +18,7 @@ struct Md5BruterResult {
 }
 
 unsafe extern "C" {
-    fn md5_gpu(
+    unsafe fn md5_gpu(
         data: *mut ::core::ffi::c_char,
         sizes: *mut u8,
         array_size: usize,
@@ -26,7 +26,7 @@ unsafe extern "C" {
     ) -> Md5TransformResult;
 }
 unsafe extern "C" {
-    fn md5_bruter(
+    unsafe fn md5_bruter(
         start_address: usize,
         end_address: usize,
         target_md5: *const ::core::ffi::c_char,
@@ -39,12 +39,15 @@ unsafe extern "C" {
     fn md5String(input: *const c_char, output: *mut c_char);
     fn md5HexDigest(input: *const u8, output: *mut c_char);
 }
+*/
+
+include!(concat!(env!("OUT_DIR"), "/md5_bindings.rs"));
 
 pub fn md5_cpu(value: &CString) -> String {
     let mut buffer = [0u8; 16];
     let mut hexdigest = [0u8; 32];
     unsafe {
-        md5String(value.as_ptr(), buffer.as_mut_ptr() as *mut i8);
+        md5String(value.clone().into_raw(), buffer.as_mut_ptr() as *mut u8);
         md5HexDigest(buffer.as_mut_ptr(), hexdigest.as_mut_ptr() as *mut i8);
     };
     String::from_utf8_lossy(&hexdigest).into_owned()

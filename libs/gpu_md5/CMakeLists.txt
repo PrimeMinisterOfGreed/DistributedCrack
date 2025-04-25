@@ -1,11 +1,13 @@
-project(Md5Gpu LANGUAGES CUDA CXX)
+project(Md5Gpu LANGUAGES CUDA)
+find_package(CUDAToolkit REQUIRED)
+
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
 set(TARGET_NAME md5_gpu)
 file(GLOB_RECURSE SRC_FILES src/*.c src/*.cu)
-set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_ARCHITECTURES 61)
+SET(CUDA_SEPARABLE_COMPILATION ON)
 add_library(${TARGET_NAME} SHARED ${SRC_FILES})
 add_library(md5::gpu ALIAS ${TARGET_NAME})
 target_include_directories(
@@ -15,7 +17,7 @@ target_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cuda
     )
-target_link_libraries(${TARGET_NAME} PRIVATE cuda nvidia-ml)
+target_link_libraries(${TARGET_NAME} PRIVATE cuda)
 
 
 

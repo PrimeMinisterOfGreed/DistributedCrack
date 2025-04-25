@@ -4,7 +4,8 @@
 CDECL 
 
 #define dbgline() printf("process %d line reached %d\n",i,__LINE__);
-__device__ bool cmpstr(const char* a, const char* b, size_t size){
+
+ __device__ bool cmpstr(const char* a, const char* b, size_t size){
     for(size_t i = 0 ; i < size/8; i++){
         if(((uint64_t*)a)[i] != ((uint64_t*)b)[i]){
             return false;

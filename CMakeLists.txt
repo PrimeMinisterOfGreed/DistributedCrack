@@ -9,6 +9,5 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 add_subdirectory(libs/md5)
 add_subdirectory(libs/gpu_md5)
-add_subdirectory(distributed_cracker)
-add_subdirectory(cracker)
+add_subdirectory(core)
 
