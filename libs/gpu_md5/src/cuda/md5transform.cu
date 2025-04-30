@@ -10,7 +10,7 @@ struct exception{
   const char* file;
 };
 #define dbgline printf("process %d line reached %d\n",i,__LINE__);
-#define try(expr) if((_exc.error = expr) != cudaSuccess){_exc.line = __LINE__; _exc.file = __FILE_NAME__ ; goto ERROR;}
+#define try(expr) if((_exc.error = expr) != cudaSuccess){_exc.line = __LINE__; _exc.file = __FILE__ ; goto ERROR;}
 #define decl_exc struct exception _exc;
 #define handle ERROR: printf("Error: %s at %s:%d\n",cudaGetErrorString(_exc.error),_exc.file,_exc.line);
 

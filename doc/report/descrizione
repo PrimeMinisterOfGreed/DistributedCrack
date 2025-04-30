@@ -1,0 +1,7 @@
+Nel modello ci sono 3 tipi di nodi: Il Root Generator che è il master della rete, i Cluster che sono 
+worker di livello superiore che chiedono insiemi di task (TaskSet) più o meno grandi al master e i semplici lavoratori
+che invece eseguono il digesting e lo comparano al target da trovare, se uno dei worker trova il risultato
+questo è inviato al master che poi mostrerà il risultato e terminerà il programma. Non sono sicuro della reale necessità 
+dei nodi Balancer, ho pensato però , che se la rete si estende per molto, potrebbe diventare molto oneroso a livello di I/O 
+per un solo processo dover smistare tanti messaggi molto piccoli e che sia preferibile avere un intermezzo che invece 
+richieda uno spostamento un pò più corposo ma che poi possa distribuire da se tutti i piccoli messaggi ai worker che lo referenziano.

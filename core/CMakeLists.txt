@@ -19,7 +19,7 @@ add_custom_target(mpc
     COMMAND cargo build ${RUST_MODULE_FLAGS})
 
 
-add_executable(coreapp IMPORTED GLOBAL)
+
 
 
 

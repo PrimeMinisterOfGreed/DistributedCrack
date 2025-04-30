@@ -1,14 +1,30 @@
 project(Md5Gpu LANGUAGES CUDA)
-find_package(CUDAToolkit REQUIRED)
 
+
+# enable position independent code
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# enable separable compilation
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
+
+# enable device relocatable device code
+set(CMAKE_CUDA_RELOCATABLE_DEVICE_CODE ON)
+# allow undefined symbols
+set(CMAKE_CUDA_UNIFIED_MEMORY ON)
+set(CMAKE_ALLOW_UNDEFINED_SYMBOLS ON)
+
 set(TARGET_NAME md5_gpu)
-file(GLOB_RECURSE SRC_FILES src/*.c src/*.cu)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_ARCHITECTURES 61)
-SET(CUDA_SEPARABLE_COMPILATION ON)
-add_library(${TARGET_NAME} SHARED ${SRC_FILES})
+add_library(${TARGET_NAME} SHARED
+src/cuda/md5transform.cu
+src/cuda/md5bruter.cu
+src/md5bruter.c
+src/md5transform.c
+src/cuda/gpu_string_generator.cu
+src/cuda/md5.cu
+
+
+)
 add_library(md5::gpu ALIAS ${TARGET_NAME})
 target_include_directories(
     ${TARGET_NAME} PUBLIC
@@ -17,7 +33,7 @@ target_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cuda
     )
-target_link_libraries(${TARGET_NAME} PRIVATE cuda)
+target_link_libraries(${TARGET_NAME} PRIVATE cuda c )
 
 
 

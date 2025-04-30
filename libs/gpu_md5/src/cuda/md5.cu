@@ -4,7 +4,7 @@
  */
 
  #include "md5.cuh"
- CDECL
+
  /*
   * Constants defined by the MD5 algorithm
   */
@@ -215,4 +215,3 @@ __device__ void md5String(char *input, uint8_t *result, size_t size){
     }
     hex_output[32] = '\0'; // Null-terminate la stringa
 }
-END

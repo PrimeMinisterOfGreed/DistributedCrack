@@ -19,16 +19,19 @@ pub fn main() {
         build.display()
     );
     println!("cargo:rustc-link-lib=dylib=md5_gpu");
+
     // parse and use mpich pkg config
-    let openmpi = Config::new().atleast_version("3.0").probe("mpi").unwrap();
+    let openmpi = Config::new().atleast_version("2.0").probe("ompi").unwrap();
     println!("cargo:rustc-link-lib=static={}", openmpi.libs[0]);
     println!(
         "cargo:rustc-link-search=native={}",
         openmpi.link_paths[0].display()
     );
     for lib in openmpi.libs.iter() {
-        println!("cargo:rustc-link-lib=dylib={}", lib);
+        println!("cargo:rustc-link-lib=static={}", lib);
     }
+    println!("cargo:rustc-link-lib=dylib=mpi");
+    println!("cargo:rustc-link-arg=-Wl,--allow-shlib-undefined");
     // link to pthread
 
     // copy libmd5_gpu.so to build dir
@@ -46,9 +49,11 @@ pub fn main() {
     println!("Copied libmd5_gpu.so to {}", target_path.display());*/
 
     // Generate bindings for openmpi /usr/lib/x86_64-linux-gnu/openmpi/include/mpi.h
+
+    let openmpi_include = openmpi.include_paths[0].display().to_string();
     let bindings = bindgen::Builder::default()
-        .header("/usr/lib/x86_64-linux-gnu/openmpi/include/mpi.h")
-        .clang_arg("-I/usr/lib/x86_64-linux-gnu/openmpi/include")
+        .header(format!("{}/mpi.h", openmpi_include))
+        .clang_arg(format!("-I{}", openmpi_include))
         .fit_macro_constants(false)
         .use_core()
         .clang_macro_fallback()

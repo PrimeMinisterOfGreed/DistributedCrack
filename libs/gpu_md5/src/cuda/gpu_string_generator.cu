@@ -1,15 +1,10 @@
 #include "gpu_string_generator.cuh"
 #include "_cdecl"
-CDECL 
+ 
 
 constexpr int minCharInt = 33;
 constexpr int maxCharint = 126;
-constexpr int minDigit = 48;
-constexpr int maxDigit = 57;
-constexpr int minUpperCaseLetter = 65;
-constexpr int maxUpperCaseLetter = 90;
-constexpr int minLowerCaseLetter = 97;
-constexpr int maxLowerCaseLetter = 122;
+
 
 
 
@@ -82,4 +77,3 @@ __device__ void destroy_generator(GpuStringGenerator* self){
     
 }
 
-END
