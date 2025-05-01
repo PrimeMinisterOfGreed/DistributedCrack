@@ -1,4 +1,4 @@
-project(Md5Gpu LANGUAGES CUDA)
+project(Md5Gpu  CUDA CXX)
 
 
 # enable position independent code
