@@ -37,4 +37,3 @@ Result<options, const char*> options::load_from_file(const char* filename) {
 
 options ARGS;
 
-

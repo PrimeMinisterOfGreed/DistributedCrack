@@ -3,13 +3,13 @@
     "configurePresets": [
         {
             "name": "clang",
-            "displayName": "Clang 18.1.8 x86_64-pc-linux-gnu",
-            "description": "Uso dei compilatori: C = /usr/bin/clang-18, CXX = /usr/bin/clang++-18",
+            "displayName": "clang",
+            "description": "clang",
             "binaryDir": "build",
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "install",
-                "CMAKE_C_COMPILER": "/usr/bin/clang-18",
-                "CMAKE_CXX_COMPILER": "/usr/bin/clang++-18",
+                "CMAKE_C_COMPILER": "/usr/bin/clang-19",
+                "CMAKE_CXX_COMPILER": "/usr/bin/clang++-19",
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": true,
                 "ENABLE_UNIT_TEST": true

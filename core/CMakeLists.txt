@@ -11,7 +11,8 @@ target_include_directories(mpc
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include 
 )
-target_compile_options(mpc PRIVATE -fno-exceptions -fno-rtti)
+target_compile_options(mpc PRIVATE -fno-exceptions -fno-rtti 
+)
 
 target_link_libraries(mpc
     md5::md5
