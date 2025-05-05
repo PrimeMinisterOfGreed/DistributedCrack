@@ -16,10 +16,18 @@ target_include_directories(${UT_TARGET_NAME} PUBLIC
 ${CMAKE_CURRENT_SOURCE_DIR}/../src 
 ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
-target_link_libraries(${UT_TARGET_NAME} PRIVATE GTest::gtest GTest::gtest_main md5::md5 md5::gpu ) 
+target_link_libraries(${UT_TARGET_NAME} PRIVATE GTest::gtest GTest::gtest_main md5::md5 md5::gpu
+    OpenMP::OpenMP_CXX MPI::MPI_CXX MPI::MPI_C pthread
+) 
 
 #copy launch.toml to build directory
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/launch.toml
     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
     FILES_MATCHING PATTERN "*.toml"
+)
+
+#copy launch.toml to build directory
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/dictionary.txt
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+    FILES_MATCHING PATTERN "*.txt"
 )

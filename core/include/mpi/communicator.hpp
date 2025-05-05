@@ -3,11 +3,22 @@
 #include <mpi.h>
 #include <vector>
 #include "mpipromise.hpp"
+
 struct Communicator;
 struct MpiContext{
     MpiContext(int argc, char ** argv);
     ~MpiContext();
     Communicator& world();    
+};
+
+enum MPITags{
+    ANY = MPI_ANY_TAG,
+    FINISH = 1,
+    DATA = 2,
+    SIZE =3,
+    BRUTE = 4,
+    TASK = 5,
+    RESULT = 6,
 };
 
 struct Communicator{
@@ -107,3 +118,5 @@ template<typename T>
 inline std::unique_ptr<MpiPromise> Communicator::isend_vector(const std::vector<T>& vec, int dest, int tag) {
     
 }
+
+

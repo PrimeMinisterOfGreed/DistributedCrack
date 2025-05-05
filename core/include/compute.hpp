@@ -4,7 +4,6 @@
 #include <string>
 
 union ComputeContext{
-    uint8_t type;
 
     struct BruteContext{
         uint64_t start;
@@ -15,8 +14,8 @@ union ComputeContext{
     struct ChunkContext{
         uint8_t* data;
         uint8_t* sizes;
-        const char * target;
         uint64_t chunk_size;
+        const char * target;
     }chunk_ctx;
 
     ComputeContext(ChunkContext ctx){
@@ -25,8 +24,10 @@ union ComputeContext{
     }
     ComputeContext(BruteContext ctx){
         brute_ctx = ctx;
-        type = 2;
+        type = 0;
     }
+    uint8_t type;
+
 };
 
 std::optional<std::string> compute(ComputeContext ctx);

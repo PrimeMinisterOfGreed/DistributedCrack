@@ -20,8 +20,8 @@ Result<options, const char*> options::load_from_file(const char* filename) {
         return "Failed to parse TOML file";
     }
     opt.config_file = strdup(filename);
-    opt.use_gpu = toml_int_in(table, "use_gpu").u.b;
-    opt.use_mpi = toml_int_in(table, "use_mpi").u.b;
+    opt.use_gpu = toml_bool_in(table, "use_gpu").u.b;
+    opt.use_mpi = toml_bool_in(table, "use_mpi").u.b;
     opt.target_md5 = strdup(toml_raw_in(table, "target_md5"));
     opt.num_threads = toml_int_in(table, "num_threads").u.i;
     opt.chunk_size = toml_int_in(table, "chunk_size").u.i;

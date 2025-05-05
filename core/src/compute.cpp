@@ -22,10 +22,10 @@ std::optional<std::string> compute_chunk(ComputeContext::ChunkContext ctx) {
     #pragma omp parallel for
     for(int i = 0; i < ctx.chunk_size; i++) {
 
-        if(strncmp(&res.data[offsets[i]],ctx.target, 32) == 0){
+        if(strncmp(&res.data[i*32],ctx.target, 32) == 0){
             #pragma omp critical
             {
-                result = std::string(&res.data[offsets[i]], 32);
+                result = std::string(reinterpret_cast<const char*>(&ctx.data[offsets[i]]), ctx.sizes[i]);
             }
         }
     }
@@ -37,7 +37,7 @@ std::optional<std::string> compute(ComputeContext ctx) {
        switch (ctx.type) {
         case 1: // ChunkContext
             return compute_chunk(ctx.chunk_ctx);
-        case 2: // BruteContext
+        case 0: // BruteContext
             return compute_brute(ctx.brute_ctx);
         default:
             errno = EINVAL; // Invalid argument

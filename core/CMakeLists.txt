@@ -15,10 +15,12 @@ target_compile_options(mpc PRIVATE -fno-exceptions -fno-rtti
 )
 
 target_link_libraries(mpc
+    PUBLIC
     md5::md5
     md5::gpu
     OpenMP::OpenMP_CXX
     MPI::MPI_CXX
+    MPI::MPI_C
     pthread
 )
 

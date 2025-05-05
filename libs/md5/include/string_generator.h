@@ -1,6 +1,9 @@
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 const int minCharInt = 33;
 const int maxCharint = 126;
@@ -24,3 +27,7 @@ struct SequenceIterator{
 struct SequenceGeneratorCtx new_seq_generator(uint8_t base_len);
 void seq_gen_next_sequence(struct SequenceGeneratorCtx* ctx);
 void seq_gen_skip_to(struct SequenceGeneratorCtx* ctx,size_t address);
+
+#ifdef __cplusplus
+}
+#endif
