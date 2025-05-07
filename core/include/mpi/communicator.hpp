@@ -117,9 +117,5 @@ inline std::unique_ptr<MpiPromise> Communicator::irecv_vector(int source, int ta
     return std::unique_ptr<MpiPromise>(promise);
 }
 
-template<typename T>
-inline std::unique_ptr<MpiPromise> Communicator::isend_vector(const std::vector<T>& vec, int dest, int tag) {
-    
-}
 
 

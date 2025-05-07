@@ -40,7 +40,7 @@ TEST(TestRoutines, TestBruteGenerator){
     }
     else{
         comm.send_object<uint16_t>(100, 0, TASK);
-        auto received = comm.recv_vector<uint16_t>(0, SIZE);
+        auto received = comm.recv_vector<uint64_t>(0, SIZE);
         comm.send_vector<uint8_t>({'h','e','l','l','o'}, 0, RESULT);
         EXPECT_EQ(received[0], 0);
         EXPECT_EQ(received[1], 100*100);
