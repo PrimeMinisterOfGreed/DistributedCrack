@@ -12,6 +12,12 @@
             "LD_PRELOAD": "${workspaceFolder}/build/libs/gpu_md5/libmd5_gpu.so",
             "RUST_BACKTRACE": "full"
       },
+      "cmake.testEnvironment": {
+            "LD_PRELOAD": "${workspaceFolder}/build/libs/gpu_md5/libmd5_gpu.so",
+            "RUST_BACKTRACE": "full"
+            
+      },
+      "cmake.ctest.parallelJobs": 2,
       "editor.tabCompletion": "on",
       "diffEditor.codeLens": true,
       "files.associations": {
@@ -78,7 +84,7 @@
             "editor.wordBasedSuggestions": "off",
             "editor.suggest.insertMode": "replace",
             "editor.semanticHighlighting.enabled": true,
-            "editor.inlayHints.enabled": "on"
+            "editor.inlayHints.enabled": "on",
       },
       "C_Cpp.intelliSenseEngine": "disabled",
       "coverage-gutters.coverageFileNames": [

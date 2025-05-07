@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdio>
 #include <memory>
 #include <mpi.h>
 #include <vector>
@@ -16,7 +17,6 @@ enum MPITags{
     FINISH = 1,
     DATA = 2,
     SIZE =3,
-    BRUTE = 4,
     TASK = 5,
     RESULT = 6,
 };
@@ -51,6 +51,9 @@ struct Communicator{
 
     template<typename T>
     std::unique_ptr<MpiPromise> isend_vector(const std::vector<T>& vec, int dest, int tag);
+
+    int rank();
+    int size();
 };
 
 /* -------------------------------------------------------------------------- */
@@ -93,14 +96,14 @@ inline std::vector<T> Communicator::recv_vector(int source, int tag) {
 
 template<typename T>
 inline std::unique_ptr<MpiPromise> Communicator::irecv(int source, int tag) {
-    auto promise = BufferedPromise<T>(comm,1);
-    promise._request = MPI_Irecv(promise.get_buffer().data(), sizeof(T), MPI_BYTE, source, tag, comm, &promise._request);
-    return promise;
+    auto promise = new BufferedPromise<T>(comm,1);
+    MPI_Irecv(promise->get_buffer().data(), sizeof(T), MPI_BYTE, source, tag, comm, &promise->_request);
+    return std::unique_ptr<MpiPromise>(promise);
 }
 
 template<typename T>
 inline std::unique_ptr<MpiPromise> Communicator::isend(const T& obj, int dest, int tag) {
-    auto promise = BufferedPromise<T>(comm, 1);
+    auto promise = new BufferedPromise<T>(comm, 1);
     promise.get_buffer().push_back(obj);
     promise._request = MPI_Isend(promise.get_buffer().at(0), sizeof(T), MPI_BYTE, dest, tag, comm, &promise._request);
     promise.count = 1;
@@ -109,9 +112,9 @@ inline std::unique_ptr<MpiPromise> Communicator::isend(const T& obj, int dest, i
 
 template<typename T>
 inline std::unique_ptr<MpiPromise> Communicator::irecv_vector(int source, int tag, uint32_t count) {
-    auto promise = BufferedPromise<T>(comm, count);
-    promise._request = MPI_Irecv(promise.get_buffer().data(), count * sizeof(T), MPI_BYTE, source, tag, comm, &promise._request);
-    return promise;
+    auto promise = new BufferedPromise<T>(comm, count);
+     MPI_Irecv(promise->get_buffer().data(), count * sizeof(T), MPI_BYTE, source, tag, comm, &promise->_request);
+    return std::unique_ptr<MpiPromise>(promise);
 }
 
 template<typename T>

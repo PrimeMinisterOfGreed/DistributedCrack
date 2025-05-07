@@ -27,3 +27,9 @@ int MpiPromise::cancel() {
 MPI_Status& MpiPromise::status(){
     return _status;
 }
+MPI_Request& MpiPromise::request() {
+    return _request;
+}
+void MpiPromise::set_status(MPI_Status status) {
+    this->_status = status;
+}

@@ -8,8 +8,8 @@
             "binaryDir": "build",
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "install",
-                "CMAKE_C_COMPILER": "/usr/bin/clang-19",
-                "CMAKE_CXX_COMPILER": "/usr/bin/clang++-19",
+                "CMAKE_C_COMPILER": "/usr/bin/clang",
+                "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": true,
                 "ENABLE_UNIT_TEST": true

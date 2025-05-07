@@ -7,7 +7,8 @@ list(FILTER SRC_FILES EXCLUDE REGEX "main.cpp")
 
 set(TEST_SRC_FILES
     test_main.cpp
-    
+    test_promises.cpp
+    test_routines.cpp
     ${SRC_FILES}
 )
 

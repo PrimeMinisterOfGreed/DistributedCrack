@@ -1,4 +1,6 @@
 #include "utils.hpp"
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 
@@ -51,10 +53,10 @@ GeneratorResult SequenceGenerator::generate_flatten_chunk(size_t chunks) {
 
 DictionaryReader::DictionaryReader(const char* filename)
 {
-    file = std::ifstream(filename, std::ios::binary);
+    file = std::ifstream(filename, std::ios::in);
     if (!file.is_open()) {
         printf("Error opening file: %s\n", filename);
-        exit(20);
+        abort();
     }   
 
 }

@@ -1,6 +1,7 @@
 .cache
 build
 tests.*
+CMakeUserPresets.json
 .vs
 dictionary.txt
 /.idea/.gitignore

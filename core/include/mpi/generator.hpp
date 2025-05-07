@@ -23,5 +23,10 @@ struct ChunkedGenerator : public Generator{
 
 
 struct BruteGenerator : Generator{
+    private:
+    uint64_t current_address;
 
+    public:
+    std::optional<std::string> process() override;
+    BruteGenerator(Communicator&comm);
 };

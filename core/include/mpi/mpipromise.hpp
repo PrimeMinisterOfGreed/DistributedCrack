@@ -15,7 +15,7 @@ struct MpiPromise {
     virtual int cancel();
     virtual MPI_Status& status();
     virtual MPI_Request& request();
-    virtual void set_status(MPI_Status status) = 0;
+    virtual void set_status(MPI_Status status);
     MpiPromise(MPI_Comm comm, MPI_Request request, MPI_Status status): comm(comm), _request(request), _status(status) {}
     MpiPromise(MPI_Comm comm) : comm(comm){}
 };
@@ -46,5 +46,6 @@ inline BufferedPromise<T>::BufferedPromise(MPI_Comm comm, uint32_t count) : MpiP
 
 template<typename T>
 inline std::vector<T>& BufferedPromise<T>::get_buffer() { return buffer; }
+
 
 
