@@ -14,11 +14,12 @@ struct MpiContext{
 
 enum MPITags{
     ANY = MPI_ANY_TAG,
-    FINISH = 1,
+    TERMINATE= 1,
     DATA = 2,
     SIZE =3,
     TASK = 5,
     RESULT = 6,
+
 };
 
 struct Communicator{
