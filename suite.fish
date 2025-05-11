@@ -9,5 +9,13 @@ function cracker_mpi_test -a testname
 end
 
 function mpc_gtest -a testpattern
-    LD_PRELOAD=$LD_PRELOAD_PATH mpiexec -n 2 $(pwd)/build/core/test/mpc_ut --gtest_filter="$testpattern" 
+    LD_PRELOAD=$LD_PRELOAD_PATH mpiexec -n 2 $(pwd)/build/core/test/mpc_ut --gtest_filter="$testpattern" --gtest_brief=0
+end
+
+function gtest $argv
+    LD_PRELOAD=$LD_PRELOAD_PATH ./build/core/test/mpc_ut  $argv
+end
+
+function run -a process $argv
+    LD_PRELOAD=$LD_PRELOAD_PATH mpirun -n $process ./build/core/mpc  $argv
 end

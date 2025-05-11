@@ -14,7 +14,9 @@ struct options{
     char* save_file;
     char* dictionary_file;
     int brute_start;
+    int cluster_degree;
     static Result<options, const char*> load_from_file(const char* filename);
+    bool brute_mode() const;
 };
 
 extern options ARGS;

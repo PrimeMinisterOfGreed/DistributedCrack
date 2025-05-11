@@ -1,10 +1,12 @@
 #include "compute.hpp"
+#include "log.hpp"
 #include "options.hpp"
 #include <md5.h>
 #include <md5_gpu.h>
 
 
 std::optional<std::string> compute_brute(ComputeContext::BruteContext ctx) {
+    trace("compute_brute start %lu end %lu, threads : %d", ctx.start, ctx.end, ARGS.num_threads);
     auto res = md5_bruter(ctx.start, ctx.end, ctx.target,ARGS.num_threads, ARGS.brute_start);
     if (res.found) {
         return {res.data};

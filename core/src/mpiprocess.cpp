@@ -13,6 +13,10 @@ void MpiProcess::add_future(std::unique_ptr<MpiPromise> promise) {
 }
 
 std::unique_ptr<MpiPromise> MpiProcess::wait_any() {
+    if(promises.empty()) {
+        perror("wait_any: No promises to wait for");
+        abort();
+    }
     int index;
     MPI_Status status;
     MPI_Request request[promises.size()];

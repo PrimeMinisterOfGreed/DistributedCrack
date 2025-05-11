@@ -1,26 +1,27 @@
 #pragma once 
+#include "mpi/communicator.hpp"
 #include <mpi.h>
 
 struct Balancer{
     protected:
-    MPI_Comm comm;
+    Communicator& comm;
 
     public:
     virtual void process() = 0;
-    Balancer(MPI_Comm comm) : comm(comm) {}
+    Balancer(Communicator& comm) : comm(comm) {}
 };
 
 
 struct ChunkBalancer : public Balancer {
     
     public:
-    ChunkBalancer(MPI_Comm comm);
+    ChunkBalancer(Communicator& comm) : Balancer(comm){}
     void process() override;
 };
 
 struct BruteBalancer : public Balancer {
-    
+    std::vector<std::pair<uint64_t, uint64_t>> ranges{};
     public:
-    BruteBalancer(MPI_Comm comm);
+    BruteBalancer(Communicator& comm): Balancer(comm){}
     void process() override;
 };

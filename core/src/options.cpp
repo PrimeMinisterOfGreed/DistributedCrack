@@ -22,17 +22,22 @@ Result<options, const char*> options::load_from_file(const char* filename) {
     opt.config_file = strdup(filename);
     opt.use_gpu = toml_bool_in(table, "use_gpu").u.b;
     opt.use_mpi = toml_bool_in(table, "use_mpi").u.b;
-    opt.target_md5 = strdup(toml_raw_in(table, "target_md5"));
+    opt.target_md5 = toml_string_in(table, "target_md5").u.s;
     opt.num_threads = toml_int_in(table, "num_threads").u.i;
     opt.chunk_size = toml_int_in(table, "chunk_size").u.i;
     opt.verbosity = toml_int_in(table, "verbosity").u.i;
-    opt.save_file = strdup(toml_raw_in(table, "savefile"));
-    opt.dictionary_file = strdup(toml_raw_in(table, "dictionary"));
+    opt.save_file = toml_string_in(table, "savefile").u.s;
+    opt.dictionary_file = toml_string_in(table, "dictionary").u.s;
+    opt.cluster_degree = toml_int_in(table, "cluster_degree").u.i;
     opt.brute_start = toml_int_in(table, "brutestart").u.i;
 
     toml_free(table);
     fclose(file);
     return opt;
+}
+
+bool options::brute_mode() const {
+    return strncmp(dictionary_file, "NONE",4) == 0;
 }
 
 options ARGS;

@@ -16,6 +16,7 @@ TEST(TestOptions, TestOptionsLoadFromFile) {
     EXPECT_STREQ(opt.config_file, filename);
     EXPECT_EQ(opt.use_gpu, true);
     EXPECT_EQ(opt.use_mpi, true);
+    EXPECT_TRUE(opt.brute_mode());
 }
 
 TEST(TestCompute, TestComputeBruteGpu) {
@@ -80,4 +81,13 @@ TEST(TestGenerator, TestDictionaryReader) {
     EXPECT_EQ(res.sizes.size(), 100u);
 
 
+}
+
+template<int line = __LINE__ ,typename ... Args>
+void trace(const char * message, Args ... args) {
+
+}
+
+TEST(TestLog,TestPrint){
+    trace("Hello world %d", 10);
 }
