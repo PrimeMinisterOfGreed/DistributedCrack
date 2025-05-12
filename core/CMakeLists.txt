@@ -14,14 +14,23 @@ target_include_directories(mpc
 target_compile_options(mpc PRIVATE -fno-exceptions -fno-rtti 
 )
 
+
 target_link_libraries(mpc
     PUBLIC
     md5::md5
-    md5::gpu
     OpenMP::OpenMP_CXX
     MPI::MPI_CXX
     MPI::MPI_C
     pthread
 )
+
+if(ENABLE_CUDA)
+    target_link_libraries(mpc
+        PRIVATE
+        md5::gpu    
+        )
+    target_compile_definitions(mpc PRIVATE CUDA_GPU)
+
+endif()
 
 add_subdirectory(test)

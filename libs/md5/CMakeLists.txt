@@ -1,7 +1,7 @@
-Project(Md5 C CXX)
+Project(Md5 C )
 
 set(TARGET_NAME md5)
-file(GLOB_RECURSE SRC_FILES src/*.cpp src/*.c)
+file(GLOB_RECURSE SRC_FILES src/*.c)
 
 
 add_library(${TARGET_NAME} STATIC ${SRC_FILES})

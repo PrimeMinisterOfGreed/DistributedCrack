@@ -17,9 +17,13 @@ target_include_directories(${UT_TARGET_NAME} PUBLIC
 ${CMAKE_CURRENT_SOURCE_DIR}/../src 
 ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
-target_link_libraries(${UT_TARGET_NAME} PRIVATE GTest::gtest GTest::gtest_main md5::md5 md5::gpu
+target_link_libraries(${UT_TARGET_NAME} PRIVATE GTest::gtest GTest::gtest_main md5::md5 
     OpenMP::OpenMP_CXX MPI::MPI_CXX MPI::MPI_C pthread
 ) 
+
+if(ENABLE_CUDA)
+target_link_libraries(${UT_TARGET_NAME} PRIVATE md5::gpu)
+endif()
 
 #copy launch.toml to build directory
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/launch.toml

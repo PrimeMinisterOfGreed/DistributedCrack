@@ -29,10 +29,7 @@ const char* SequenceGenerator::get_buffer() const {
 }
 
 std::string SequenceGenerator::current() const {
-    std::string s;
-    for (uint8_t i = 0; i < ctx.current_len; ++i) {
-        s.push_back(static_cast<char>(ctx.buffer[i]));
-    }
+    std::string s{ctx.buffer, ctx.current_len};
     return s;
 }
 

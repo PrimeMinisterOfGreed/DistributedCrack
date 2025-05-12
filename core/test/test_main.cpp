@@ -48,6 +48,35 @@ TEST(TestCompute, TestComputeChunkGpu) {
     EXPECT_STREQ(result.value().c_str(), "!!!!");
 }
 
+TEST(TestCompute, TestComputeChunkCpu){
+    ComputeContext::ChunkContext ctx;
+    ARGS.num_threads = 1000;
+    ARGS.brute_start = 4;
+    ARGS.use_gpu = false;
+    auto res = SequenceGenerator(4).generate_flatten_chunk(10000);
+    ctx.data = res.strings.data();
+    ctx.sizes = res.sizes.data();
+    ctx.chunk_size = 10000;
+    ctx.target = "98abe3a28383501f4bfd2d9077820f11";
+    auto result = compute({ctx});
+    EXPECT_TRUE(result.has_value());
+    EXPECT_STREQ(result.value().c_str(), "!!!!");
+}
+
+TEST(TestCompute, TestComputeBruteCpu) {
+    ComputeContext::BruteContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ARGS.num_threads = 1000;
+    ARGS.brute_start = 4;
+    ARGS.use_gpu = false;
+    ctx.start = 0u;
+    ctx.end = 10000u;
+    ctx.target = "98abe3a28383501f4bfd2d9077820f11";
+    auto result = compute({ctx});
+    EXPECT_TRUE(result.has_value());
+    EXPECT_STREQ(result.value().c_str(), "!!!!");
+}
+
 TEST(TestGenerator, TestSequenceGenerator) {
     SequenceGenerator gen(4);
     std::string seq = gen.current();
@@ -83,11 +112,4 @@ TEST(TestGenerator, TestDictionaryReader) {
 
 }
 
-template<int line = __LINE__ ,typename ... Args>
-void trace(const char * message, Args ... args) {
 
-}
-
-TEST(TestLog,TestPrint){
-    trace("Hello world %d", 10);
-}
