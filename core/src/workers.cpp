@@ -37,7 +37,7 @@ void BruteWorker::process() {
       if (res.has_value()) {
         trace("Worker %d found result", comm.rank());
         comm.send_vector<uint8_t>({res.value().begin(), res.value().end()},
-                                  promise->status().MPI_SOURCE, RESULT);
+                                  0, RESULT);
       }
       process.add_future(comm.irecv_vector<uint64_t>(MPI::ANY_SOURCE, SIZE, 2));
       comm.send_object<uint8_t>(0u, balancer_id, MPITags::TASK);

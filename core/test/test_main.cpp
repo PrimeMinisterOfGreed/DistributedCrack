@@ -113,3 +113,13 @@ TEST(TestGenerator, TestDictionaryReader) {
 }
 
 
+TEST(TestGenerator, TestHelloPosition){
+    SequenceGenerator gen(4);
+    for(uint64_t i = 0; ; i++){
+        gen.next_sequence();
+        if(gen.current() == "hello"){
+            fprintf(stderr, "Found hello at %lu\n", i);
+            break;
+        }
+    }
+}

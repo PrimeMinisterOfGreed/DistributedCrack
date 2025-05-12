@@ -12,6 +12,7 @@ struct Generator{
     public:
     virtual std::optional<std::string> process() = 0;
     Generator(Communicator& comm): _comm(comm), _mpprocess(MpiProcess(comm)){}
+    void terminate_all();
 };
 struct ChunkedGenerator : public Generator{
     private:

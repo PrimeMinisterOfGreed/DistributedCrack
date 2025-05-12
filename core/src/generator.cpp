@@ -75,6 +75,7 @@ std::optional<std::string> BruteGenerator::process() {
                 trace("BruteGenerator::RESULT from %d ", future->_status.MPI_SOURCE);
                 auto res = static_cast<BufferedPromise<uint8_t>*>(future.get());
                 auto zidx = std::find(res->get_buffer().begin(), res->get_buffer().end(), 0);
+                terminate_all();
                 return std::string(res->get_buffer().begin(), zidx);
             }
         }
@@ -84,6 +85,12 @@ std::optional<std::string> BruteGenerator::process() {
 BruteGenerator::BruteGenerator(Communicator&comm) : Generator(comm)
 {
 
+}
+
+void Generator::terminate_all() {
+    for(int i = 1 ; i < _comm.size(); i++){
+        _comm.send_object<uint8_t>(0, i, TERMINATE);
+    }
 }
 
 

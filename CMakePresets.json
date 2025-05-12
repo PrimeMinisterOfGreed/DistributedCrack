@@ -16,6 +16,13 @@
             }
         },
         {
+            "name": "clang-cuda",
+            "inherits":"clang",
+            "cacheVariables": {
+                "ENABLE_CUDA": true
+            }
+        },
+        {
             "name": "gcc",
             "displayName": "gcc",
             "description": "Uso dei compilatori: C = /usr/bin/gcc, CXX = /usr/bin/g++",
