@@ -1,9 +1,18 @@
+#include <sstream>
 #include <timer.hpp>
 
 using namespace std::chrono;
 TimerStats::TimerStats(const char * name)
 {
     memset(this, 0, sizeof(TimerStats));
+}
+
+std::string TimerStats::to_csv(bool emitHeader) {
+    std::string buffer;
+    if(emitHeader){
+        buffer += "device_name,context_name,busy_time,observation_time,task_completed\n";
+    }
+       
 }
 
 GlobalClock& GlobalClock::instance() {

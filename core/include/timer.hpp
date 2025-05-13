@@ -7,9 +7,10 @@ struct TimerStats{
     uint64_t busy_time;
     uint64_t observation_time;
     uint64_t task_completed;
-    char name[32];
-
+    char device_name[32]{};
+    char name[32]{};
     TimerStats(const char * name);
+    std::string to_csv(bool emitHeader);
 };
 
 struct TimerContext{
@@ -50,5 +51,5 @@ struct GlobalClock{
     }
     private:
     GlobalClock();
-
 };
+

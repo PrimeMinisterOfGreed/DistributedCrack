@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include "options.hpp"
 #include "compute.hpp"
+#include "statefile.hpp"
 #include "utils.hpp"
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
@@ -122,4 +123,15 @@ TEST(TestGenerator, TestHelloPosition){
             break;
         }
     }
+}
+
+TEST(TestSaveFile, TestSerialization){
+    StateFile state;
+    state.current_address = 0;
+    strcpy(state.current_dictionary, "test");
+    const char *filename = "test_statefile.dat";
+    state.save(filename);
+    auto loaded_state = StateFile::load(filename);
+    EXPECT_EQ(loaded_state->current_address, state.current_address);
+    EXPECT_STREQ(loaded_state->current_dictionary, state.current_dictionary);
 }
