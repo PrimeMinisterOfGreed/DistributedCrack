@@ -3,6 +3,7 @@
 #include "options.hpp"
 #include "compute.hpp"
 #include "statefile.hpp"
+#include "timer.hpp"
 #include "utils.hpp"
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
@@ -135,3 +136,19 @@ TEST(TestSaveFile, TestSerialization){
     EXPECT_EQ(loaded_state->current_address, state.current_address);
     EXPECT_STREQ(loaded_state->current_dictionary, state.current_dictionary);
 }
+
+TEST(TestTimerStats, TestStatsToCsv){
+    TimerStats stats("test");
+    stats.busy_time = 100;
+    stats.observation_time = 200;
+    stats.task_completed = 300;
+    memcpy(stats.device_name, "test_device",12);
+    memcpy(stats.name, "test", 4);
+    std::string csv = stats.to_csv();
+    EXPECT_EQ("device_name,context_name,busy_time,observation_time,task_completed\n",
+         csv.substr(0,csv.find('\n') + 1));
+    EXPECT_EQ("test_device,test,100,200,300\n", csv.substr(csv.find('\n') + 1));
+}
+
+
+

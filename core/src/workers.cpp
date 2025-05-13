@@ -4,12 +4,12 @@
 #include "mpi/mpiprocess.hpp"
 #include "mpi/worker.hpp"
 #include "options.hpp"
+#include "timer.hpp"
 #include <algorithm>
 #include <cstdint>
+#include <log.hpp>
 #include <mpi.h>
 #include <vector>
-#include <log.hpp>
-
 
 void BruteWorker::process() {
   debug("Worker %d started", comm.rank());
@@ -32,13 +32,17 @@ void BruteWorker::process() {
       auto result = task[0] + task[1];
       auto ctx = ComputeContext::BruteContext{
           .start = task[0], .end = task[1], .target = ARGS.target_md5};
-      auto res = compute({ctx});
-      
-      if (res.has_value()) {
-        trace("Worker %d found result", comm.rank());
-        comm.send_vector<uint8_t>({res.value().begin(), res.value().end()},
-                                  0, RESULT);
-      }
+
+
+      TimerContext("BruteTask").with_context([&] {
+        auto res = compute({ctx});
+        if (res.has_value()) {
+          trace("Worker %d found result", comm.rank());
+          comm.send_vector<uint8_t>({res.value().begin(), res.value().end()}, 0,
+                                    RESULT);
+        }
+      });
+
       process.add_future(comm.irecv_vector<uint64_t>(MPI::ANY_SOURCE, SIZE, 2));
       comm.send_object<uint8_t>(0u, balancer_id, MPITags::TASK);
       break;
@@ -71,7 +75,8 @@ void BruteBalancer::process() {
         auto numtask = ARGS.chunk_size * (comm.size() / ARGS.cluster_degree);
         comm.send_object<uint16_t>(numtask, 0, TASK);
         auto ranges = comm.recv_vector<uint64_t>(MPI_ANY_SOURCE, SIZE);
-        trace("Balancer %d received ranges with size %d", comm.rank(), ranges.size());
+        trace("Balancer %d received ranges with size %d", comm.rank(),
+              ranges.size());
         if (ranges.size() % 2 != 0) {
           exception("Invalid number of ranges");
           abort();
@@ -93,10 +98,6 @@ void BruteBalancer::process() {
   }
 }
 
-void ChunkWorker::process(){
+void ChunkWorker::process() {}
 
-}
-
-void ChunkBalancer::process(){
-
-}
+void ChunkBalancer::process() {}

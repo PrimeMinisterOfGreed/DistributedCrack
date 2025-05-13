@@ -4,10 +4,12 @@
 #include "mpi/generator.hpp"
 #include "mpi/worker.hpp"
 #include "options.hpp"
+#include "timer.hpp"
+#include <filesystem>
 void mpi_routine(int argc, char **argv);
 
 int main(int argc, char **argv) {
-  ARGS.verbosity = 1;
+  
   if (argc < 2) {
     fprintf(stderr, "Usage: %s <config_file>\n", argv[0]);
     return 1;
@@ -34,12 +36,14 @@ void mpi_routine(int argc, char **argv) {
   if (world.rank() == 0) {
     // root node
     debug("Starting root node");
+    init_stat_file("stats.csv");
     root_routine(world);
   } else {
     // worker node
     debug("Starting worker node");
     worker_routine(world);
   }
+  save_stats("stats.csv");
 }
 
 enum NodeType {
@@ -62,7 +66,7 @@ void node_assign(Communicator &comm) {
   if (ARGS.cluster_degree >= (comm.size() / 2)) {
     error("Cluster degree is greater than or equal to the number of nodes, "
           "decrementing to size / 2");
-    ARGS.cluster_degree = comm.size()/2;
+    ARGS.cluster_degree = comm.size() / 2;
   }
   for (int i = 1; i < ARGS.cluster_degree + 1; i++) {
     trace("Assigning node %d , role %d", i, BALANCER);
@@ -81,19 +85,24 @@ void node_assign(Communicator &comm) {
 
 void root_routine(Communicator &comm) {
   node_assign(comm);
-  auto result = [&comm] {
-    if (!ARGS.brute_mode()) {
-      return ChunkedGenerator{comm}.process();
-    } else {
-      return BruteGenerator{comm}.process();
-    }
-  }();
-  printf("Result: %s\n", result.value().c_str());
+  GlobalClock::instance().set_device_name("root");
+  TimerContext("wallclock").with_context([&] {
+    auto result = [&comm] {
+      if (!ARGS.brute_mode()) {
+        return ChunkedGenerator{comm}.process();
+      } else {
+        return BruteGenerator{comm}.process();
+      }
+    }();
+    printf("Result: %s\n", result.value().c_str());
+  });
 }
 
 void worker_routine(Communicator &comm) {
   auto node_type = comm.recv_object<NodeType>(0, 0);
+  char node_name[32]{};
   if (node_type == WORKER) {
+    sprintf(node_name, "worker %d", comm.rank());
     auto balancer_id = comm.recv_object<int>(0, 1);
     if (ARGS.brute_mode()) {
       trace("Worker %d, balancer %d mode brute", comm.rank(), balancer_id);
@@ -103,6 +112,8 @@ void worker_routine(Communicator &comm) {
       ChunkWorker{comm, balancer_id}.process();
     }
   } else if (node_type == BALANCER) {
+    sprintf(node_name, "balancer %d", comm.rank());
+    GlobalClock::instance().set_device_name(node_name);
     if (ARGS.brute_mode()) {
       trace("Balancer %d mode brute", comm.rank());
       BruteBalancer{comm}.process();
