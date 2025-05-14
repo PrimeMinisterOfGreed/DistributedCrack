@@ -1,4 +1,5 @@
 #pragma once
+#include "options.hpp"
 #include <cstdint>
 #include <vector>
 #include <cstring>
@@ -7,11 +8,12 @@ struct TimerStats{
     uint64_t busy_time = 0;
     uint64_t observation_time = 0;
     uint64_t task_completed = 0;
-    char device_name[32]{};
+    static char device_name[32];
     char name[32]{};
     TimerStats(const char * name);
     std::string to_csv();
     static std::string csv_header();
+    static void set_device_name(const char * name);
 };
 
 struct TimerContext{
@@ -29,7 +31,8 @@ struct TimerContext{
     template<typename Fnc>
     void with_context(Fnc fnc)
     {
-        fnc();
+        start();
+        fnc(stats);
         stop();
     }
     
@@ -45,7 +48,6 @@ struct GlobalClock{
     public:
     static GlobalClock& instance();
     TimerStats& get_or_create(const char * name);
-    void set_device_name(const char * name);
     const decltype(start_time) get_time() const
     {
         return start_time;

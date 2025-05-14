@@ -43,6 +43,8 @@ std::optional<std::string> ChunkedGenerator::process() {
     }
 }
 
+
+
 std::optional<std::string> BruteGenerator::process() {
     debug("BruteGenerator::process");
     auto stop = _comm.irecv_vector<uint8_t>(MPI::ANY_SOURCE, RESULT,42);
@@ -60,7 +62,8 @@ std::optional<std::string> BruteGenerator::process() {
                 auto numtask = req->get_buffer()[0];
                 debug("Sending %d tasks", numtask);
                 auto source = future->_status.MPI_SOURCE;
-                std::vector<uint64_t> sizes(numtask);
+                std::vector<uint64_t> sizes{};
+                sizes.reserve(numtask*2);
                 for (int i = 0; i < numtask; i++ ) {
                     sizes.push_back(current_address);
                     sizes.push_back(current_address +( ARGS.chunk_size -1));

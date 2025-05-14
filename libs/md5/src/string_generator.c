@@ -65,6 +65,7 @@ void seq_gen_skip_to(struct SequenceGeneratorCtx* ctx,uint64_t address)
         ctx->buffer[ctx->current_len - it - 1] = (char)(r + minCharInt);
         it++;
     }
+    ctx->index = address;
 }
 
 

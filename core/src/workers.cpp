@@ -34,9 +34,10 @@ void BruteWorker::process() {
           .start = task[0], .end = task[1], .target = ARGS.target_md5};
 
 
-      TimerContext("BruteTask").with_context([&] {
+      TimerContext("BruteTask").with_context([&](TimerStats &s) {
         trace("Worker %d computing range [%lu, %lu]", comm.rank(),
               task[0], task[1]);
+              s.task_completed +=  task[1] - task[0];
         auto res = compute({ctx});
         if (res.has_value()) {
           trace("Worker %d found result", comm.rank());
@@ -46,7 +47,7 @@ void BruteWorker::process() {
       });
 
       process.add_future(comm.irecv_vector<uint64_t>(MPI::ANY_SOURCE, SIZE, 2));
-      comm.send_object<uint8_t>(0u, balancer_id, MPITags::TASK);
+      comm.send_object<uint8_t>(1u, balancer_id, MPITags::TASK);
       break;
     }
     default:

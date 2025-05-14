@@ -6,6 +6,7 @@
 #include "timer.hpp"
 #include "utils.hpp"
 int main(int argc, char **argv) {
+    //remove before this
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
@@ -21,18 +22,30 @@ TEST(TestOptions, TestOptionsLoadFromFile) {
     EXPECT_TRUE(opt.brute_mode());
 }
 
+TEST(TestGenerator, TestShift){
+    SequenceGenerator gen(4);
+    size_t i = 0;
+    while(gen.current() != "!!!!!"){
+        gen.next_sequence();
+        i++;
+    }
+    char buffer[512]{};
+    sprintf(buffer, "Found %s at %lu\n", gen.current().c_str(), i);
+    fprintf(stderr, "%s", buffer);
+}
+
 TEST(TestCompute, TestComputeBruteGpu) {
     ComputeContext::BruteContext ctx;
     memset(&ctx, 0, sizeof(ctx));
     ARGS.num_threads = 1000;
     ARGS.brute_start = 4;
     ARGS.use_gpu = true;
-    ctx.start = 0u;
-    ctx.end = 10000u;
-    ctx.target = "98abe3a28383501f4bfd2d9077820f11";
+    ctx.start = 78074000u;
+    ctx.end = 78074900u;
+    ctx.target = "952bccf9afe8e4c04306f70f7bed6610";
     auto result = compute({ctx});
     EXPECT_TRUE(result.has_value());
-    EXPECT_STREQ(result.value().c_str(), "!!!!");
+    EXPECT_STREQ(result.value().c_str(), "!!!!!");
 }
 
 TEST(TestCompute, TestComputeChunkGpu) {
@@ -40,7 +53,7 @@ TEST(TestCompute, TestComputeChunkGpu) {
     ARGS.num_threads = 1000;
     ARGS.brute_start = 4;
     ARGS.use_gpu = true;
-    auto res = SequenceGenerator(4).generate_flatten_chunk(10000);
+    auto res = SequenceGenerator(5).generate_flatten_chunk(10000);
     ctx.data = res.strings.data();
     ctx.sizes = res.sizes.data();
     ctx.chunk_size = 10000;

@@ -5,6 +5,9 @@
 #include <timer.hpp>
 
 using namespace std::chrono;
+
+char TimerStats::device_name[32] = "unknown";
+
 TimerStats::TimerStats(const char *name) {
   memset(this, 0, sizeof(TimerStats));
   strncpy(this->name, name, sizeof(this->name));
@@ -14,8 +17,8 @@ std::string TimerStats::to_csv() {
   std::stringbuf buffer;
   std::ostream writer(&buffer);
 
-  writer << device_name << "," << name << "," << busy_time << ","
-         << observation_time << "," << task_completed << "\n";
+  writer << TimerStats::device_name << "," << name << "," << observation_time << ","
+         << busy_time << "," << task_completed << "\n";
 
   return buffer.str();
 }
@@ -24,6 +27,11 @@ std::string TimerStats::csv_header() {
   const char header[] =
       "device_name,context_name,busy_time,observation_time,task_completed\n";
   return header;
+}
+
+void TimerStats::set_device_name(const char *name) {
+  memset(device_name, 0, sizeof(device_name));
+  strncpy(device_name, name, std::min(sizeof(device_name), strlen(name)));
 }
 
 GlobalClock &GlobalClock::instance() {
@@ -38,16 +46,8 @@ TimerStats &GlobalClock::get_or_create(const char *name) {
     }
   }
   auto stat = TimerStats(name);
-  strncpy(stat.device_name, device_name, sizeof(stat.device_name));
   stats.push_back(stat);
   return stats.back();
-}
-
-void GlobalClock::set_device_name(const char *name) {
-  strncpy(device_name, name, std::min(sizeof(device_name), strlen(name)));
-  for (auto &stat : stats) {
-    strncpy(stat.device_name, device_name, sizeof(stat.device_name));
-  }
 }
 
 GlobalClock::GlobalClock() {
@@ -61,10 +61,10 @@ void TimerContext::start() {
 
 void TimerContext::stop() {
   auto total = high_resolution_clock::now() - start_time;
-  auto busy_time = duration_cast<microseconds>(total).count();
+  auto busy_time = duration_cast<milliseconds>(total).count();
   stats.busy_time += busy_time;
   stats.observation_time =
-      std::chrono::duration_cast<microseconds>(
+      std::chrono::duration_cast<milliseconds>(
           high_resolution_clock::now() - GlobalClock::instance().get_time())
           .count();
 }
@@ -80,7 +80,7 @@ void save_stats(const char *filename) {
   auto stats = GlobalClock::instance().get_stats();
   for (auto &stat : stats) {
     auto content = stat.to_csv();
-    fwrite(content.c_str(), sizeof(char), content.size(), file);    
+    fwrite(content.c_str(), sizeof(char), content.size(), file);
   }
   fflush(file);
   funlockfile(file);

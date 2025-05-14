@@ -8,15 +8,13 @@ constexpr int maxCharint = 126;
 
 
 
-inline __device__ void grow_swap(char * a, size_t curlen){
-    memcpy(a+1,a,curlen);
-    a[0]=minCharInt;
+static inline __device__ void shift_buffer(char* buffer, int len, int shift)
+{
+    memcpy(buffer+shift, buffer, len);
 }
 
-
-__device__ void assign_address(GpuStringGenerator* self,size_t address)
+__device__ void assign_address(GpuStringGenerator* ctx,size_t address)
 {
-    self->current_used = false;
     int div = maxCharint - minCharInt;
     int q = address;
     int r = 0;
@@ -25,44 +23,44 @@ __device__ void assign_address(GpuStringGenerator* self,size_t address)
     {
         r = q % div;
         q /= div;
-        if (it == self->currentSequenceLength)
+        if (it == ctx->current_len)
         {
-            grow_swap(self->current, self->currentSequenceLength);
-            self->currentSequenceLength+=1;
+            shift_buffer(ctx->buffer, ctx->current_len, 1); 
+            ctx->current_len++;
+            ctx->buffer[0] = minCharInt;
         }
-        self->current[self->currentSequenceLength - it - 1] = (char)(r + minCharInt);
+        ctx->buffer[ctx->current_len - it - 1] = (char)(r + minCharInt);
         it++;
     }
-
+    ctx->index =address;
 }
 
-__device__ GpuStringGenerator new_generator(uint8_t initialSequenceLength)
+__device__ GpuStringGenerator new_generator(uint8_t base_len)
 {
     GpuStringGenerator gen{};
     memset(&gen,0,sizeof(GpuStringGenerator));
-    memset(gen.current, minCharInt, 24);
-    gen.initialSequenceLength = initialSequenceLength;
-    gen.currentSequenceLength = initialSequenceLength;
+    gen.base_len = base_len;
+    gen.current_len = base_len;
+    for (int i = 0; i < (base_len>0?base_len:1); i++)
+    {
+        gen.buffer[i] += minCharInt;
+    }
     return gen;
 }
 
 
-__device__ void next_sequence(GpuStringGenerator* self,char* data){
- if(!self->current_used) {
-    memcpy(data,self->current,self->currentSequenceLength);
-    self->current_used = true;
-    return;
- }
-    for (int i = self->currentSequenceLength - 1; i >= 0; i--)
+__device__ void next_sequence(GpuStringGenerator* ctx,char* data){
+for (int i = ctx->current_len - 1; i >= 0; i--)
     {
-        self->current[i]++;
-        if (self->current[i] > maxCharint)
+        ctx->buffer[i]++;
+        if (ctx->buffer[i] > maxCharint)
         {
-            self->current[i] = minCharInt;
+            ctx->buffer[i] = minCharInt;
             if (i == 0)
             {
-                grow_swap(self->current, self->currentSequenceLength);
-                self->currentSequenceLength += 1;
+                shift_buffer(ctx->buffer, ctx->current_len, 1);
+                ctx->current_len++;
+                ctx->buffer[0] = minCharInt;
             }
         }
         else
@@ -70,7 +68,6 @@ __device__ void next_sequence(GpuStringGenerator* self,char* data){
             break;
         }
     }
-    memcpy(data,self->current,self->currentSequenceLength);
 }
 
 __device__ void destroy_generator(GpuStringGenerator* self){

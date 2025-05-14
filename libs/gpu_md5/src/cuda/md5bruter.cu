@@ -29,20 +29,21 @@ __global__ void md5_brute_apply(struct md5_bruter_request * request){
     int i = threadIdx.x+blockDim.x*blockIdx.x;
     size_t span = request->address_end - request->address_start;
     if(i < span){
-        char sequence[24];
-        memset(sequence,0,24);
+        char sequence[32];
+        memset(sequence,0,32);
         GpuStringGenerator gen = new_generator(request->base_str_len);
         char result[33];
         uint8_t digest[16];
         memset(result,0,33);
         memset(digest,0,16);
         assign_address(&gen,request->address_start + i);
-        next_sequence(&gen,sequence);
-        md5String(sequence, digest,gen.currentSequenceLength);
+        //next_sequence(&gen,sequence);
+        printf("thread %d sequence %s\n",i,gen.buffer);
+        md5String(sequence, digest,gen.current_len);
         md5HexDigest(digest,result);
         if(cmpstr(result, request->target_md5, 32)){
-            memcpy(request->target_found,sequence,gen.currentSequenceLength);
-            request->target_found[gen.currentSequenceLength] = 0;
+            memcpy(request->target_found,sequence,gen.current_len);
+            request->target_found[gen.current_len] = 0;
         }
     }
 }
@@ -73,7 +74,7 @@ __host__ cudaError_t copy_request_to_host(struct md5_bruter_request * request){
 
 void md5_gpu_brute(struct md5_bruter_request* request, int threads){
     cudaError_t error = cudaSuccess;
-    int span = request->address_end - request->address_start;
+    size_t span = request->address_end - request->address_start;
     int blocks = ceil(static_cast<double>(span) / threads);
     handle(alloc_request());
     handle(copy_request_to_device(request));

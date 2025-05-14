@@ -1,18 +1,13 @@
 #include <future>
 #include <string>
-#include "../include/md5_gpu.hpp"
 #include <optional>
-#include "../src/cuda_manager.hpp"
-
+#include "md5_gpu.h"
 
 int main(){
-  CudaManager::instance()->init();
-  std::string target = "5d41402abc4b2a76b9719d911017c592";
-  std::optional<std::string> res{};
-  res.reset();
-  size_t currentaddress=0, chunksize =100000,threads=1000;
-  while(!res.has_value()){
-    res=md5_bruter(currentaddress, currentaddress+chunksize, target,chunksize);
-    currentaddress+=chunksize;
-  }
+
+    auto start = 78074000u;
+    auto end = 78074900u;
+    auto target = "952bccf9afe8e4c04306f70f7bed6610";
+    auto res = md5_bruter(start,end ,target, 10000,4);
+    printf("result: %s\n",res.data);
 }

@@ -85,8 +85,9 @@ void node_assign(Communicator &comm) {
 
 void root_routine(Communicator &comm) {
   node_assign(comm);
-  GlobalClock::instance().set_device_name("root");
-  TimerContext("wallclock").with_context([&] {
+  TimerStats::set_device_name("root");
+  TimerContext("wallclock").with_context([&](TimerStats&s) {
+    s.task_completed+=1;
     auto result = [&comm] {
       if (!ARGS.brute_mode()) {
         return ChunkedGenerator{comm}.process();
@@ -102,7 +103,9 @@ void worker_routine(Communicator &comm) {
   auto node_type = comm.recv_object<NodeType>(0, 0);
   char node_name[32]{};
   if (node_type == WORKER) {
+
     sprintf(node_name, "worker %d", comm.rank());
+    TimerStats::set_device_name(node_name);
     auto balancer_id = comm.recv_object<int>(0, 1);
     if (ARGS.brute_mode()) {
       trace("Worker %d, balancer %d mode brute", comm.rank(), balancer_id);
@@ -113,7 +116,7 @@ void worker_routine(Communicator &comm) {
     }
   } else if (node_type == BALANCER) {
     sprintf(node_name, "balancer %d", comm.rank());
-    GlobalClock::instance().set_device_name(node_name);
+    TimerStats::set_device_name(node_name);
     if (ARGS.brute_mode()) {
       trace("Balancer %d mode brute", comm.rank());
       BruteBalancer{comm}.process();

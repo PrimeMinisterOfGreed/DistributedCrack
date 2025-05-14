@@ -7,7 +7,8 @@
 struct Md5BruterResult md5_bruter(size_t start_address, size_t end_address, const char* target_md5, int maxthreads,int base_str_len){
     struct Md5BruterResult result;
     memset(&result, 0, sizeof(result));
-    struct md5_bruter_request request = new_bruter_request((char*)target_md5, start_address, end_address, base_str_len);
+    struct md5_bruter_request request = 
+    new_bruter_request((char*)target_md5, start_address, end_address, base_str_len);
     md5_gpu_brute(&request, maxthreads);
     if(request.target_found[0] != 0){
         result.found = true;
