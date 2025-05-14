@@ -68,3 +68,16 @@ TEST(TestPromise, TestMpiProcessWaitAny){
 }
 
 
+TEST(TestPromise, TestIRecvWithSendObject){
+    MpiContext ctx{1,NULL};
+    auto comm = ctx.world();
+    if(comm.rank() == 0){
+        auto promise = comm.irecv<uint16_t>(1, 99);
+        promise->wait();
+        auto obj = reinterpret_cast<BufferedPromise<uint16_t>*>(promise.get())->get_buffer()[0];
+        EXPECT_EQ(obj, 10u);
+    }
+    else{
+        comm.send_object<uint16_t>(10, 0, 99);
+    }
+}

@@ -4,9 +4,9 @@
 #include <cstring>
 #include <chrono>
 struct TimerStats{
-    uint64_t busy_time;
-    uint64_t observation_time;
-    uint64_t task_completed;
+    uint64_t busy_time = 0;
+    uint64_t observation_time = 0;
+    uint64_t task_completed = 0;
     char device_name[32]{};
     char name[32]{};
     TimerStats(const char * name);

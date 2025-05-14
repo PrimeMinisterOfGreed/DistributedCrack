@@ -35,6 +35,8 @@ void BruteWorker::process() {
 
 
       TimerContext("BruteTask").with_context([&] {
+        trace("Worker %d computing range [%lu, %lu]", comm.rank(),
+              task[0], task[1]);
         auto res = compute({ctx});
         if (res.has_value()) {
           trace("Worker %d found result", comm.rank());
@@ -72,10 +74,11 @@ void BruteBalancer::process() {
         trace("Balancer %d no ranges left requesting tasks", comm.rank());
         // TODO determine an algorithm to decide how many requests catch, for
         // now is chunk_size* size/cluster_degree
-        auto numtask = ARGS.chunk_size * (comm.size() / ARGS.cluster_degree);
+        auto numtask = comm.size() / ARGS.cluster_degree;
+        debug("Balancer %d requesting %d tasks", comm.rank(), numtask);
         comm.send_object<uint16_t>(numtask, 0, TASK);
         auto ranges = comm.recv_vector<uint64_t>(MPI_ANY_SOURCE, SIZE);
-        trace("Balancer %d received ranges with size %d", comm.rank(),
+        debug("Balancer %d received ranges with size %d", comm.rank(),
               ranges.size());
         if (ranges.size() % 2 != 0) {
           exception("Invalid number of ranges");

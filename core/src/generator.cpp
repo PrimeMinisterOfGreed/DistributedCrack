@@ -58,6 +58,7 @@ std::optional<std::string> BruteGenerator::process() {
                 trace("BruteGenerator::TASK from %d ", future->_status.MPI_SOURCE);
                 auto req = static_cast<BufferedPromise<uint16_t>*>(future.get());
                 auto numtask = req->get_buffer()[0];
+                debug("Sending %d tasks", numtask);
                 auto source = future->_status.MPI_SOURCE;
                 std::vector<uint64_t> sizes(numtask);
                 for (int i = 0; i < numtask; i++ ) {

@@ -1,6 +1,6 @@
 config_file = "launch.toml"
 use_gpu = true
-target_md5 = "df0ab011de60a20038a6d5fd760de52e"
+target_md5 = 98abe3a28383501f4bfd2d9077820f11
 num_threads = 1000
 chunk_size = 1000
 verbosity = 4

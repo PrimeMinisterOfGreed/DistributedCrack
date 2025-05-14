@@ -1,4 +1,5 @@
 #include "options.hpp"
+#include <cstdio>
 #include <filesystem>
 #include <iostream>
 #include <timer.hpp>
@@ -6,6 +7,7 @@
 using namespace std::chrono;
 TimerStats::TimerStats(const char *name) {
   memset(this, 0, sizeof(TimerStats));
+  strncpy(this->name, name, sizeof(this->name));
 }
 
 std::string TimerStats::to_csv() {
@@ -43,6 +45,9 @@ TimerStats &GlobalClock::get_or_create(const char *name) {
 
 void GlobalClock::set_device_name(const char *name) {
   strncpy(device_name, name, std::min(sizeof(device_name), strlen(name)));
+  for (auto &stat : stats) {
+    strncpy(stat.device_name, device_name, sizeof(stat.device_name));
+  }
 }
 
 GlobalClock::GlobalClock() {
@@ -74,7 +79,8 @@ void save_stats(const char *filename) {
   flockfile(file);
   auto stats = GlobalClock::instance().get_stats();
   for (auto &stat : stats) {
-    fprintf(file, "%s", stat.to_csv().c_str());
+    auto content = stat.to_csv();
+    fwrite(content.c_str(), sizeof(char), content.size(), file);    
   }
   fflush(file);
   funlockfile(file);
