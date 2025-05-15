@@ -6,10 +6,14 @@
 template<typename ... Args>
 void _print_impl(const char* type, int verb_limit ,int line, const char* filename,const char * message, Args ... args) {
     if(ARGS.verbosity > verb_limit) {
-        char buffer[512]{};
-        snprintf(buffer, sizeof(buffer), "[%s][%s:%d]", type,filename, line);
-        snprintf(buffer + strlen(buffer), sizeof(buffer) - strlen(buffer), message, args...);
-        printf("%s\n", buffer);
+        if constexpr (sizeof...(args) > 0) {
+            char buffer[512]{};
+            snprintf(buffer, sizeof(buffer), "[%s][%s:%d]", type,filename, line);
+            snprintf(buffer + strlen(buffer), sizeof(buffer) - strlen(buffer), message, args...);
+            printf("%s\n", buffer);
+        } else {
+            printf("[%s][%s:%d]%s\n", type, filename, line, message);
+        }
     }
 }
 

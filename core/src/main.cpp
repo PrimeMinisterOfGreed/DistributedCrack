@@ -5,11 +5,17 @@
 #include "mpi/worker.hpp"
 #include "options.hpp"
 #include "timer.hpp"
+#include "utils.hpp"
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 void mpi_routine(int argc, char **argv);
 
 int main(int argc, char **argv) {
   
+
+
   if (argc < 2) {
     fprintf(stderr, "Usage: %s <config_file>\n", argv[0]);
     return 1;
@@ -21,7 +27,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Error loading config file: %s\n", opt.error);
     return 1;
   }
-  trace("hell", 1);
   ARGS = opt.unwrap();
   if (ARGS.use_mpi) {
     mpi_routine(argc, argv);
