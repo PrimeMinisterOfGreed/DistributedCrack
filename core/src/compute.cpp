@@ -65,21 +65,14 @@ std::optional<std::string> compute_chunk(ComputeContext::ChunkContext ctx) {
     }
     else{
         //TODO switch to pure pthread implementation
-      
     }
     return {};
 }
 
-
-std::optional<std::string> compute_brute(ComputeContext::BruteContext ctx) {
-    if constexpr (gpu_available)  {
-        if(ARGS.use_gpu) {
-            return compute_brute_gpu(ctx);
-        }
-    }
-    else{
-        //TODO switch to pure pthread implementation
+std::optional<std::string> compute_brute_cpu(ComputeContext::BruteContext ctx){
+            //TODO switch to pure pthread implementation
         std::optional<std::string> result = std::nullopt;
+        trace("compute_brute start %lu end %lu, threads : %d on cpu", ctx.start, ctx.end, ARGS.num_threads);
         #pragma omp parallel 
         for(int i = ctx.start; i < ctx.end; i++) {
             auto generator = SequenceGenerator{(uint8_t)ARGS.brute_start};
@@ -89,7 +82,6 @@ std::optional<std::string> compute_brute(ComputeContext::BruteContext ctx) {
             md5String( const_cast<char*>(seq.c_str()), digest);
             char hex[33]{};
             md5HexDigest(digest, hex);
-
             if (strncmp(hex, ctx.target, 32) == 0) {
                 #pragma omp critical
                 {
@@ -98,8 +90,19 @@ std::optional<std::string> compute_brute(ComputeContext::BruteContext ctx) {
             }
         }
         return result;
+}
+
+
+std::optional<std::string> compute_brute(ComputeContext::BruteContext ctx) {
+    if constexpr (gpu_available) {
+        if(ARGS.use_gpu) {
+            return compute_brute_gpu(ctx);
+        }
+        else{
+            return compute_brute_cpu(ctx);
+        }
     }
-    return {};
+    return compute_brute_cpu(ctx);
 }
 
 std::optional<std::string> compute(ComputeContext ctx) {

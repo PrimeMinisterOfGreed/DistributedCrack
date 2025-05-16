@@ -82,19 +82,17 @@ TEST(TestCompute, TestComputeChunkCpu) {
 
 TEST(TestCompute, TestComputeBruteCpu) {
   ARGS.num_threads = 1000;
-  ARGS.brute_start = 1; 
   ARGS.use_gpu = true;
   for (int i = 3; i < 6; i++) {
     ComputeContext::BruteContext ctx;
+    ARGS.brute_start = i; 
     memset(&ctx, 0, sizeof(ctx));
     char passwd[24]{};
     char passwd_res[32]{};
     char passwd_digest[16]{};
-    ctx.start = pow(94, i)-100;
-    ctx.end = pow(94, i) + 100;
-    for(int j = 0; j <= i; j++) {
-      passwd[j] = '!';
-    }
+    ctx.start = pow(94, i)-10;
+    ctx.end = pow(94, i) + 10;
+    memset(passwd, '!', i);
     md5String(reinterpret_cast<char*>(passwd), reinterpret_cast<uint8_t*>(passwd_digest));
     md5HexDigest(reinterpret_cast<uint8_t*>(passwd_digest), passwd_res);
     ctx.target = passwd_res;
