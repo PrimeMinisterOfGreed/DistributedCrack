@@ -13,7 +13,7 @@ size_t SequenceGenerator::absolute_index() const {
 }
 
 size_t SequenceGenerator::remaining_this_size() const {
-    return 93 * (ctx.current_len + 1) - absolute_index();
+    return span * (ctx.current_len + 1) - absolute_index();
 }
 
 void SequenceGenerator::next_sequence() {

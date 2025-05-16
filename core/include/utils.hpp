@@ -25,10 +25,11 @@ public:
     void skip_to(size_t address);
     const char* get_buffer() const;
     std::string current() const;
+    size_t size() const { return ctx.current_len; }
     virtual GeneratorResult generate_flatten_chunk(size_t chunks) override;
 private:
     SequenceGeneratorCtx ctx;
-    static constexpr size_t span = 93;
+    static constexpr size_t span = 94;
 };
 
 

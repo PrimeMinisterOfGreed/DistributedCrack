@@ -83,11 +83,13 @@ std::optional<std::string> compute_brute(ComputeContext::BruteContext ctx) {
         #pragma omp parallel 
         for(int i = ctx.start; i < ctx.end; i++) {
             auto generator = SequenceGenerator{(uint8_t)ARGS.brute_start};
+            generator.skip_to(i);
             auto seq = generator.current();
             uint8_t digest[16]{};
             md5String( const_cast<char*>(seq.c_str()), digest);
             char hex[33]{};
             md5HexDigest(digest, hex);
+
             if (strncmp(hex, ctx.target, 32) == 0) {
                 #pragma omp critical
                 {
@@ -97,6 +99,7 @@ std::optional<std::string> compute_brute(ComputeContext::BruteContext ctx) {
         }
         return result;
     }
+    return {};
 }
 
 std::optional<std::string> compute(ComputeContext ctx) {

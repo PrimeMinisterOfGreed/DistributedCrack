@@ -15,6 +15,7 @@ struct options{
     char* dictionary_file;
     int brute_start;
     int cluster_degree;
+    bool enable_watcher;
     static Result<options, const char*> load_from_file(const char* filename);
     bool brute_mode() const;
 };

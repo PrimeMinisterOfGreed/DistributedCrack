@@ -12,8 +12,8 @@ const int maxCharint = 126;
 
 struct SequenceGeneratorCtx{
   uint64_t index;
-  uint8_t base_len;
   uint8_t current_len;
+  uint8_t base_len;
   char buffer[32]; // placed at the end, so that it can be extended
 };
 

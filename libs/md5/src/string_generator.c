@@ -49,24 +49,24 @@ void seq_gen_next_sequence(struct SequenceGeneratorCtx* ctx)
 void seq_gen_skip_to(struct SequenceGeneratorCtx* ctx,uint64_t address)
 {
     int div =( maxCharint - minCharInt)+1;
-    int q = address;
-    int r = 0;
-    int it = 0;
-    while (q > 0)
+    size_t q = address;
+     size_t r = 0;
+    size_t it = 0;
+    do
     {
         r = q % div;
         q /= div;
-        if (it == ctx->current_len)
+        if (it == ctx->current_len - 1 && q > 0)
         {
             shift_buffer(ctx->buffer, ctx->current_len, 1); 
             ctx->current_len++;
             ctx->buffer[0] = minCharInt;
-            it ++;
         }
+        
         ctx->buffer[ctx->current_len - it - 1] = (char)(r + minCharInt);
         it++;
-    }
-    ctx->index = address;
+        
+    } while(q>1);
 }
 
 

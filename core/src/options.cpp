@@ -30,7 +30,7 @@ Result<options, const char*> options::load_from_file(const char* filename) {
     opt.dictionary_file = toml_string_in(table, "dictionary").u.s;
     opt.cluster_degree = toml_int_in(table, "cluster_degree").u.i;
     opt.brute_start = toml_int_in(table, "brutestart").u.i;
-
+    opt.enable_watcher = toml_bool_in(table, "enable_watcher").u.b;
     toml_free(table);
     fclose(file);
     return opt;

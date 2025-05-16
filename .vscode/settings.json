@@ -80,6 +80,7 @@
             "optional": "cpp",
             "__nullptr": "cpp"
       },
+      
       "[cuda-cpp]": {
             "editor.wordBasedSuggestions": "off",
             "editor.suggest.insertMode": "replace",

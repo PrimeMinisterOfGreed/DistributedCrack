@@ -14,7 +14,6 @@ extern "C" {
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   auto res = RUN_ALL_TESTS();
-  cudaDeviceSynchronize();
   return res;
 }
 
@@ -22,6 +21,14 @@ TEST(TestMd5Gpu, test_bruter){
   const char * target = "98abe3a28383501f4bfd2d9077820f11";
   const char * expected = "!!!!";
   struct Md5BruterResult result = md5_bruter(0, 10000, target, 10000, 4);
+  ASSERT_TRUE(result.found);
+  ASSERT_STREQ(expected, result.data);
+}
+
+TEST(TestMd5Gpu, test_bruter_2){
+  const char * target = "952bccf9afe8e4c04306f70f7bed6610";
+  const char * expected = "!!!!!";
+  struct Md5BruterResult result = md5_bruter(0, 10000, target, 10000, 5);
   ASSERT_TRUE(result.found);
   ASSERT_STREQ(expected, result.data);
 }

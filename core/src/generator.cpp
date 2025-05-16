@@ -66,11 +66,16 @@ std::optional<std::string> BruteGenerator::process() {
                 sizes.reserve(numtask*2);
                 for (int i = 0; i < numtask; i++ ) {
                     sizes.push_back(current_address);
-                    sizes.push_back(current_address +( ARGS.chunk_size -1));
+                    sizes.push_back(current_address +ARGS.chunk_size);
                     current_address += ARGS.chunk_size;
                 }
                 _comm.send_vector<uint64_t>(sizes, source, SIZE);
                 _mpprocess.add_future(_comm.irecv<uint16_t>(MPI_ANY_SOURCE, MPITags::TASK));
+                if(ARGS.enable_watcher && ARGS.verbosity  < 3){
+                    SequenceGenerator gen(ARGS.brute_start);
+                    gen.skip_to(current_address);
+                    printf(" ****ADDRESS_WATCHER*****\n current_address: %lu \n current_size %lu \r\033[2A", current_address, gen.size());
+                }
             }
             break;
 

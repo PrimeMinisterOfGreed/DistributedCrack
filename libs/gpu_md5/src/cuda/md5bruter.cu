@@ -38,7 +38,7 @@ __global__ void md5_brute_apply(struct md5_bruter_request * request){
         memset(digest,0,16);
         assign_address(&gen,request->address_start + i);
         //next_sequence(&gen,sequence);
-        printf("thread %d sequence %s\n",i,gen.buffer);
+        memcpy(sequence,gen.buffer,gen.current_len);
         md5String(sequence, digest,gen.current_len);
         md5HexDigest(digest,result);
         if(cmpstr(result, request->target_md5, 32)){

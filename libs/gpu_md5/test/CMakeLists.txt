@@ -6,7 +6,7 @@ target_include_directories(${UT_TARGET_NAME} PUBLIC
 ${CMAKE_CURRENT_SOURCE_DIR}/../src 
 ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
-target_link_libraries(${UT_TARGET_NAME} PRIVATE GTest::gtest GTest::gtest_main nvidia-ml cuda md5::gpu)
+target_link_libraries(${UT_TARGET_NAME} PRIVATE GTest::gtest GTest::gtest_main nvidia-ml cuda md5::gpu md5::md5)
 
 add_executable(${TARGET_NAME}_istrumented istrumented_test.cu ${SRC_FILES})
 target_link_libraries(${TARGET_NAME}_istrumented PRIVATE cuda nvidia-ml md5::gpu)

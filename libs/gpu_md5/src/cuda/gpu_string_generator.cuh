@@ -15,4 +15,5 @@ __device__ void generate_chunk(GpuStringGenerator *gen, size_t size,
                                char *data);
 __device__ void next_sequence(GpuStringGenerator*self,char *data);
 __device__ void destroy_generator(GpuStringGenerator *gen);
+__device__ size_t current_len(GpuStringGenerator *gen);
 END

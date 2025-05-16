@@ -13,13 +13,35 @@
 void mpi_routine(int argc, char **argv);
 
 int main(int argc, char **argv) {
-  
-
 
   if (argc < 2) {
     fprintf(stderr, "Usage: %s <config_file>\n", argv[0]);
     return 1;
   }
+  /* -------------------------------------------------------------------------- */
+  /*                                 Debug Zone                                 */
+  /* -------------------------------------------------------------------------- */
+  if (strcmp("SeqViewer", argv[1]) == 0) {
+    if(argc < 2){
+      fprintf(stderr, "Usage: %s word \n", argv[0]);
+      return 1;
+    }
+    const char *word = argv[2];
+    for (size_t i = 0;; i++) {
+      SequenceGeneratorCtx ctx = new_seq_generator(4);
+      seq_gen_skip_to(&ctx, i);
+      if(i % 1000000 == 0)
+        printf("address:%lu  word: %s  size:%d\r", i,
+             ctx.buffer,ctx.current_len);
+             if(strcmp(word, ctx.buffer) == 0){
+               printf("Found word: %s at index: %lu\n", ctx.buffer, i);
+               break;
+             }
+    }
+    return 0;
+  }
+
+
   const char *config_file = argv[1];
   trace("Loading config file: %s\n", config_file);
   auto opt = options::load_from_file(config_file);
@@ -91,8 +113,8 @@ void node_assign(Communicator &comm) {
 void root_routine(Communicator &comm) {
   node_assign(comm);
   TimerStats::set_device_name("root");
-  TimerContext("wallclock").with_context([&](TimerStats&s) {
-    s.task_completed+=1;
+  TimerContext("wallclock").with_context([&](TimerStats &s) {
+    s.task_completed += 1;
     auto result = [&comm] {
       if (!ARGS.brute_mode()) {
         return ChunkedGenerator{comm}.process();
