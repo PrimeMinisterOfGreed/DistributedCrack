@@ -15,6 +15,24 @@ constexpr bool gpu_available = false;
 #endif
 
 #ifdef CUDA_GPU
+#include <chrono>
+#include <nvml.h>
+
+struct GpuDescriptor {
+    int device_id;
+    nvmlDevice_t device;
+    nvmlPciInfo_t pci_info;
+    nvmlUtilization_t utilization;
+    nvmlMemory_t memory;
+};
+struct GpuManager{
+    private:
+        std::vector<GpuDescriptor> gpu_descriptors;
+        int num_gpus;
+    public:
+    
+};
+
 std::optional<std::string> compute_brute_gpu(ComputeContext::BruteContext ctx) {
     trace("compute_brute start %lu end %lu, threads : %d", ctx.start, ctx.end, ARGS.num_threads);
     auto res = md5_bruter(ctx.start, ctx.end, ctx.target,ARGS.num_threads, ARGS.brute_start);
@@ -70,10 +88,9 @@ std::optional<std::string> compute_chunk(ComputeContext::ChunkContext ctx) {
 }
 
 std::optional<std::string> compute_brute_cpu(ComputeContext::BruteContext ctx){
-            //TODO switch to pure pthread implementation
         std::optional<std::string> result = std::nullopt;
         trace("compute_brute start %lu end %lu, threads : %d on cpu", ctx.start, ctx.end, ARGS.num_threads);
-        #pragma omp parallel 
+        #pragma omp parallel
         for(int i = ctx.start; i < ctx.end; i++) {
             auto generator = SequenceGenerator{(uint8_t)ARGS.brute_start};
             generator.skip_to(i);

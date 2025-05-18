@@ -26,6 +26,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "Usage: %s word \n", argv[0]);
       return 1;
     }
+
     const char *word = argv[2];
     for (size_t i = 0;; i++) {
       SequenceGeneratorCtx ctx = new_seq_generator(4);
@@ -38,6 +39,7 @@ int main(int argc, char **argv) {
                break;
              }
     }
+
     return 0;
   }
 

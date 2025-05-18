@@ -11,9 +11,9 @@ ChunkedGenerator::ChunkedGenerator(Communicator& comm): Generator(comm)  , reade
 }
 
 std::optional<std::string> ChunkedGenerator::process() {
-    auto stop = _comm.irecv_vector<uint8_t>(MPI::ANY_SOURCE, RESULT, 42);
+    auto stop = _comm.irecv_vector<uint8_t>(MPI_ANY_SOURCE, RESULT, 42);
     _mpprocess.add_future(std::move(stop));
-    auto request = _comm.irecv<uint16_t>(MPI::ANY_SOURCE, MPITags::TASK);    
+    auto request = _comm.irecv<uint16_t>(MPI_ANY_SOURCE, MPITags::TASK);    
     _mpprocess.add_future(std::move(request));
     for(;;){
         auto future = _mpprocess.wait_any();
@@ -47,9 +47,9 @@ std::optional<std::string> ChunkedGenerator::process() {
 
 std::optional<std::string> BruteGenerator::process() {
     debug("BruteGenerator::process");
-    auto stop = _comm.irecv_vector<uint8_t>(MPI::ANY_SOURCE, RESULT,42);
+    auto stop = _comm.irecv_vector<uint8_t>(MPI_ANY_SOURCE, RESULT,42);
     _mpprocess.add_future(std::move(stop));
-    auto request = _comm.irecv<uint16_t>(MPI::ANY_SOURCE, TASK);    
+    auto request = _comm.irecv<uint16_t>(MPI_ANY_SOURCE, TASK);    
     _mpprocess.add_future(std::move(request));
     for(;;){
         trace("BruteGenerator::wait_any");

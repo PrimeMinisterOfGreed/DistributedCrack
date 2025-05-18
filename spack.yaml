@@ -1,0 +1,8 @@
+spack:
+    specs:
+      - openmpi+cxx+cuda+pmi
+      - gcc@12.2.0
+      - cmake
+      - cuda@12.2.0
+    concretizer:
+      unify: true

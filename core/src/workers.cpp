@@ -46,7 +46,7 @@ void BruteWorker::process() {
         }
       });
 
-      process.add_future(comm.irecv_vector<uint64_t>(MPI::ANY_SOURCE, SIZE, 2));
+      process.add_future(comm.irecv_vector<uint64_t>(MPI_ANY_SOURCE, SIZE, 2));
       comm.send_object<uint8_t>(1u, balancer_id, MPITags::TASK);
       break;
     }

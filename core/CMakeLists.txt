@@ -18,9 +18,9 @@ target_compile_options(mpc PRIVATE -fno-exceptions -fno-rtti
 target_link_libraries(mpc
     PUBLIC
     md5::md5
-    OpenMP::OpenMP_CXX
-    MPI::MPI_CXX
     MPI::MPI_C
+    MPI::MPI_CXX
+    hwloc
     pthread
 )
 
@@ -33,4 +33,6 @@ if(ENABLE_CUDA)
 
 endif()
 
+if(ENABLE_UNIT_TEST)
 add_subdirectory(test)
+endif()

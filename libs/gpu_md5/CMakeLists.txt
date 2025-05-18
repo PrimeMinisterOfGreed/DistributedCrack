@@ -7,6 +7,8 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # enable separable compilation
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 
+# allow unsupported compiler 
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fPIC --allow-unsupported-compiler")
 # enable device relocatable device code
 set(CMAKE_CUDA_RELOCATABLE_DEVICE_CODE ON)
 # allow undefined symbols
