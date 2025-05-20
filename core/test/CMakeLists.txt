@@ -22,7 +22,8 @@ target_link_libraries(${UT_TARGET_NAME} PRIVATE GTest::gtest GTest::gtest_main m
 ) 
 
 if(ENABLE_CUDA)
-target_link_libraries(${UT_TARGET_NAME} PRIVATE md5::gpu)
+target_link_libraries(${UT_TARGET_NAME} PRIVATE md5::gpu cuda nvidia-ml cudart)
+target_compile_definitions(${UT_TARGET_NAME} PRIVATE ENABLE_CUDA)
 endif()
 
 #copy launch.toml to build directory

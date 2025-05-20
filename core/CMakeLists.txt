@@ -25,9 +25,12 @@ target_link_libraries(mpc
 )
 
 if(ENABLE_CUDA)
+
     target_link_libraries(mpc
         PRIVATE
         md5::gpu    
+        nvidia-ml
+        cudart
         )
     target_compile_definitions(mpc PRIVATE CUDA_GPU)
 

@@ -110,3 +110,13 @@ TEST(TestRoutines, TestBruteBalancer){
         comm.send_object<uint8_t>(0, 1, TERMINATE);
     }
 }
+
+#ifdef ENABLE_CUDA
+
+TEST(TestResources, test_scheduling){
+    
+}
+
+
+
+#endif  

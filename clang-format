@@ -1,5 +1,8 @@
 ---
 BasedOnStyle: Microsoft
 SortIncludes: False
-
+SpacesInParentheses: false
+SpaceAfterCStyleCast: false
+# parenthesis after new line with classes
+BreakBeforeBraces: AfterClass
 ...

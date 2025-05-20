@@ -10,6 +10,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+
+#ifdef CUDA_GPU
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <nvml.h>
+#endif
+
 void mpi_routine(int argc, char **argv);
 
 int main(int argc, char **argv) {
@@ -18,6 +25,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Usage: %s <config_file>\n", argv[0]);
     return 1;
   }
+
+
   /* -------------------------------------------------------------------------- */
   /*                                 Debug Zone                                 */
   /* -------------------------------------------------------------------------- */
@@ -62,6 +71,17 @@ void worker_routine(Communicator &comm);
 void mpi_routine(int argc, char **argv) {
   auto universe = MpiContext{argc, argv};
   auto world = universe.world();
+  #ifdef CUDA_GPU
+  // get number of devices
+  int device_count;
+  cudaGetDeviceCount(&device_count);
+  if(device_count == 0) {
+    error("No CUDA devices found");
+    ARGS.use_gpu = false;
+  } else {
+    cudaSetDevice(world.rank() % device_count);
+  }
+  #endif
   if (world.rank() == 0) {
     // root node
     debug("Starting root node");

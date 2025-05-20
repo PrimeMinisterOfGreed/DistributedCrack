@@ -8,6 +8,13 @@
             "--show-output",
             "--nocapture"
       ],
+      "[cpp]": {
+            "editor.wordBasedSuggestions": "off",
+            "editor.semanticHighlighting.enabled": true,
+            "editor.stickyScroll.defaultModel": "foldingProviderModel",
+            "editor.suggest.insertMode": "replace",
+            "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+      },
       "rust-analyzer.runnables.extraEnv": {
             "LD_PRELOAD": "${workspaceFolder}/build/libs/gpu_md5/libmd5_gpu.so",
             "RUST_BACKTRACE": "full"
@@ -95,8 +102,8 @@
       "testMate.cpp.test.executables": "{build,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST,ut}*",
       "github.copilot.enable": {
             "*": true,
-            "plaintext": false,
-            "markdown": false,
+            "plaintext": true,
+            "markdown": true,
             "scminput": false
       }
 }
