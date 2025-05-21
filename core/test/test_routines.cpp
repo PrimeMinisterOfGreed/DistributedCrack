@@ -55,7 +55,7 @@ TEST(TestRoutines, TestBruteWorker){
     MpiContext ctx{1,NULL};
     ARGS.brute_start= 4;
     ARGS.chunk_size = 100;    
-    ARGS.num_threads = 100;
+    ARGS.gpu_threads = 100;
     ARGS.target_md5 = (char*)"98abe3a28383501f4bfd2d9077820f11";
     auto comm = ctx.world();
     if(comm.rank() == 0){
@@ -91,7 +91,7 @@ TEST(TestRoutines, TestBruteBalancer){
     MpiContext ctx{1,NULL};
     ARGS.brute_start= 4;
     ARGS.chunk_size = 100;    
-    ARGS.num_threads = 100;
+    ARGS.gpu_threads = 100;
     ARGS.cluster_degree = 1;
     ARGS.target_md5 = (char*)"98abe3a28383501f4bfd2d9077820f11";
     auto comm = ctx.world();

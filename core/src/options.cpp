@@ -23,7 +23,8 @@ Result<options, const char*> options::load_from_file(const char* filename) {
     opt.use_gpu = toml_bool_in(table, "use_gpu").u.b;
     opt.use_mpi = toml_bool_in(table, "use_mpi").u.b;
     opt.target_md5 = toml_string_in(table, "target_md5").u.s;
-    opt.num_threads = toml_int_in(table, "num_threads").u.i;
+    opt.gpu_threads = toml_int_in(table, "gpu_threads").u.i;
+    opt.cpu_threads = toml_int_in(table, "cpu_threads").u.i;
     opt.chunk_size = toml_int_in(table, "chunk_size").u.i;
     opt.verbosity = toml_int_in(table, "verbosity").u.i;
     opt.save_file = toml_string_in(table, "savefile").u.s;

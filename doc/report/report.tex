@@ -9,10 +9,11 @@
 \usepackage{multirow}
 \usepackage{subfig}
 \usepackage{pgfpages}
+\usepackage{float}
 \usepackage{listings}
-\usepackage{biblatex} %Imports biblatex package
 \usepackage{rotating}
 \usepackage{bookmark}
+
 \usepackage{hyperref}
 
 \usepackage{xcolor}
@@ -84,7 +85,6 @@
 \author{}
 \date{}
 
-\bibliography{refs.bib}
 
 \begin{document}
 
@@ -145,19 +145,19 @@
 
 
 \section{Introduction}
-Distributed crack is an MPI, MultiThreaded and GPU enabled software that let the user to try different password combination on a single hash using all the power of the distributed computing. The program is thinked as an extensible example of how implement a distributed hash calculator alongside various string generators.
+MPC (Massive Parallel hash Cracker) is an MPI, MultiThreaded and GPU enabled software that let the user to try different password combination on a single hash using all the power of the distributed computing. The program is developed as an extensible example of how implement a distributed hash calculator.
 
 \subsection{Hashing algorithm}
-An hashing algorithm is a function that takes as input some bytes, usually divided in blocks of fixed length, and returns an array of bytes of fixed length. Examples of those functions are MD4/5 (a.k.a Message Digests algorithms), SHA-1/2/256/512. Those functions are used in databases in order to maintain privacy, suppose we have a web application that takes username and password in order to authenticate user, if we are interested in avoid to store those data as clear string then hashing is a good way to obfscate those data. That's why the existence of tools like jhontheripper, hydra and distributedcrack shall be taken in consideration, also if we use an hash to obfuscate a password if the input is not long enough is relatively easy to "invert" the function by trying all the different ascii combinations. Nowadays there are strict policy around password due to those tools, you need to supply a 12 char password with some special character for that password, prevent inversion by bruteforcing. Unfortunately this length will grow in time, since the release of new hardware will let hackers to use much more "muscles" in order to calculate the original password. As always hacking something is just a matter of time.
+An hashing algorithm is a function that takes as input some bytes, usually divided in blocks of fixed length, and returns an array of bytes of fixed length. Examples of those functions are MD4/5 (a.k.a Message Digests algorithms), SHA-1/2/256/512. Tipically those kinds of functions serve the purpose to store password as encrypted hashes in a database, so that the authentication is done against the hash and not against the password in clear form. 
 
 \subsection{MD5}
-MD5 is a fast, efficient but not secure hashing algorithm. All hashing algorithm are designed with the intent to provide a specific and stable \(i.e of constant length\) output for all kind of inputs, but since they lack a mathematical proof of their behaviour we are satisfied to assume they work until the contrary is proven. That is the case for MD5, which a collision was found in 2004, and since then it is not considered a secure hashing algorithm, hovewer due to its simplicity it is still used in some applications like message authentication in non safety critical protocols.
+MD5 is a fast, efficient but not secure hashing algorithm. All hashing algorithm are designed with the intent to provide a specific and stable \(i.e of constant length\) output for all kind of inputs, but since they lack a mathematical proof of their behaviour we are satisfied to assume they work until the contrary is proven. That is the case for MD5, which a collision was found in 2004, and since then it is not considered a secure hashing algorithm, hovewer due to its simplicity it is still used in some applications like message digesting in non safety critical protocols.
 
 \section{The application}
-Develop an application to parallelize in hashing algorithm is the target of many hackaton, many applications surrounding the SHA-1 and SHA-256 algorithms were written, usually combining both GPU and CPU load. In this istance my objective was quite simple: write an application that can calculate a password stored as MD5 with both dictionary and bruteforce attack.
+Develop an application to parallelize in hashing algorithm is the target of many hackaton, many applications surrounding the SHA-1 and SHA-256 algorithms were written, usually combining both GPU and CPU load. In this istance my objective was quite simple: write an application that can calculate a password stored as MD5 using a bruteforce attack.
 
 \subsection{Tools and languages used}
-The project is divided in 2 parts: the libraries and the core. Under the libraries there are 2 implementation of the MD5 hashing algorithm, one for the cpu with also a string generator written both in C,  and the other for the gpu written in CUDA with a compatible string generator. The core program in written in Rust, a modern and memory safe programming language, with the MPI functions exported using bindgen and FFI (Foreign Function Interface) of Rust, and Rayon as a framework to develop the parallel evaluation of the strings to be hashed.
+The project is divided in 2 parts: the libraries and the core. Under the libraries there are 2 implementation of the MD5 hashing algorithm, one for the cpu with also a string generator written both in C,  and the other for the gpu written in CUDA with a compatible string generator. The core program is written in C++ using MPI, Pthread and OpenMP.
 
 
 \subsection{Brief description of the libraries}
@@ -219,7 +219,7 @@ The string generator instead is a container of all possible permutation of a str
     void seq_gen_skip_to(struct SequenceGeneratorCtx* ctx,size_t address);
 \end{lstlisting}
 
-The generator start from a base length of the string and treats every further combination as an address (or offset) from this base length. This behaviour guarantee that the user can also skip to a certain combination specifing just the address, that will be calculated using a modified version of the combinatorial search proposed by Donald Knuth \cite{artcp1}. 
+The generator works using 2 algorithms, one that is a combinatorial search so that the user can target a specific string by expressing it as an offset from the string ``!'' 
 
 \begin{lstlisting}
     void seq_gen_skip_to(struct SequenceGeneratorCtx* ctx,uint64_t address)
@@ -245,10 +245,9 @@ The generator start from a base length of the string and treats every further co
 
 \end{lstlisting}
 
-The importance of this algorithm will be explained in the next subsection about the core and communication between nodes. 
 
 \subsubsection{GPU Version}
-The GPU version of the MD5 algorithm works more or less like the CPU version, it is implemented in CUDA, the real difference between the general C library and this implementation resides in the management of memory and the support to the 2 different modes of attack.
+The GPU version of the MD5 algorithm is a porting of the CPU one with some modifications to minimize the memory transfers needed.
 
 \begin{lstlisting}
     struct Md5TransformResult{
@@ -260,34 +259,35 @@ struct Md5BruterResult{
     bool found;
 };
 struct Md5TransformResult md5_gpu(char* data, uint8_t * sizes, size_t array_size, int maxthreads);
-struct Md5BruterResult md5_bruter(size_t start_address, size_t end_address, const char* target_md5, int maxthreads,int base_str_len);
+struct Md5BruterResult md5_bruter(size_t start_address, size_t end_address, const char* target_md5, int maxthreads);
 \end{lstlisting}
 
-In fact the first function let the user trasform a flat sequence of bytes that should represent the strings in input in a vector of data, each with a corresponding size and obtain then a flat sequence of digested MD5. Instead, in the brute version, the user shall pass a start and an end address, that correspond to the offsets of the string generator in the C version, useful for brute forcing, if the target md5 is found is returned. One may ask: why then not apply the same technique in the trasform version, so check in the GPU when a target is found instead of return the vector with MD5 digest? The response is that the user should allocate enough space to retain the strings to process, this is a huge bottleneck, if instead of compare just a single target the user compare multiple targets the effect of this bottleneck is reduced, also if a second transfer is required from the GPU to the CPU.
+The first function calculate a vector of digests from a vector of strings, without doing any comparison. The second function instead take an interval of addresses for the string generator and return the string that generate the hash if in the given span the target md5 is found, this function require a really tiny memory transfer compared to the first one , because the comparison is done directly in the GPU and the user need only to allocate and copy 8+8+32 byte in the GPU memory : start, end and target\_md5.
 
-\subsection{Brief description of the core}
-The core implements the communication between nodes, that are divided in generator node (usually the root) and worker nodes. 
-
-\subsubsection{The Dictionary / Chunked mode}
-In dictionary attack mode there are 2 nodes:
-\begin{itemize}
-    \item The generator node: this hold the control of the dictionary file and send splitted chunks of data to each of the worker node 
-    \item The worker node: this request a chunk whenever is free to compute, and tell the root when a result is found.
-\end{itemize} 
-
-The quantity of data involved in each message is decided by the user through the chunk size option. Upon start the master node will wait for a request from any node, when a request is received the master answer with a data communication , each data communication will involve 2 messages, the first is a vector of unsigned bytes with length equal to the chunk size, the second is the actual data. The communication is done in 2 distinct messages so that the client can allocate enough buffer to contain the actual data to be trasformed. 
-
-\begin{figure}
-    \includegraphics[width=0.5\textwidth]{images/chunk_workflow.png}
-    \caption{Sequenze diagram of the chunked attack}    
+\section{Brief description of the core}
+The core implements all the communication procedures between the MPI nodes , the loader for the configuration file and the computation functions that wrap around the MD5 algorithms. The core also organize how the nodes are connected between each other.
+\\
+\begin{figure}[H]
+    \includegraphics[width=0.9\textwidth]{images/diagram_with_balancers.png}
+    \caption{Diagram of nodes interactions}
 \end{figure}
 
-\subsubsection{The bruteforce attack}
-In the bruteforce mode the communication needed is very tiny compared to the dictionary attack, also because a certain number of measure had been taken to prevent unnecessary movement of bytes, also between devices in the same computer. The message exchanged between the Generator and the Workers nodes is just a pair of integers that identify the span to be computed by a certain worker node, like in the previous case this communication is triggered by the worker that require a new task from the generator.
+Using the cluster degree is possible to specify how many balancers there are in the network , if 0 then all the workers are connected to the master. 
+
+\subsection{Master}
+
+The master generate the tasks as a pair of addresses both 64 bit longs to feed the string generators, those are generated only when a balancer or a worker requests one or more task by sending a message to the master, if balancers are present in the network then only those nodes will requests a task to the master.
+
+\subsection{Balancer}
+The balancers are an optional kind of node, their presence can be specified using the cluster degree parameter inside the configuration file. When the network is built the master assign a number of workers less or equal to $\frac{size-1}{balancers}$ to each balancer
+
+\subsection{Workers}
+The workers are the computational part of the processes. When the network is build at each worker is assigned a balancer, or in their absence, the master, during this base a GPU is chosen between the available ones based on the rank of the process. When a worker start it's routine it immediately ask for a task to a master or balancer, workers always require 1 task at a time. When a task is received , the computation start immediately on the assigned GPU.
 
 
 
-\printbibliography
+
+
 
 \end{document}
 

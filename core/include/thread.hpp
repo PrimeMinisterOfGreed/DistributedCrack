@@ -7,11 +7,31 @@ struct Thread{
     void* (*func)(void*);
     public:
     Thread(void* (*func)(void*));
-    Thread(void* (*func)(void*), void*arg);
-
     void start(void* arg);
-    void join();
+    void join(void* return_value = NULL);
     void detach();
     void cancel();
-
 };
+
+
+struct Mutex{
+    pthread_mutex_t mutex;
+    Mutex();
+    ~Mutex();
+    void lock();
+    void unlock();
+};
+
+
+struct Condition{
+    private:
+    pthread_cond_t cond;
+    public:
+    Condition();
+    ~Condition();
+    void
+    wait(Mutex& mutex);
+    void signal();
+    void broadcast();
+};
+

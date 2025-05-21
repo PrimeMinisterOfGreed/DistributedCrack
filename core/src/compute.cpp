@@ -1,6 +1,7 @@
 #include "compute.hpp"
 #include "log.hpp"
 #include "options.hpp"
+#include "thread.hpp"
 #include "utils.hpp"
 #include <cstdint>
 #include <md5.h>
@@ -114,9 +115,9 @@ GpuManager *gpu_manager = nullptr;
 
 std::optional<std::string> compute_brute_gpu(ComputeContext::BruteContext ctx) {
   trace("compute_brute start %lu end %lu, threads : %d", ctx.start, ctx.end,
-        ARGS.num_threads);
+        ARGS.gpu_threads);
 
-  auto res = md5_bruter(ctx.start, ctx.end, ctx.target, ARGS.num_threads,
+  auto res = md5_bruter(ctx.start, ctx.end, ctx.target, ARGS.gpu_threads,
                         ARGS.brute_start);
   if (res.found) {
     return {res.data};
@@ -126,9 +127,8 @@ std::optional<std::string> compute_brute_gpu(ComputeContext::BruteContext ctx) {
 
 std::optional<std::string> compute_chunk_gpu(ComputeContext::ChunkContext ctx) {
 
-
   auto res = md5_gpu(reinterpret_cast<char *>(ctx.data), ctx.sizes,
-                     ctx.chunk_size, ARGS.num_threads);
+                     ctx.chunk_size, ARGS.gpu_threads);
   uint64_t offsets[ctx.chunk_size];
   for (int i = 1; i < ctx.chunk_size; i++) {
     offsets[i] = ctx.sizes[i - 1] + offsets[i - 1];
@@ -175,8 +175,7 @@ std::optional<std::string> compute_chunk(ComputeContext::ChunkContext ctx) {
 std::optional<std::string> compute_brute_cpu(ComputeContext::BruteContext ctx) {
   std::optional<std::string> result = std::nullopt;
   trace("compute_brute start %lu end %lu, threads : %d on cpu", ctx.start,
-        ctx.end, ARGS.num_threads);
-#pragma omp parallel
+        ctx.end, ARGS.gpu_threads);
   for (int i = ctx.start; i < ctx.end; i++) {
     auto generator = SequenceGenerator{(uint8_t)ARGS.brute_start};
     generator.skip_to(i);
@@ -186,7 +185,7 @@ std::optional<std::string> compute_brute_cpu(ComputeContext::BruteContext ctx) {
     char hex[33]{};
     md5HexDigest(digest, hex);
     if (strncmp(hex, ctx.target, 32) == 0) {
-#pragma omp critical
+
       {
         result = seq;
       }
@@ -194,6 +193,7 @@ std::optional<std::string> compute_brute_cpu(ComputeContext::BruteContext ctx) {
   }
   return result;
 }
+
 
 std::optional<std::string> compute_brute(ComputeContext::BruteContext ctx) {
   if constexpr (gpu_available) {

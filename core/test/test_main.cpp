@@ -38,7 +38,7 @@ TEST(TestGenerator, TestShift) {
 TEST(TestCompute, TestComputeBruteGpu) {
   ComputeContext::BruteContext ctx;
   memset(&ctx, 0, sizeof(ctx));
-  ARGS.num_threads = 1000;
+  ARGS.gpu_threads = 1000;
   ARGS.brute_start = 1;
   ARGS.use_gpu = true;
   ctx.start = pow(94, 4) - 100;
@@ -52,7 +52,7 @@ TEST(TestCompute, TestComputeBruteGpu) {
 
 TEST(TestCompute, TestComputeChunkGpu) {
   ComputeContext::ChunkContext ctx;
-  ARGS.num_threads = 1000;
+  ARGS.gpu_threads = 1000;
   ARGS.brute_start = 4;
   ARGS.use_gpu = true;
   auto res = SequenceGenerator(5).generate_flatten_chunk(10000);
@@ -67,7 +67,7 @@ TEST(TestCompute, TestComputeChunkGpu) {
 
 TEST(TestCompute, TestComputeChunkCpu) {
   ComputeContext::ChunkContext ctx;
-  ARGS.num_threads = 1000;
+  ARGS.gpu_threads = 1000;
   ARGS.brute_start = 4;
   ARGS.use_gpu = false;
   auto res = SequenceGenerator(4).generate_flatten_chunk(10000);
@@ -81,7 +81,7 @@ TEST(TestCompute, TestComputeChunkCpu) {
 }
 
 TEST(TestCompute, TestComputeBruteCpu) {
-  ARGS.num_threads = 1000;
+  ARGS.gpu_threads = 1000;
   ARGS.use_gpu = true;
   for (int i = 3; i < 6; i++) {
     ComputeContext::BruteContext ctx;

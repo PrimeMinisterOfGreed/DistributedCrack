@@ -8,7 +8,8 @@ struct options{
     bool use_gpu;
     bool use_mpi;
     char* target_md5;
-    uint32_t num_threads;
+    uint32_t gpu_threads;
+    uint32_t cpu_threads;
     uint32_t chunk_size;
     int verbosity;
     char* save_file;
