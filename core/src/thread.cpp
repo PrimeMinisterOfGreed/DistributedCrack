@@ -1,6 +1,18 @@
 #include "thread.hpp"
 
-Thread::Thread(void *(*func)(void *)) : func(func) {}
+Thread::Thread(void *(*func)(void *)) {
+    create(func);
+}
+
+Thread::Thread()
+{
+    
+}
+
+Thread& Thread::create(void* (*func)(void*)) {
+    this->func = func;
+    return *this;
+}
 
 void Thread::start(void *arg) { pthread_create(&thread, nullptr, func, arg); }
 

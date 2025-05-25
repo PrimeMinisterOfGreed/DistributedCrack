@@ -175,22 +175,22 @@ std::optional<std::string> compute_chunk(ComputeContext::ChunkContext ctx) {
 std::optional<std::string> compute_brute_cpu(ComputeContext::BruteContext ctx) {
   std::optional<std::string> result = std::nullopt;
   trace("compute_brute start %lu end %lu, threads : %d on cpu", ctx.start,
-        ctx.end, ARGS.gpu_threads);
-  for (int i = ctx.start; i < ctx.end; i++) {
+        ctx.end, ARGS.cpu_threads);
+  parallel_for(ARGS.cpu_threads, ctx.end - ctx.start,
+               [&](int i) -> void { 
     auto generator = SequenceGenerator{(uint8_t)ARGS.brute_start};
-    generator.skip_to(i);
+    generator.skip_to(i + ctx.start);
     auto seq = generator.current();
     uint8_t digest[16]{};
     md5String(const_cast<char *>(seq.c_str()), digest);
     char hex[33]{};
     md5HexDigest(digest, hex);
     if (strncmp(hex, ctx.target, 32) == 0) {
-
       {
         result = seq;
       }
     }
-  }
+  });
   return result;
 }
 

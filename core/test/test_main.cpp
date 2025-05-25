@@ -3,6 +3,7 @@
 #include "md5.h"
 #include "options.hpp"
 #include "statefile.hpp"
+#include "thread.hpp"
 #include "timer.hpp"
 #include "utils.hpp"
 #include <cmath>
@@ -82,7 +83,8 @@ TEST(TestCompute, TestComputeChunkCpu) {
 
 TEST(TestCompute, TestComputeBruteCpu) {
   ARGS.gpu_threads = 1000;
-  ARGS.use_gpu = true;
+  ARGS.use_gpu = false;
+  ARGS.cpu_threads = 16;
   for (int i = 3; i < 6; i++) {
     ComputeContext::BruteContext ctx;
     ARGS.brute_start = i; 
@@ -90,8 +92,8 @@ TEST(TestCompute, TestComputeBruteCpu) {
     char passwd[24]{};
     char passwd_res[32]{};
     char passwd_digest[16]{};
-    ctx.start = pow(94, i)-10;
-    ctx.end = pow(94, i) + 10;
+    ctx.start = pow(94, i)-1000;
+    ctx.end = pow(94, i) + 1000;
     memset(passwd, '!', i);
     md5String(reinterpret_cast<char*>(passwd), reinterpret_cast<uint8_t*>(passwd_digest));
     md5HexDigest(reinterpret_cast<uint8_t*>(passwd_digest), passwd_res);
@@ -168,4 +170,40 @@ TEST(TestTimerStats, TestStatsToCsv) {
       "device_name,context_name,busy_time,observation_time,task_completed\n",
       csv.substr(0, csv.find('\n') + 1));
   EXPECT_EQ("test_device,test,100,200,300\n", csv.substr(csv.find('\n') + 1));
+}
+
+
+
+TEST(TestThreads, test_thread_instance){
+  int res = 0 ;
+  Thread thread([](void* a) -> void* {
+    fprintf(stderr, "Thread started\n");
+    int* b = static_cast<int*>(a);
+    *b = 42;
+    return a;
+  });
+  thread.start(&res);
+  thread.join();
+  EXPECT_EQ(res, 42);
+}
+
+
+TEST(TestThreads, test_parallel_for) {
+  std::vector<int> data(1000, 0);
+  parallel_for(data, 4, [&](int index, int& value) {
+    data[index] = 1;
+  });
+  for (const auto& value : data) {
+    EXPECT_EQ(value, 1);
+  }
+}
+
+TEST(TestThreads, test_parallel_for_int) {
+  std::vector<int> data(1000, 0);
+  parallel_for(4, 1000, [&](int index) {
+    data[index] = 1;
+  });
+  for (const auto& value : data) {
+    EXPECT_EQ(value, 1);
+  }
 }

@@ -1,11 +1,12 @@
 config_file = "launch.toml"
-use_gpu = true
+use_gpu = false
 #target_md5 = "98abe3a28383501f4bfd2d9077820f11" #!!!!
-#target_md5 = "addec426932e71323700afa1911f8f1c" #more
-target_md5 = "952bccf9afe8e4c04306f70f7bed6610" # !!!!!
+target_md5 = "addec426932e71323700afa1911f8f1c" #more
+#target_md5 = "952bccf9afe8e4c04306f70f7bed6610" # !!!!!
 #target_md5= "5d41402abc4b2a76b9719d911017c592" #hello
-num_threads = 20000
-chunk_size = 2000000
+chunk_size = 20000
+cpu_threads = 32
+gpu_threads = 10000
 verbosity = 1
 savefile = "savefile.dat"
 result_file= "results.csv"

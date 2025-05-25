@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
-#include <ompi/mpi/cxx/mpicxx.h>
 
 TEST(TestPromise, TestSimplePromise){
     MpiContext ctx{1,NULL};
