@@ -282,10 +282,10 @@ The master generate the tasks as a pair of addresses both 64 bit longs to feed t
 The balancers are an optional kind of node, their presence can be specified using the cluster degree parameter inside the configuration file. When the network is built the master assign a number of workers less or equal to $\frac{size-1}{balancers}$ to each balancer
 
 \subsection{Workers}
-The workers are the computational part of the processes. When the network is build at each worker is assigned a balancer, or in their absence, the master, during this base a GPU is chosen between the available ones based on the rank of the process. When a worker start it's routine it immediately ask for a task to a master or balancer, workers always require 1 task at a time. When a task is received , the computation start immediately on the assigned GPU.
+The workers are the computational part of the processes. When the network is build at each worker is assigned a balancer, or in their absence, the master, during this base a GPU is chosen between the available ones based on the rank of the process. When a worker start it's routine it immediately ask for a task to a master or balancer, workers always require 1 task at a time. When a task is received , the computation start immediately on the assigned GPU if enabled, else the computation is performed using the CPU with the task divided in chunk specified by the user through the cpu_threads and chunk parameters.
 
 
-
+\section{Theoretical expectations}
 
 
 

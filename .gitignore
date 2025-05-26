@@ -4,6 +4,7 @@ tests.*
 CMakeUserPresets.json
 .vs
 stats.csv
+savefile.dat
 dictionary.txt
 /.idea/.gitignore
 /cmake-build-debug/**

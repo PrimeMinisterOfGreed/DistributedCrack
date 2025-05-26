@@ -101,7 +101,7 @@
       "OpenCL.server.deviceID": 2298066432,
       "testMate.cpp.test.executables": "{build,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST,ut}*",
       "github.copilot.enable": {
-            "*": true,
+            "*": false,
             "plaintext": true,
             "markdown": true,
             "scminput": false

@@ -18,7 +18,7 @@
 #endif
 
 void mpi_routine(int argc, char **argv);
-
+void single_node_routine(int argc, char **argv);
 int main(int argc, char **argv) {
 
   if (argc < 2) {
@@ -63,6 +63,9 @@ int main(int argc, char **argv) {
   ARGS = opt.unwrap();
   if (ARGS.use_mpi) {
     mpi_routine(argc, argv);
+  }
+  else{
+    single_node_routine(argc, argv);
   }
 }
 
@@ -175,3 +178,5 @@ void worker_routine(Communicator &comm) {
     }
   }
 }
+
+
