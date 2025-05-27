@@ -3,7 +3,9 @@
 #include "options.hpp"
 #include "thread.hpp"
 #include "utils.hpp"
+#include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <md5.h>
 #include <optional>
 #include <sched.h>
@@ -152,11 +154,13 @@ std::optional<std::string> compute_chunk_gpu(ComputeContext::ChunkContext ctx) {
 std::optional<std::string> compute_chunk_gpu(ComputeContext::ChunkContext ctx) {
   errno = ENOTSUP; // Function not supported
   perror("GPU computation not supported");
+  exit(255);
   return std::nullopt;
 }
 std::optional<std::string> compute_brute_gpu(ComputeContext::BruteContext ctx) {
   errno = ENOTSUP; // Function not supported
   perror("GPU computation not supported");
+  exit(255);
   return std::nullopt;
 }
 #endif
@@ -176,24 +180,27 @@ std::optional<std::string> compute_brute_cpu(ComputeContext::BruteContext ctx) {
   std::optional<std::string> result = std::nullopt;
   trace("compute_brute start %lu end %lu, threads : %d on cpu", ctx.start,
         ctx.end, ARGS.cpu_threads);
-  parallel_for(ARGS.cpu_threads, ctx.end - ctx.start,
-               [&](int i) -> void { 
-    auto generator = SequenceGenerator{(uint8_t)ARGS.brute_start};
-    generator.skip_to(i + ctx.start);
-    auto seq = generator.current();
-    uint8_t digest[16]{};
-    md5String(const_cast<char *>(seq.c_str()), digest);
-    char hex[33]{};
-    md5HexDigest(digest, hex);
-    if (strncmp(hex, ctx.target, 32) == 0) {
-      {
-        result = seq;
+  parallel_for(ARGS.cpu_threads, [&](thread_block blk) -> void {
+    int span = ceil((double)((ctx.end - ctx.start)+1) / ARGS.cpu_threads);
+    auto start = ctx.start + blk.thread_id * span;
+    auto end = start + span;
+    for (int i = start; i < end && i <= ctx.end; i++) {
+      auto generator = SequenceGenerator{(uint8_t)ARGS.brute_start};
+      generator.skip_to(i);
+      auto seq = generator.current();
+      uint8_t digest[16]{};
+      md5String(const_cast<char *>(seq.c_str()), digest);
+      char hex[33]{};
+      md5HexDigest(digest, hex);
+      if (strncmp(hex, ctx.target, 32) == 0) {
+        {
+          result = seq;
+        }
       }
     }
   });
   return result;
 }
-
 
 std::optional<std::string> compute_brute(ComputeContext::BruteContext ctx) {
   if constexpr (gpu_available) {

@@ -18,7 +18,7 @@ ${CMAKE_CURRENT_SOURCE_DIR}/../src
 ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
 target_link_libraries(${UT_TARGET_NAME} PRIVATE GTest::gtest GTest::gtest_main md5::md5 
-    OpenMP::OpenMP_CXX  MPI::MPI_C pthread
+    OpenMP::OpenMP_CXX  MPI::MPI_C MPI::MPI_CXX pthread
 ) 
 
 if(ENABLE_CUDA)

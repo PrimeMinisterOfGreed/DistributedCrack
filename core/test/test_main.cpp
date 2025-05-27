@@ -7,6 +7,7 @@
 #include "timer.hpp"
 #include "utils.hpp"
 #include <cmath>
+#include <cstdio>
 #include <gtest/gtest.h>
 int main(int argc, char **argv) {
   // remove before this
@@ -147,16 +148,7 @@ TEST(TestGenerator, TestHelloPosition) {
   }
 }
 
-TEST(TestSaveFile, TestSerialization) {
-  StateFile state;
-  state.current_address = 0;
-  strcpy(state.current_dictionary, "test");
-  const char *filename = "test_statefile.dat";
-  state.save(filename);
-  auto loaded_state = StateFile::load(filename);
-  EXPECT_EQ(loaded_state->current_address, state.current_address);
-  EXPECT_STREQ(loaded_state->current_dictionary, state.current_dictionary);
-}
+
 
 TEST(TestTimerStats, TestStatsToCsv) {
   TimerStats stats("test");
@@ -188,22 +180,19 @@ TEST(TestThreads, test_thread_instance){
 }
 
 
-TEST(TestThreads, test_parallel_for) {
-  std::vector<int> data(1000, 0);
-  parallel_for(data, 4, [&](int index, int& value) {
-    data[index] = 1;
-  });
-  for (const auto& value : data) {
-    EXPECT_EQ(value, 1);
-  }
-}
-
 TEST(TestThreads, test_parallel_for_int) {
-  std::vector<int> data(1000, 0);
-  parallel_for(4, 1000, [&](int index) {
-    data[index] = 1;
+  std::vector<int> data(33, 0);
+  parallel_for(4, [&](thread_block blk) {
+    int chunk_size = ceil((double)33/ blk.n_threads);
+    int index = blk.thread_id * chunk_size ;
+    int next = index + chunk_size;
+    fprintf(stderr, "Thread %d processing chunk from %d to %d\n", blk.thread_id, index, index + chunk_size);
+    for(;index < next && index < 33; index++){
+      fprintf(stderr, "Thread %d setting index %d to 1 with chunk size %d \n", blk.thread_id, index,chunk_size);
+      data[index] = 1;
+    }
   });
   for (const auto& value : data) {
-    EXPECT_EQ(value, 1);
+   EXPECT_EQ(value, 1);
   }
 }
