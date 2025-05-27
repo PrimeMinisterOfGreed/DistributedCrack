@@ -1,5 +1,5 @@
 config_file = "launch.toml"
-use_gpu = false
+use_gpu = true
 #target_md5 = "98abe3a28383501f4bfd2d9077820f11" #!!!!
 target_md5 = "addec426932e71323700afa1911f8f1c" #more
 #target_md5 = "952bccf9afe8e4c04306f70f7bed6610" # !!!!!
@@ -11,7 +11,7 @@ verbosity = 1
 savefile = "savefile.dat"
 result_file= "results.csv"
 restore_from_file = false
-use_mpi = false
+use_mpi = true
 #dictionary = "./dictionary.txt"
 dictionary = "NONE"
 brutestart = 4

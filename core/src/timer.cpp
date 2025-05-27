@@ -1,5 +1,6 @@
 #include "options.hpp"
 #include <cstdio>
+#include <ctime>
 #include <filesystem>
 #include <iostream>
 #include <timer.hpp>
@@ -16,16 +17,20 @@ TimerStats::TimerStats(const char *name) {
 std::string TimerStats::to_csv() {
   std::stringbuf buffer;
   std::ostream writer(&buffer);
+  auto timestamp = time(NULL);
 
-  writer << TimerStats::device_name << "," << name << "," << observation_time << ","
-         << busy_time << "," << task_completed << "\n";
+  writer << TimerStats::device_name << "," << name << "," << ARGS.cpu_threads
+         << "," << ARGS.gpu_threads << "," << ARGS.use_gpu << ","
+         << ARGS.chunk_size << "," << observation_time << "," << busy_time
+         << "," << task_completed << "," << timestamp << "\n";
 
   return buffer.str();
 }
 
 std::string TimerStats::csv_header() {
-  const char header[] =
-      "device_name,context_name,busy_time,observation_time,task_completed\n";
+  const char header[] = "device_name,context_name,cpu_threads,gpu_threads,on_"
+                        "gpu,chunk_size,busy_time,"
+                        "observation_time,task_completed,time_stamp\n";
   return header;
 }
 
