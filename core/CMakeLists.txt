@@ -25,7 +25,9 @@ target_link_libraries(mpc
 )
 
 if(ENABLE_CUDA)
-
+target_link_directories(mpc 
+PRIVATE /usr/local/cuda/lib64
+)
     target_link_libraries(mpc
         PRIVATE
         md5::gpu    
