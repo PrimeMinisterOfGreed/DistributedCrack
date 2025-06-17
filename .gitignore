@@ -3,6 +3,7 @@ build
 tests.*
 CMakeUserPresets.json
 .vs
+**/out
 stats.csv
 **/savefile.dat
 dictionary.txt
