@@ -1,2 +1,5 @@
 \section{Modello concettuale}
-Un attacco alle password è assimilabile in un certo senso ad un metodo di ricerca. Almeno a livello astratto infatti si può pensare di star cercando in una lista un elemento che combaci con un elemento conosciuto. 
+Un attacco alle password, è abbastanza simile almeno in forma teorica, a un algoritmo di ricerca lineare di un elemento conosciuto in una lista. Infatti ,almeno nella sua forma più semplice , si può pensare al database come ad una lista di coppie utente-password, in cui si vuole cercare la presenza di un elemento conosciuto, cioè la password che correntemente si sta cercando di testare. Si supponga di avere N coppie utente-password e K password da testare, se si implementasse un algoritmo lineare sequenziale, il costo in termini di tempo sarebbe $O(N*K)$, uguale a quello in termini di spazio occupato, entrambi questi costi possono essere utilizzati come riferimento per identificare una possibile ottimizzazione. 
+
+\subsection{Tecniche di ricerca}
+
