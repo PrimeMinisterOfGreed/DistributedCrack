@@ -15,4 +15,13 @@ Supponendo di aver completato la parte iniziale di scambio del file con le passw
 
 \subsection{Un architettura alternativa al main-worker}
 
-Nel caso del main worker si è costretti a passare almeno uno dei due file in copie ai diversi nodi. A meno di non assicurarsi con metodi più o meno complicati, che ogni porzione del file di password sia stata comparata con ogni porzione del database in circolazione tra i nodi. Alternativamente è possibile disporre i nodi in pipeline, così che P sia collegato a P+1 (modulo p totali), ad ogni nodo si può trasmettere una parte del file con le password, dopodichè le porzioni del database fluiscono nella pipeline
+Nel caso del main worker si è costretti a passare almeno uno dei due file in copie ai diversi nodi. A meno di non assicurarsi con metodi più o meno complicati, che ogni porzione del file di password sia stata comparata con ogni porzione del database in circolazione tra i nodi. In alternativa, si può adottare un'architettura a pipeline con topologia ad anello ($N \to N+1 \pmod{P}$). In questo modello, il dizionario delle password viene suddiviso tra i nodi, mentre i blocchi del database "scorrono" attraverso la pipeline. Ad ogni stadio, un blocco di dati viene confrontato con il set di password locale, realizzando un confronto completo dopo un intero ciclo della pipeline.
+
+\subsubsection{Ipotesi di implementazione}
+
+\begin{figure}[H]
+    \includegraphics[width=0.6\textwidth]{images/pipeline_diagram.png}
+    \caption{Architettura ad anello}
+\end{figure}
+
+In questa implementazione i nodi devono far fluire i task verso i loro vicini una volta che vengono complentati. 
