@@ -1,0 +1,10 @@
+\section{Attacco con ricerca non lineare}
+
+Per evitare di dover eseguire tutti i possibili confronti, si possono usare alcune caratteristiche dell'hashing. Tra gli algoritmi più usati per memorizzare gli hash in un database esiste la famiglia degli SHA (Secure Hash Algorithm) che sono più sicuri dell'MD5 ma notevolmente più difficili da calcolare. Ciononostante la loro lunghezza è comunque piuttosto limitata , nel caso di SHA1 a 128 bit e nel caso di SHA256 a 256 bit. Per cui risulta abbastanza agevole trattarli come big integers e applicargli ad esempio operazioni aritmetiche come il modulo, e costruirci ad esempio una hashmap, che può ridurre il processo di ricerca, a scapito di un potenziale spazio occupato più alto in memoria e di un periodo iniziale più o meno lungo per costruire la hashmap.
+
+\subsection{Un semplice caso sequenziale}
+Come nel capitolo precedente, si può vedere un modello sequenziale che funga da confronto per stimare una possibile ottimizzazione. Nel caso in cui si usi una hashmap, il caso più ottimista è che l'accesso sia diretto e si trovi subito l'elemento desiderato, in termini di complessità O(1). Come prima bisogna scorrere tutti gli hash da testare nel database, per cui l'operazione di confronto combinata richiede almeno $O(N)*O(1)=O(N)$, che in realtà può essere considerato come il caso più comune, visto che se l'hashmap è ben strutturata si avranno poche collisioni e ci si discosterà poco da $O(1)$ per l'accesso. Nell'ipotesi di implementare questo semplice caso, bisogna avere cura del metodo con cui si manipolano gli hash del database, la maggior parte delle istruzioni AVX ad esempio, supportate comunemente nei processori X86 moderni, gestiscono in modo piuttosto efficace i big integers fino a 256 bit, proprio la dimensione delle famiglie di hash MD5, SHA1 e SHA256 più comunemente usati, questa ottimizzazione consente, sopratutto in questi casi dove le liste possono essere lunghe, di calcolare ad esempio in modo efficace il modulo di un big int per poter popolare la hashmap o accedervi. 
+
+\subsection{Attacco con HashMap distribuita}
+
+

@@ -21,6 +21,7 @@ target_link_libraries(mpc
     MPI::MPI_C
     MPI::MPI_CXX
     hwloc
+    gmp
     pthread
 )
 

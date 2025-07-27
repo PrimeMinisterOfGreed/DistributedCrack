@@ -24,4 +24,5 @@ Nel caso del main worker si è costretti a passare almeno uno dei due file in co
     \caption{Architettura ad anello}
 \end{figure}
 
-In questa implementazione i nodi devono far fluire i task verso i loro vicini una volta che vengono complentati. 
+In questa architettura, il primo passo è distribuire le password da testare ai vari nodi, dopodichè si comincia distribuendo il primo frammento del database al primo nodo, che comincierà il processamento e lo passerà al nodo successivo. In questo momento transitorio, viene a galla uno degli svantaggi di questa architettura rispetto alla precedente, ovvero l'esistenza di un periodo transitorio più o meno lungo nel quale alcuni nodi rimangono in attesa del task da compiere, allo stesso modo verso la fine della computazione, i nodi al termine della pipeline avranno dei task da finire mentre i primi sono ormai fermi. Uno degli obiettivi è quindi quello di diminuire il più possibile questo periodo transitorio, che in un certo senso può essere modellato come un tradeoff, infatti questo periodo dura proporzionalmente se si vuole alla dimensione dei singoli frammenti, infatti riducendo man mano la loro dimensione i task verranno completati più rapidamente, ma si introdurrà un carico maggiore sull'IO che dovrà smistare più messaggi.
+

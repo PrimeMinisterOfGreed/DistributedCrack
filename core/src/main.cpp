@@ -17,8 +17,13 @@
 #include <nvml.h>
 #endif
 
+#include "gmpxx.h"
+
 void mpi_routine(int argc, char **argv);
 void single_node_routine(int argc, char **argv);
+
+
+
 int main(int argc, char **argv) {
 
   if (argc < 2) {
@@ -26,33 +31,14 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-
-  /* -------------------------------------------------------------------------- */
-  /*                                 Debug Zone                                 */
-  /* -------------------------------------------------------------------------- */
-  if (strcmp("SeqViewer", argv[1]) == 0) {
-    if(argc < 2){
-      fprintf(stderr, "Usage: %s word \n", argv[0]);
-      return 1;
-    }
-
-    const char *word = argv[2];
-    for (size_t i = 0;; i++) {
-      SequenceGeneratorCtx ctx = new_seq_generator(4);
-      seq_gen_skip_to(&ctx, i);
-      if(i % 1000000 == 0)
-        printf("address:%lu  word: %s  size:%d\r", i,
-             ctx.buffer,ctx.current_len);
-             if(strcmp(word, ctx.buffer) == 0){
-               printf("Found word: %s at index: %lu\n", ctx.buffer, i);
-               break;
-             }
-    }
-
-    return 0;
-  }
+  auto a = mpz_class("c81e728d9d4c2f636f067f89cc14862c",16);
+  
+  a %= 10;
+  printf("BigInt a: %s\n", a.get_str().c_str());
 
 
+
+  /*
   const char *config_file = argv[1];
   trace("Loading config file: %s\n", config_file);
   auto opt = options::load_from_file(config_file);
@@ -67,6 +53,7 @@ int main(int argc, char **argv) {
   else{
     single_node_routine(argc, argv);
   }
+  */
 }
 
 void root_routine(Communicator &comm);
@@ -96,7 +83,10 @@ void mpi_routine(int argc, char **argv) {
     worker_routine(world);
   }
   save_stats("stats.csv");
+
 }
+
+
 
 enum NodeType {
   MASTER,
