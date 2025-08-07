@@ -2,9 +2,13 @@
 
 In un attacco di tipo password spraying esistono due entità, il database e il file con le password da testare, che vanno confrontati tra di loro. L'operazione di confronto è molto simile a un operazione di ricerca, infatti il database può essere visto come una lista utente-passwordhash per cui si vuole rispondere alla domanda: "Il database contiene uno o più hash uguali alla password che si sta esaminando?". Per rispondere a questa domanda bisogna eseguire queste operazioni: 
 \begin{itemize}
+    \item Caricare in memoria il file del database 
+    \item Caricare in memoria il file delle password
     \item Calcolare l'hash della password correntemente in esame 
-    \item Per ogni coppia nella lista del database controllare se esistono uno o più hash che corrispondono a quella password 
+    \item Per ogni coppia nella lista del database controllare se esistono uno o più hash che corrispondono a quella password (al suo hash)
 \end{itemize} 
+
+Sia $H(x)$ il tempo medio necessario a calcolare l'hash della stringa x, allora il tempo totale per effettuare le operazioni di calcolo sarà $T_{comp}=H(K)+N*K$ dove K è il numero delle password nel file delle password e N è il numero di coppie utente-hash nel file del database. Mentre quello per effettuare le operazioni di caricamento sarà $T_{comm}=L(K) + L(N)$ dove $L(X)$ è il medio per caricare una stringa dal disco fisico alla RAM, che essendo considerevolmente più alto rispetto al tempo di trasferimento dalla RAM alla cache della CPU, può essere usato come unico parametro di riferimento per quantificare il tempo di trasmissione totale. A questo punto si ottiene facilmente il computation to communication ratio di questa soluzione che è $ccratio=\frac{T_{comp}}{T_{comm}} = \frac{H(K)+N*K}{L(K)+L(N)}$, che è giustamente fisso al variare della dimensione del problema perchè è completamente dipendente dalle caratteristiche dell'hardware del singolo nodo su cui viene eseguito.
 
 
 
