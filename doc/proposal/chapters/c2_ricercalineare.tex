@@ -32,13 +32,12 @@ Prendendo in esame il caso iniziale sequenziale è possibile aggiungere alcune v
 \begin{itemize}
     \item P : il numero di esecutori 
     \item $S(X)$: il tempo necessario a trasmettere un elemento da un nodo all'altro, che è dipendente dalla dimensione dell'elemento 
-    \item $T_{l}$ : il tempo di latenza medio tra due nodi. Tipicamente per una rete a 25 GB/s è di 10 $\mu s$
+    \item $T_{l}$ : il tempo di latenza medio tra due nodi (RTT). Tipicamente per una rete a 25 GB/s è di 10 $\mu s$
 \end{itemize}
 Introducendo queste variabili, si può modellare il tempo di esecuzione come 
 $$
 T(P,N,K)=L(K)+L(N)+2*T_{l}*P+S(K)*P+S(\frac{N}{P})*P + \frac{H(K)}{P}+\frac{N}{P}*K
 $$
-
 
 
 
