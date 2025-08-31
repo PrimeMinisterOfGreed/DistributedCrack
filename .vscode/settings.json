@@ -103,7 +103,7 @@
       "github.copilot.enable": {
             "*": true,
             "plaintext": true,
-            "markdown": true,
+            "markdown": false,
             "scminput": false,
             "latex": false,
             "raw": false

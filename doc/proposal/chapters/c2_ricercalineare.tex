@@ -1,71 +1,117 @@
 \section{Attacco con ricerca lineare}
 
-In un attacco di tipo password spraying esistono due entità, il database e il file con le password da testare, che vanno confrontati tra di loro. L'operazione di confronto è molto simile a un operazione di ricerca, infatti il database può essere visto come una lista utente-passwordhash per cui si vuole rispondere alla domanda: "Il database contiene uno o più hash uguali alla password che si sta esaminando?". Per rispondere a questa domanda bisogna eseguire queste operazioni: 
+In un attacco di tipo password spraying esistono due entità, il database e il file con le password da testare, che vanno confrontati tra di loro. L'operazione di confronto è molto simile a un operazione di ricerca, infatti il database può essere visto come una lista utente-passwordhash in cui si vuole controllare quali di questi hash sono contenuti nella lista delle password. Riassumendo le operazioni da fare in questo caso sono:
 \begin{itemize}
     \item Caricare in memoria il file del database 
     \item Caricare in memoria il file delle password
     \item Calcolare l'hash della password correntemente in esame 
     \item Per ogni coppia nella lista del database controllare se esistono uno o più hash che corrispondono a quella password (al suo hash)
 \end{itemize} 
+Volendo si può scrivere in modo molto semplice in forma algoritmica 
 
+\begin{lstlisting}
+    database = load_database()
+    passwords = load_passwords()
+    foreach word in passwords do {
+        pwhash = hash(word)
+        if pwhash is in database{
+            notify_password_found(word)
+        }
+    }
+\end{lstlisting}
 
+Da questa semplice forma algoritmica si possono estrarre diverse variabili, utili a stimare successivamente i tempi d'esecuzione dell'algoritmo: ad esempio si assegni a $H(x)$ il tempo medio necessario a calcolare l'hash della stringa x e $C(X,Y)$ il tempo medio per comparare tra loro due stringhe, si può stimare il tempo di calcolo come $T_{comp}=H(K)+C(N,K)$ \footnotemark[1] dove K è l'insieme delle password e N è l'insieme di coppie utente-hash nel file del database. Analogamente il tempo richiesto per effettuare le operazioni di comunicazione, in questo caso sono le operazioni di caricamento dei file, può essere stimato come $T_{comm}=L(K) + L(N)$ dove $L(X)$ è il tempo medio per caricare una stringa dal disco fisico alla RAM, teoricamente bisognerebbe anche stimare il tempo necessario per il trasferimento dalla RAM alla cache, per tenere la trattazione semplice si eviterà di specificarlo, considerando che confronto al tempo di caricamento dal disco o di trasmissione in una rete, questo tempo è piuttosto piccolo e contribuisce poco al computo del tempo di comunicazione. A questo punto si può calcolare il computation to communication ratio come $ccratio=\frac{T_{comp}}{T_{comm}} = \frac{H(K)+C(N,K)}{L(K)+L(N)}$.
 
-Sia $H(x)$ il tempo medio necessario a calcolare l'hash della stringa x e $C(X,Y)$ il tempo medio per comparare tra loro due set di stringhe, allora il tempo totale per effettuare le operazioni di calcolo sarà $T_{comp}=H(K)+N*K$ dove K è il numero delle password nel file delle password e N è il numero di coppie utente-hash nel file del database. Mentre quello per effettuare le operazioni di caricamento sarà $T_{comm}=L(K) + L(N)$ dove $L(X)$ è il medio per caricare una stringa dal disco fisico alla RAM,\footnotemark[1] che essendo considerevolmente più alto rispetto al tempo di trasferimento dalla RAM alla cache della CPU, può essere usato come unico parametro di riferimento per quantificare il tempo di trasmissione totale. A questo punto si ottiene facilmente il computation to communication ratio di questa soluzione che è $ccratio=\frac{T_{comp}}{T_{comm}} = \frac{H(K)+C(N,K)}{L(K)+L(N)}$.
-
-\footnotetext[1]{Per sintesi verranno riportati i tempi medi cumulati nella forma $L(K)=\sum_{i}L(K_{i})$}
+\footnotetext[1]{Durante la trattazione si commetterà un piccolo abuso di notazione, le funzioni che accettano singole stringhe riportando i tempi medi d'esecuzione accetteranno anche insiemi di stringhe, per cui ad esempio $H(K)$ sarà il tempo medio necessario ad effettuare l'hashing di tutto l'insieme delle password}
 
 
 \subsection{Ricerca Lineare con architettura main worker}
-Dovendo effettuare una comparazione, si può distribuire il file con le password a tutti i nodi e dividere in P parti, quanti sono gli esecutori, il file del database. A questo punto idealmente  il file del database viene distribuito in modo statico, o in modo dinamico. Nel primo caso significa che all'inizio verranno trasmessi $(P*N)/P=N$ bytes per distribuire il database e $P*K$ per distribuire le password da testare, per poi cominciare ad eseguire gli $(N/P*K)$ confronti, in termini di complessità non ci si è allontanati molto dal caso base purtroppo, ma la cosa peggiore di questo metodo è che all'inizio presuppone di saturare molto l'I/O dei vari nodi per scambiarsi il file senza fare nient'altro, che può comportare uno spreco di tempo non indifferente. Nel secondo caso, la situazione migliora già notevolmente, ipotizzando un architettura main-worker infatti, il main divide il file in pezzi equi spaziati che i worker richiedono ogni volta che finiscono la computazione su uno, bisogna comunque distribuire all'inizio le copie delle password da testare, per cui la complessità computazionale e lo spazio occupato non cambiano rispetto al caso precedente, ma almeno la trasmissione del database e il confronto avverranno parallelamente. 
+L'architettura più semplice a cui si può pensare è sostanzialmente la classica main-worker, in cui più nodi , detti worker, che eseguono i task, in questo caso il confronto tra stringhe, vengono coordinati nelle loro operazioni da un main che distribuisce loro i dati su cui i task vengono effettuati. In pseudocodice si traduce facilmente in 
 
-\subsubsection{Ipotesi di implementazione}
-L'implementazione del modello precendentemente discusso è piuttosto semplice almeno concettualmente. 
+\begin{lstlisting}
+    database = load_database()
+    password = load_password()
+    foreach pw in password do in parallel{
+        pwhash = hash(pw)
+        if pwhash in database{
+            notify_password(pw)
+        }
+    }
+\end{lstlisting}
+L'unico problema è che non si sta tenendo conto di una caratteristica fondamentale del sistema in cui si sta lavorando: il bisogno dei nodi di comunicare. Il problema infatti sorge quando si considera che in qualche modo tutti i nodi dovranno avere conoscenza o delle password che si vogliono cercare oppure del database copiato, viste le dimensioni, l'approccio più semplice è sicuramente quello di distribuire a tutti i nodi una copia delle password da cercare mentre si divide a pezzi il database e lo si trasmette ai vari nodi che dovranno eseguire il task, questo supponendo che il file del database sia molto più grande di quello con le password da testare. Alla luce di queste considerazioni si può modificare un pò lo pseudocodice nel seguente modo 
+
+\begin{lstlisting}
+    rank = world().rank 
+    if rank is root{
+        database = load_database()
+        password = load_password()
+        broadcast(password, password.size)
+        scatter(database, database/world.size)
+    }
+    else{
+        password
+        broadcast(password, password.size)
+        database 
+        scatter(database, database/world.size)
+        foreach pw in password{
+            pwhash = hash(pw)
+            if pwhash in database{
+                notify_password(pw)
+            }
+        }
+    }
+\end{lstlisting}
+questa versione statica dell'algoritmo , divide il file in chunk di uguale lunghezza e li trasmette a tutti i nodi coinvolti, che cominciano il loro computo una volta che hanno ottenuto il file. 
 \begin{figure}[H]
     \includegraphics[width=0.6\textwidth]{images/main_worker_diagram.png}
     \caption{Architettura main worker proposta per il problema}
 \end{figure}
 
-Supponendo di aver completato la parte iniziale di scambio del file con le password da testare, rimane solo più il file del database, che può essere suddiviso e scambiato con i nodi su richiesta, sotto forma di Task. Ogni qualvolta il worker è vuoto chiede al nodo root un task, questo può essere o una coppia di indici, nel caso in cui ad esempio il file sia condiviso tramite clustered filesystem, oppure direttamente un array di stringhe qual'ora questo meccanismo non sia disponibile. Ogni qualvolta un worker trova una delle password nella porzione di file che gli è stata assegnata, questi lo notifica al nodo Root che rimane in attesa di questa tipologia di messaggi, e registra il risultato che alla fine della computazione verrà mostrato all'utente.
-
+Lo svantaggio è che i nodi in quel frangente non faranno nient'altro se non aspettare che la trasmissione dei dati sia completa, di fatto però la sua implementazione è molto semplice, per cui vale la pena almeno a titolo conoscitivo di sapere in che misura scala bene sul problema. 
 \subsubsection{Speedup, efficienza e ccratio}
-Prendendo in esame il caso iniziale sequenziale è possibile aggiungere alcune variabili per ottenere un modello che descriva un caso con più esecutori 
+Supponendo di assegnare le seguenti variabili 
 \begin{itemize}
     \item P : il numero di esecutori 
     \item $S(X)$: il tempo necessario a trasmettere un elemento da un nodo all'altro, che è dipendente dalla dimensione dell'elemento 
     \item $T_{l}$ : il tempo di latenza medio tra due nodi (RTT). Tipicamente per una rete a 25 GB/s è di 10 $\mu s$
 \end{itemize}
-Introducendo queste variabili, si può modellare il tempo di esecuzione come 
-$$
-T(P,N,K)=L(K)+L(N)+2*T_{l}*P+S(K)*P+S(\frac{N}{P})*P + \frac{H(K)}{P}+C(\frac{N}{P}*K)
-$$. Per semplificare la trattazione, si considererà solo la dimensione del database, tenendo un K fisso per le password. A questo punto si possono introdurre delle stime all'interno del modello e effettuare una simulazione. 
+Si può derivare il tempo di comunicazione $T_{comm}(P,N,K)=L(K)+L(N)+2*T_{l}*P +S(K)+S(\frac{N}{P})*P$ e il tempo di computazione effettivo 
+$T_{comp}(P,N,K)=\frac{H(K)}{P}+C(\frac{N}{P},K)$ da cui si può ottenere il tempo totale di esecuzione
+$$ 
+T(P,N,K)=L(K)+L(N)+2*T_{l}*P+S(K)*P+S(\frac{N}{P})*P + \frac{H(K)}{P}+C(\frac{N}{P},K)
+$$ Per semplificare la trattazione, si considererà solo la dimensione del database, tenendo un insieme K fisso per le password. Da qui si possono ricavare diverse misure già a livello teorico :
+\begin{itemize}
+    \item CC Ratio: $\frac{T_{comp}}{T_{comm}}=\frac{\frac{H(K)}{P}+C(\frac{N}{P},K)}{L(K)+L(N)+2*T_{l}*P +S(K)+S(\frac{N}{P})*P}$
+    \item Efficiency: 
+\end{itemize}
+A questo punto si possono introdurre delle variabili aggiuntive, utili alla stima dei tempi
 \begin{itemize}
     \item Lunghezza media di una password : 16 caratteri 
     \item Velocità della rete : 25 GB/s 
     \item Velocità del disco fisso: 700 MB/s 
-    \item Velocità del core di un processore: 1.8 GHz 
+    \item Velocità del core di un processore: 2.3 GHz 
     \item Dimensione dell'hash : 32 byte 
-    \item Tempo medio di hashing per stringa : 2.7e-8 s 
-    \item Algoritmo di hashing SHA256
+    \item Algoritmo di hashing SHA256: circa $0.81*10^{-3} s$ per stringa
 \end{itemize}
 
-\begin{figure}[H]
-    \includegraphics[width=0.6\textwidth]{images/speedup_linear.png}
-    \caption{Speedup master worker}
-\end{figure}
+La lunghezza media delle password è esagerata, ma è stata scelta in modo da coprire anche quei database su cui è stata posta una policy molto stringente in termini di lunghezza delle password. Bisogna fare un appunto, tendenzialmente più la policy è stringente , più le password saranno "semplici" dal punto di vista della conformazione perchè l'utente medio fatica a ricordarle. La velocità della rete è presa direttamente dal sito di hpc4ai che riporta la velocità della ethernet di connessione tra i nodi, la velocità del disco fisso è stimata considerando che il cluster usi degli HDD di tipo enterprise con interfaccia SAS, che normalmente riescono in lettura a offrire un range di velocità che varia dai 250 MB/s a 1GB/s. La velocità del processore invece è stimata partendo dalla velocità base di un Intel Xeon E5-2697V4 , un architettura disponibile per i formati server. La velocità di esecuzione di SHA256 è stata calcolata eseguendo un piccolo benchmark su 100000 stringhe su un processore AMD Ryzen 9-5950X, impostando una frequenza fissa a 2.3 GHz, si è ottenuta un massimo di $0.81*10^{-3} s$ necessari per calcolare l'hash su di una stringa, si potrebbe usare la media , che è decisamente più bassa $0.28*10^{-6} s$, ma vista la varianza del computo molto alta $1*10^{-s} s$ e vista la natura della simulazione che si preferisce sottostimi leggermente le performance dell'algoritmo, si opta per prendere il caso peggiore, visto che non si conosce la natura delle stringhe che generano questa varianza all'interno del calcolo.  
 
-Come ci si aspetterebbe da qualunque algoritmo embarringly parallel , anche questa architettura mostra uno speedup lineare, salvo raggiungere un livello tale di esecutori che faccia si che il tempo passato a comunicare diventi molto di più rispetto a quello computazionale.
 
 \begin{figure}[H]
-    \includegraphics[width=0.6\textwidth]{images/efficiency_linear.png}
-    \caption{Speedup master worker}
+    \includegraphics[width=0.9\textwidth]{images/mainworkerlinear.png}
+    \caption{Misure ottenute dalla simulazione sul caso main worker}
 \end{figure}
-Chiaramente anche l'efficienza decresce man mano che si aggiungono nuovi esecutori a causa dei tempi di communicazione aggiuntivi richiesti. 
+
+Chiaramente lo speedup ricorda abbastanza un andamento lineare, come ci si aspetta da un qualunque algoritmo di questo tipo "embarringly parallel", tuttavia lo speedup non sempre aumenta proporzionalmente al numero di esecutori, motivo per il quale dopo un pò l'efficienza scende drasticamente. La causa si può evincere dal comportamento del grafico sul CC ratio, con l'aumentare degli esecutori diminuisce il tempo che questi spendono nel calcolo e aumenta drasticamente quello di I/O per scambiarsi i dati, con il risultato che inevitabilmente si perdono prestazioni, a scapito però del costo dell'esecuzione che invece aumenta sempre e comunque. 
+\\
+\\
+Un ultima analisi va fatta considerando lo spazio che deve essere occupato in RAM per eseguire il processo. Per quanto vi sia la necessità di condividere uno dei due insiemi (il database e le password) in copia completa su tutti gli esecutori, a livello pratico bisogna tenere a mente che non è detto che tutti i task vengano eseguiti su macchine diverse per cui sono disponibili più strategie. Se si vuole mantenere la tecnologia di parallelizzazione omogenea, per cui si vuole usare solo MPI senza ricorrere al pthread per la parallelizzazione un utile metodo potrebbe essere quello di memorizzare la copia dell'insieme scelto, in questo caso quello delle password, in shared memory, così che tutti i task che vengono eseguiti sulla stessa macchina possano accedere a quel segmento senza per forza riceverne una copia da usare localmente al processo. Se invece si opta per l'utilizzo del multithread la memoria è già condivisa e quindi non è necessario ricorrere esplicitamente alla shared memory.
+
 
 \subsection{Un architettura alternativa al main-worker}
 
-Nel caso del main worker si è costretti a passare almeno uno dei due file in copie ai diversi nodi. A meno di non assicurarsi con metodi più o meno complicati, che ogni porzione del file di password sia stata comparata con ogni porzione del database in circolazione tra i nodi. In alternativa, si può adottare un'architettura con topologia ad anello ($N \to N+1 \pmod{P}$). In questo modello, il dizionario delle password viene suddiviso tra i nodi, mentre i blocchi del database "scorrono" attraverso la pipeline. Ad ogni stadio, un blocco di dati viene confrontato con il set di password locale, realizzando un confronto completo dopo un intero ciclo della pipeline.
+Nel caso del main worker si è costretti a passare almeno uno dei due file in copie ai diversi nodi. A meno di non assicurarsi con metodi più o meno complicati, che ogni porzione del file di password sia stata comparata con ogni porzione del database in circolazione tra i nodi. In alternativa, si può adottare un'architettura con topologia ad anello ($N \to N+1 \pmod{P}$). In questo modello, il dizionario delle password viene suddiviso tra i nodi, mentre i blocchi del database "scorrono" attraverso la pipeline. Ad ogni stadio, un blocco di dati viene confrontato con il set di password locale, realizzando un confronto completo dopo un intero ciclo dell'anello.
 
-\subsubsection{Ipotesi di implementazione}
 
 \begin{figure}[H]
     \includegraphics[width=0.6\textwidth]{images/pipeline_diagram.png}
@@ -73,7 +119,7 @@ Nel caso del main worker si è costretti a passare almeno uno dei due file in co
 \end{figure}
 
 In questa architettura, il primo passo è distribuire le password da testare ai vari nodi, dopodichè si comincia distribuendo il primo frammento del database al primo nodo, che comincierà il processamento e lo passerà al nodo successivo. Esistono due momenti transitori in questa architettura, il primo è all'inizio , quando il primo frammento di database viene dato al nodo di testa che lo dovrà passare allo stadio successivo e così via, fintanto che questo frammento non avrà percorso tutta la pipeline i nodi che non lo hanno ancora ricevuto non saranno ancora attivi, alla fine invece si verificherà il processo opposto, ossia man mano che l'ultimo frammento di database attraversa l'anello i vari nodi si disattiveranno, sostanzialmente buttando via tempo di esecuzione. Nonostante questo difetto, che è fortemente dipendente dalla lunghezza della pipeline, si ottiene un vantaggio sostanziale in termini di spazio occupato dal database e dalle password perchè non bisogna distribuire una copia del secondo file a tutti i nodi , ma solo una porzione. \\ 
-Per capire meglio se questo approccio possa essere più o meno vantaggioso rispetto al precedente bisogna modellare opportunamente il problema, avendo cura di trattare il periodo transitorio, che può essere visto come una somma di tempi, se si prende $T_{task}$ come tempo impiegato da un nodo a completare un task, allora il transitorio iniziale sarà $\sum_{i=1}^{P-1}(P-i)*T_{task}*2=\frac{(p-1)p}{2}T_{task}*2$. Il tempo che un task impiega a essere completato è dipendente dai soliti parametri: la grandezza del database e la grandezza del file delle password, a meno che non sia decisa a priori la sua grandezza massima, configurazione che potrebbe essere utile per tenere sotto controllo il periodo transitorio iniziale.
+
+Per capire meglio se questo approccio possa essere più o meno vantaggioso rispetto al precedente bisogna modellare opportunamente il problema, avendo cura di trattare il periodo transitorio, che può essere visto come una somma di tempi, se si prende $T_{task}$ come tempo impiegato da un nodo a completare un task, allora il transitorio iniziale sarà $\sum_{i=1}^{P-1}(P-i)*T_{task}*2=\frac{(p-1)p}{2}T_{task}*2$. Il tempo che un task impiega a essere completato è dipendente dai soliti parametri: la grandezza del database e la grandezza del file delle password, a meno che non sia decisa a priori la sua grandezza massima, configurazione che potrebbe essere utile per tenere sotto controllo il periodo transitorio iniziale, nell'ambito della simulazione per ottenere un'approssimazione teorica delle misure si considererà solo il caso in cui la lunghezza del task sia dipendente dal numero di esecutori e dalla dimensione del database.
 \subsubsection{Speedup, efficienza e cc ratio}
-Assumendo che la dimensione del task sia stabilita in base a : quanti esecutori ci sono e quanto è grande il database, si può modellare come : 
-$T_{task}=S(\frac{N}{P})*2+C(\frac{N}{P}*\frac{K}{P})$ composta quindi soltanto dal tempo di ricezione e invio del task e dalla comparazione. 
+Assumendo che il tempo per completare un task sia: $T_{task}=S(\frac{N}{P})*2+C(\frac{N}{P}*\frac{K}{P})$ composto quindi soltanto dal tempo di ricezione e invio del task e dalla comparazione. 

@@ -1,19 +1,106 @@
 \section{Attacco con ricerca non lineare}
 
-Per evitare di dover eseguire tutti i possibili confronti, si possono usare alcune caratteristiche dell'hashing. Tra gli algoritmi più usati per memorizzare gli hash in un database esiste la famiglia degli SHA (Secure Hash Algorithm) che sono più sicuri dell'MD5 ma notevolmente più difficili da calcolare. Ciononostante la loro lunghezza è comunque piuttosto limitata , nel caso di SHA1 a 128 bit e nel caso di SHA256 a 256 bit. Per cui risulta abbastanza agevole trattarli come big integers e applicargli ad esempio operazioni aritmetiche come il modulo, e costruirci ad esempio una hashmap, che può ridurre il processo di ricerca, a scapito di un potenziale spazio occupato più alto in memoria e di un periodo iniziale più o meno lungo per costruire la hashmap.
+Un alternativa ai confronti lineari può essere quella di usare strutture dati che fanno uso in qualche modo dell'hashing per indirizzare correttamente le stringhe. Nel caso più semplice , si può usare una hashmap, in cui si possono allocare le stringhe del database intepretando gli hash SHA256 come numeri Big Int e poi sfruttando l'aritmetica modulare si possono posizionare a opportuni indirizzi di questa struttura. Una volta effettuata questa operazione si può eseguire l'hashing delle password da cercare e individuare con lo stesso procedimento se questo è contenuto o meno nella hashmap. 
 
 \subsection{Un semplice caso sequenziale}
-Come nel capitolo precedente, si può vedere un modello sequenziale che funga da confronto per stimare una possibile ottimizzazione. Nel caso in cui si usi una hashmap, il caso più ottimista è che l'accesso sia diretto e si trovi subito l'elemento desiderato, in termini di complessità O(1). Come prima bisogna scorrere tutti gli hash da testare nel database, per cui l'operazione di confronto combinata richiede almeno $O(N)*O(1)=O(N)$, che in realtà può essere considerato come il caso più comune, visto che se l'hashmap è ben strutturata si avranno poche collisioni e ci si discosterà poco da $O(1)$ per l'accesso. Nell'ipotesi di implementare questo semplice caso, bisogna avere cura del metodo con cui si manipolano gli hash del database, la maggior parte delle istruzioni AVX ad esempio, supportate comunemente nei processori X86 moderni, gestiscono in modo piuttosto efficace i big integers fino a 256 bit, proprio la dimensione delle famiglie di hash MD5, SHA1 e SHA256 più comunemente usati, questa ottimizzazione consente, sopratutto in questi casi dove le liste possono essere lunghe, di calcolare ad esempio in modo efficace il modulo di un big int per poter popolare la hashmap o accedervi. 
+Il caso sequenziale a singolo nodo, implementa in modo molto semplice i passi descritti precedentemente, un possibile pseudocodice 
+
+\begin{lstlisting}
+    const space = I in (0,inf) // decide at compile time the size of the array hashmap
+    database = load_database()
+    password = load_password()
+    map = hashmap(space)
+    for hash in database do{
+        index = bigint_read(hash) % space 
+        map.append(hash,index)
+    }
+    for pw in password do{
+        pwhash = hash(pw)
+        index = bigint_read(pwhash)%space 
+        if map.contains(pwhash,index){
+            notify_password(pw)
+        }
+    }
+\end{lstlisting}
+
+Per valutare le prestazioni di questa soluzione bisogna cambiare la funzione comparazione $C(X,Y)$ , che considerava di scorrere tutta la lista di hash del database per trovare un hash corrispondente. Infatti una hashmap nel caso migliore permetterebbe un accesso diretto al contenuto, di fatto quando le chiavi sono così tante un certo quantitativo di collisioni è inevitabile, per fortuna si può stimare il numero di collisioni atteso a seconda di quanti spazi sono presenti nella mappa e quanti chiavi saranno aggiunte:
+$E[O]=K-H_s +H_s *(\frac{H_s -1 }{H_s})^{K}$ dove $H_s$ sono gli spazi disponibili nella hashmap. Da qui si può ricavare un modello che stimi correttamente il tempo di esecuzione totale  
+$$
+T_{seq}= C_h(N,K,H_s)+ H(K) + L(K) + L(N) + I(N) + I(K)
+$$
+dove:
+\begin{itemize}
+    \item $C_h(N,K,H_s)=$: è il tempo impiegato dalla funzione di comparazione considerando gli slot disponibili della hashmap $H_s$
+    \item $I(X)$ : è il tempo impiegato per trasformare un hash in un big int e calcolarne il modulo, seguendo il processo fatto per la funzione di hashing, si è visto che il tempo massimo è di 8 us
+\end{itemize}
+ In questa casistica vale la pena pensare allo spazio che si stima venga occupato, poichè è richiesto che tutto il database venga in qualche modo caricato in memoria a differenza dei casi precedenti, dove invece è possibile ad esempio creare uno stream continuo tra lo storage e i nodi in modo da dover caricare solo porzioni più piccole di questi file così grandi. Questa funzione che rappresenta lo spazio occupato si può scrivere come  
+$M_{seq}=N*SHA_{size}+K*SHA_{size}+H_s*8$, dove $SHA_{size}$ è la quantità di byte necessaria per memorizzare un singolo hash nell'algoritmo scelto, nel caso di SHA256 è 32 byte, $H_s$ è la dimensione della hashmap che va moltiplicata per la dimensione di un puntatore , nel caso di un architettura a 64 bit è 8 byte. Ad esempio se si volesse eseguire il test su un database con $10^6$ chiavi contro un file di 10000 chiavi, usando una hashmap grande il doppio del database , si occuperebbe uno spazio di 
+$M=10^6*32+10^4*32+2* 10^6*8\approx46.6_{MB}$  che è uno spazio del tutto gestibile da un qualunque computer moderno, ma si evince bene già subito che non appena si sale di anche solo un ordine di grandezza la quantità di dati cresce significativamente. 
 
 \subsection{Attacco con HashMap distribuita}
-Una possibile via per parallelizzare il problema può essere quella di usare una hashmap distribuita tra i nodi worker, questo approccio richiede, almeno in via concettuale, i seguenti step: 
-\begin{itemize}
-    \item I nodi devono leggere il file del database e calcolare l'opportuno nodo store per ogni hash 
-    \item I nodi devono leggre il file con le password, calcolare l'hash di ognuna e  calcolare l'opportuno nodo store per ogni hash 
-    \item Confrontare con accessi diretti gli hash e le password
-\end{itemize}
+Parallelizzare un attacco del genere non è immediato, neanche sfruttando un architettura main worker. Tuttavia un primo metodo piuttosto semplice può prendere liberamente ispirazione a un utilizzo abbastanza popolare di una struttura come una hash table, una hash table distribuita. Oggi questa struttura alimenta il protocollo Torrent per trasferire file in p2p, le DHT possono essere statiche o dinamiche, in questo ci si può servire della prima tipologia , poichè normalmente il numero di nodi che partecipano al calcolo è fisso in un architettura HPC.
 
-A questo punto è opportuno precisare che il costo principale si sposta da quello computazionale a quello spaziale. Infatti il dimensionamento corretto delle hashmap è importante sia per evitare troppe collisioni che per evitare di sprecare spazio, mentre al lato di calcolo l'impatto è piccolo e riguarda più che altro la fase di estrazione degli hash per le password da confrontare con il database. 
+Per usare una DHT l'approccio prevede sempre un architettura main worker, ogni worker istanzia in memoria una normale hash table. Il main legge il file del database e calcola il modulo dell'hash a seconda di quanti nodi ci sono in rete, poi manda al nodo indicato dal risultato l'hash se è diverso da se stesso, altrimenti lo memorizza. Successivamente il nodo root scorre il file delle password ed effettua lo stesso processo con ogni entry e se lui o un altro nodo trovano una corrispondenza lo notificano , in pseudocodice
+
+\begin{lstlisting}
+    rank = world().rank 
+    if rank is root{
+        map = hashmap(size)
+        password = load_password()
+        database = load_database()
+        for hash in database do{
+            dest = big_int(hash) % world().size
+            if dest is not root{
+                send(hash,dest,database_tag)
+            }
+            else{
+                index = big_int(hash) % size
+                map.append(hash,index)
+            }
+        }
+        for pw in password do {
+            pwhash = hash(pw)
+            dest = big_int(pwhash) % world.size()
+            if dest is not root{
+            send(pw,dest,pw_tag)
+            }
+            else{
+                if pwhash in map{
+                    notify_password(pw)
+                }
+            }
+        }
+    }
+    else{
+        map = hashmap(size)
+        message = recv(root)
+        if message.tag is database_tag{
+            index = big_int(message.hash)%size
+            map.insert(message.hash,index)
+        }
+        else {
+            pw = message.pw 
+            hashpw = hash(pw)
+            if map.contains(hashpw){
+                notify_password(pw)
+            }
+        }
+    }
+\end{lstlisting}
+
+Per ricavare le misure di performance si possono usare tutte le variabili del caso precedente, per cui si può scrivere
+$$
+T_{comp}= C_h(N,K,H_s*P) +  H(K)  + I(N)*P + I(P)
+$$
+
+Il vantaggio sostanziale per cui è che si abbassa notelvolmente la probabilità di collisioni nelle hashmap, di contro si aggiunge un overhead dovuto alla comunicazione, che però è ottimizzata poichè si conosce già il nodo possibile detentore di una certa password.
+$$
+T_{comm} =  L(K) + L(N) + S(N)+S(K)
+$$
+
+
+
+\subsubsection{}
 
 \subsubsection{Ipotesi di implementazione}
 L'architettura con cui si affronta questo problema è la solita root-worker, con la differenza che i nodi si troveranno task di tipo diverso tra una fase e l'altra, le fasi sono in tutto 3, ordinamento degli hash nel database tra i vari nodi, calcolo e distribuzione degli hash delle password tra i nodi e infine confronto tra password e hash del database. Queste 3 fasi delineano 3 tipi di task diversi, di cui i primi 2 indipendenti dall'ordine di esecuzione, mentre il terzo necessita che i primi 2 siano stati completati. Procedendo nel modo più semplice, la prima fase prevede che il file del database venga scansionato linearmente e che ad ogni hash venga applicata l'operazione di modulo, per risolvere questa prima fase è sufficiente una triviale strategia di tipo divide and conquer, per cui si divide il file del database in P parti e si procede al calcolo in modo lineare, una volta finito ogni nodo trasmette al root il risultato che a sua volta
