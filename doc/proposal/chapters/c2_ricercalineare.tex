@@ -157,4 +157,8 @@ In questa architettura, il primo passo è distribuire le password da testare ai 
 
 Per capire meglio se questo approccio possa essere più o meno vantaggioso rispetto al precedente bisogna modellare opportunamente il problema, avendo cura di trattare il periodo transitorio, che può essere visto come una somma di tempi, se si prende $T_{task}$ come tempo impiegato da un nodo a completare un task, allora il transitorio iniziale sarà $\sum_{i=1}^{P-1}(P-i)*T_{task}*2=\frac{(p-1)p}{2}T_{task}*2$. Il tempo che un task impiega a essere completato è dipendente dai soliti parametri: la grandezza del database e la grandezza del file delle password, a meno che non sia decisa a priori la sua grandezza massima, configurazione che potrebbe essere utile per tenere sotto controllo il periodo transitorio iniziale, nell'ambito della simulazione per ottenere un'approssimazione teorica delle misure si considererà solo il caso in cui la lunghezza del task sia dipendente dal numero di esecutori e dalla dimensione del database.
 \subsubsection{Speedup, efficienza e cc ratio}
-Assumendo che il tempo per completare un task sia: $T_{task}=S(\frac{N}{P})*2+C(\frac{N}{P}*\frac{K}{P})$ composto quindi soltanto dal tempo di ricezione e invio del task e dalla comparazione. 
+Assumendo che il tempo per completare un task sia: $T_{task}=S(\frac{N}{P})*2+C(\frac{N}{P}*\frac{K}{P})$ composto quindi soltanto dal tempo di ricezione e invio del task e dalla comparazione il tempo totale stimato si può scrivere come 
+
+$$
+T(P) =  
+$$
