@@ -82,7 +82,7 @@ T(P,N,K)=L(K)+L(N)+2*T_{l}*P+S(K)*P+S(\frac{N}{P})*P + \frac{H(K)}{P}+C(\frac{N}
 $$ Per semplificare la trattazione, si considererà solo la dimensione del database, tenendo un insieme K fisso per le password. Da qui si possono ricavare diverse misure già a livello teorico :
 \begin{itemize}
     \item CC Ratio: $\frac{T_{comp}}{T_{comm}}=\frac{\frac{H(K)}{P}+C(\frac{N}{P},K)}{L(K)+L(N)+2*T_{l}*P +S(K)+S(\frac{N}{P})*P}$
-    \item Efficiency: 
+    \item Efficiency: $\frac{T(P,N,K)}{P}$
 \end{itemize}
 A questo punto si possono introdurre delle variabili aggiuntive, utili alla stima dei tempi
 \begin{itemize}
@@ -102,9 +102,9 @@ La lunghezza media delle password è esagerata, ma è stata scelta in modo da co
     \caption{Misure ottenute dalla simulazione sul caso main worker}
 \end{figure}
 
-Chiaramente lo speedup ricorda abbastanza un andamento lineare, come ci si aspetta da un qualunque algoritmo di questo tipo "embarringly parallel", tuttavia lo speedup non sempre aumenta proporzionalmente al numero di esecutori, motivo per il quale dopo un pò l'efficienza scende drasticamente. La causa si può evincere dal comportamento del grafico sul CC ratio, con l'aumentare degli esecutori diminuisce il tempo che questi spendono nel calcolo e aumenta drasticamente quello di I/O per scambiarsi i dati, con il risultato che inevitabilmente si perdono prestazioni, a scapito però del costo dell'esecuzione che invece aumenta sempre e comunque. 
-\\
-\\
+Dal grafico si evince subito che l'algoritmo scala piuttosto bene all'aumentare dell'input e si dimostra anche piuttosto efficiente nonostante la sua semplicità. Di fatto in questa istanza non sono state considerate due cose, che potrebbero modificare profondamente il risultato di questa stima, il tempo di spostamento dalla RAM alla cache del processore quando avviene un cache miss e il tempo di lag dovuto alla preemption dei task eseguiti su una certa macchina, tutte variabili che richiederebbero una simulazione di un certo tipo più complicata e per cui normalmente è più efficace considerare invece i risultati di un benchmark diretto. 
+
+
 Un ultima analisi va fatta considerando lo spazio che deve essere occupato in RAM per eseguire il processo. Per quanto vi sia la necessità di condividere uno dei due insiemi (il database e le password) in copia completa su tutti gli esecutori, a livello pratico bisogna tenere a mente che non è detto che tutti i task vengano eseguiti su macchine diverse per cui sono disponibili più strategie. Se si vuole mantenere la tecnologia di parallelizzazione omogenea, per cui si vuole usare solo MPI senza ricorrere al pthread per la parallelizzazione un utile metodo potrebbe essere quello di memorizzare la copia dell'insieme scelto, in questo caso quello delle password, in shared memory, così che tutti i task che vengono eseguiti sulla stessa macchina possano accedere a quel segmento senza per forza riceverne una copia da usare localmente al processo. Se invece si opta per l'utilizzo del multithread la memoria è già condivisa e quindi non è necessario ricorrere esplicitamente alla shared memory.
 
 
@@ -118,7 +118,42 @@ Nel caso del main worker si è costretti a passare almeno uno dei due file in co
     \caption{Architettura ad anello}
 \end{figure}
 
-In questa architettura, il primo passo è distribuire le password da testare ai vari nodi, dopodichè si comincia distribuendo il primo frammento del database al primo nodo, che comincierà il processamento e lo passerà al nodo successivo. Esistono due momenti transitori in questa architettura, il primo è all'inizio , quando il primo frammento di database viene dato al nodo di testa che lo dovrà passare allo stadio successivo e così via, fintanto che questo frammento non avrà percorso tutta la pipeline i nodi che non lo hanno ancora ricevuto non saranno ancora attivi, alla fine invece si verificherà il processo opposto, ossia man mano che l'ultimo frammento di database attraversa l'anello i vari nodi si disattiveranno, sostanzialmente buttando via tempo di esecuzione. Nonostante questo difetto, che è fortemente dipendente dalla lunghezza della pipeline, si ottiene un vantaggio sostanziale in termini di spazio occupato dal database e dalle password perchè non bisogna distribuire una copia del secondo file a tutti i nodi , ma solo una porzione. \\ 
+In questa architettura, il primo passo è distribuire le password da testare ai vari nodi, dopodichè si comincia distribuendo il primo frammento del database al primo nodo, che comincierà il processamento e lo passerà al nodo successivo. Esistono due momenti transitori in questa architettura, il primo è all'inizio , quando il primo frammento di database viene dato al nodo di testa che lo dovrà passare allo stadio successivo e così via, fintanto che questo frammento non avrà percorso tutta la pipeline i nodi che non lo hanno ancora ricevuto non saranno ancora attivi, alla fine invece si verificherà il processo opposto, ossia man mano che l'ultimo frammento di database attraversa l'anello i vari nodi si disattiveranno, sostanzialmente buttando via tempo di esecuzione. Nonostante questo difetto, che è fortemente dipendente dalla lunghezza della pipeline, si ottiene un vantaggio sostanziale in termini di spazio occupato dal database e dalle password perchè non bisogna distribuire una copia del secondo file a tutti i nodi , ma solo una porzione. In pseudocodice
+
+\begin{lstlisting}
+    rank = world().rank 
+    if rank is root{
+        password = load_password()
+        database = load_database()
+        datavector = split(database, world().size - 1)
+        for i in 1..world.size() do{
+            send(datavector[i],i)
+        }
+        tasks = split(password, world().size -1)
+        for task in tasks do{
+            send(task,rank+1,tasktoken)
+        }
+        send(rank+1,terminationtoken)
+    }
+    else{
+        database = recv(root)
+        while !terminationtoken{
+            token = recv(rank-1)
+            if token is tasktoken{
+                for password in token.passwords do{
+                    pwhash = hash(password)
+                    if pwhash in database {
+                        notify_password(password)
+                    }
+                }
+                send(rank+1,tasktoken)
+            }
+            if token is terminationtoken{
+                break
+            }
+        }
+    }
+\end{lstlisting}
 
 Per capire meglio se questo approccio possa essere più o meno vantaggioso rispetto al precedente bisogna modellare opportunamente il problema, avendo cura di trattare il periodo transitorio, che può essere visto come una somma di tempi, se si prende $T_{task}$ come tempo impiegato da un nodo a completare un task, allora il transitorio iniziale sarà $\sum_{i=1}^{P-1}(P-i)*T_{task}*2=\frac{(p-1)p}{2}T_{task}*2$. Il tempo che un task impiega a essere completato è dipendente dai soliti parametri: la grandezza del database e la grandezza del file delle password, a meno che non sia decisa a priori la sua grandezza massima, configurazione che potrebbe essere utile per tenere sotto controllo il periodo transitorio iniziale, nell'ambito della simulazione per ottenere un'approssimazione teorica delle misure si considererà solo il caso in cui la lunghezza del task sia dipendente dal numero di esecutori e dalla dimensione del database.
 \subsubsection{Speedup, efficienza e cc ratio}
