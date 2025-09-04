@@ -108,7 +108,7 @@ Dal grafico si evince subito che l'algoritmo scala piuttosto bene all'aumentare 
 Un ultima analisi va fatta considerando lo spazio che deve essere occupato in RAM per eseguire il processo. Per quanto vi sia la necessità di condividere uno dei due insiemi (il database e le password) in copia completa su tutti gli esecutori, a livello pratico bisogna tenere a mente che non è detto che tutti i task vengano eseguiti su macchine diverse per cui sono disponibili più strategie. Se si vuole mantenere la tecnologia di parallelizzazione omogenea, per cui si vuole usare solo MPI senza ricorrere al pthread per la parallelizzazione un utile metodo potrebbe essere quello di memorizzare la copia dell'insieme scelto, in questo caso quello delle password, in shared memory, così che tutti i task che vengono eseguiti sulla stessa macchina possano accedere a quel segmento senza per forza riceverne una copia da usare localmente al processo. Se invece si opta per l'utilizzo del multithread la memoria è già condivisa e quindi non è necessario ricorrere esplicitamente alla shared memory.
 
 
-\subsection{Un architettura alternativa al main-worker}
+\subsection{Ricerca con architettura ad anello}
 
 Nel caso del main worker si è costretti a passare almeno uno dei due file in copie ai diversi nodi. A meno di non assicurarsi con metodi più o meno complicati, che ogni porzione del file di password sia stata comparata con ogni porzione del database in circolazione tra i nodi. In alternativa, si può adottare un'architettura con topologia ad anello ($N \to N+1 \pmod{P}$). In questo modello, il dizionario delle password viene suddiviso tra i nodi, mentre i blocchi del database "scorrono" attraverso la pipeline. Ad ogni stadio, un blocco di dati viene confrontato con il set di password locale, realizzando un confronto completo dopo un intero ciclo dell'anello.
 
@@ -155,15 +155,26 @@ In questa architettura, il primo passo è distribuire le password da testare ai 
     }
 \end{lstlisting}
 
-Per capire meglio se questo approccio possa essere più o meno vantaggioso rispetto al precedente bisogna modellare opportunamente il problema, avendo cura di trattare il periodo transitorio, che può essere visto come una somma di tempi, se si prende $T_{task}$ come tempo impiegato da un nodo a completare un task, allora il transitorio iniziale sarà $\sum_{i=1}^{P-1}(P-i)*T_{task}*2=\frac{(p-1)p}{2}T_{task}*2$. Il tempo che un task impiega a essere completato è dipendente dai soliti parametri: la grandezza del database e la grandezza del file delle password, a meno che non sia decisa a priori la sua grandezza massima, configurazione che potrebbe essere utile per tenere sotto controllo il periodo transitorio iniziale, nell'ambito della simulazione per ottenere un'approssimazione teorica delle misure si considererà solo il caso in cui la lunghezza del task sia dipendente dal numero di esecutori e dalla dimensione del database.
-\subsubsection{Speedup, efficienza e cc ratio}
-Assumendo che il tempo per completare un task sia: $T_{task}=S(\frac{N}{P})*2+C(\frac{N}{P},\frac{K}{P})$ composto quindi soltanto dal tempo di ricezione e invio del task e dalla comparazione il tempo totale stimato si può scrivere come 
+Per capire meglio se questo approccio possa essere più o meno vantaggioso rispetto al precedente bisogna modellare opportunamente il problema, avendo cura di trattare il periodo transitorio, che può essere visto come una somma di tempi, se si prende $T_{task}$ come tempo impiegato da un nodo a completare un task, allora il transitorio iniziale sarà $\sum_{i=1}^{P-1}(P-i)*T_{task}*2=\frac{(p-1)p}{2}T_{task}*2$. Il tempo che un task impiega a essere completato è dipendente dai soliti parametri: la grandezza del database e la grandezza del file delle password, a meno che non sia decisa a priori la sua grandezza massima, configurazione che potrebbe essere utile per tenere sotto controllo il periodo transitorio iniziale.
+
+Assumendo che il tempo per completare un task sia: $T_{task}=S(\frac{K}{P})*2+C(\frac{N}{P},\frac{K}{P})$ composto quindi soltanto dal tempo di ricezione e invio del task e dalla comparazione il tempo totale stimato si può scrivere come 
 
 $$
-T(P) =  \frac{(P-1)P}{2}*T_{task}+L(K)+L(N)+S(K)+S(N)+T_{task}
+T(P)=\frac{(P-1)P}{2}*T_{task}+L(K)+L(N)+S(K)+S(N)+\frac{T_{task}*P}{P}
 $$
+
 
 \begin{figure}[H]
     \includegraphics[width=0.8\textwidth]{images/pipelinelinear.png}
+    \caption{speedup , costo , efficienza e cc ratio dell'architettura ad anello}
+\end{figure}
+
+La simulazione mostra che quest'architettura soffre parecchio il periodo transitorio iniziale, come ci si aspetta in un certo senso poichè con questo approccio a task equamente distribuiti non si usano praticamente mai tutti gli esecutori, poichè l'anello si riempirà del tutto per un breve momento prima di doversi svuotare nuovamente. 
+
+Come accennato precedentemente una possibile miglioria può essere quella di introdurre dei task a dimensione fissa, opportunamente scelta per evitare di saturare troppo  l'I/O e ridurre i periodi transitori. Si supponga di assegnare a $T_s$ la dimensione massima del task, allora il numero di task da completare sarà $T_n(p)= \lceil \frac{T_s}{p} \rceil$, da cui si può ottenere una nuova definizione del tempo per completare un task $T_{task}=S(T_s)*2 + C(\frac{N}{P},T_s)$. A questo punto si può usare l'espressione precedente del tempo impiegato $T(P)=\frac{(P-1)P}{2}*T_{task}+L(K)+L(N)+S(K)+S(N)+\frac{T_{task}*T_s}{P}$ per ottenere dei nuovi risultati.
+
+
+\begin{figure}[H]
+    \includegraphics[width=0.8\textwidth]{images/pipelineblocked.png}
     \caption{speedup , costo , efficienza e cc ratio dell'architettura ad anello}
 \end{figure}
