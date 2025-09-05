@@ -20,7 +20,7 @@ Volendo si può scrivere in modo molto semplice in forma algoritmica
     }
 \end{lstlisting}
 
-Da questa semplice forma algoritmica si possono estrarre diverse variabili, utili a stimare successivamente i tempi d'esecuzione dell'algoritmo: ad esempio si assegni a $H(x)$ il tempo medio necessario a calcolare l'hash della stringa x e $C(X,Y)$ il tempo medio per comparare tra loro due stringhe, si può stimare il tempo di calcolo come $T_{comp}=H(K)+C(N,K)$ \footnotemark[1] dove K è l'insieme delle password e N è l'insieme di coppie utente-hash nel file del database. Analogamente il tempo richiesto per effettuare le operazioni di comunicazione, in questo caso sono le operazioni di caricamento dei file, può essere stimato come $T_{comm}=L(K) + L(N)$ dove $L(X)$ è il tempo medio per caricare una stringa dal disco fisico alla RAM, teoricamente bisognerebbe anche stimare il tempo necessario per il trasferimento dalla RAM alla cache, per tenere la trattazione semplice si eviterà di specificarlo, considerando che confronto al tempo di caricamento dal disco o di trasmissione in una rete, questo tempo è piuttosto piccolo e contribuisce poco al computo del tempo di comunicazione. A questo punto si può calcolare il computation to communication ratio come $ccratio=\frac{T_{comp}}{T_{comm}} = \frac{H(K)+C(N,K)}{L(K)+L(N)}$.
+Da questa semplice forma algoritmica si possono estrarre diverse variabili, utili a stimare successivamente i tempi d'esecuzione dell'algoritmo: ad esempio si assegni a $H(x)$ il tempo medio necessario a calcolare l'hash della stringa x e $C(X,Y)$ il tempo medio per comparare tra loro due stringhe, si può stimare il tempo di calcolo come $T_{comp}=H(K)+C(N,K)$ \footnotemark[1] dove K è l'insieme delle password e N è l'insieme di coppie utente-hash nel file del database. Analogamente il tempo richiesto per effettuare le operazioni di comunicazione, in questo caso sono le operazioni di caricamento dei file, può essere stimato come $T_{comm}=L(K) + L(N)$ dove $L(X)$ è il tempo medio per caricare una stringa dal disco fisico alla RAM. A questo punto si può calcolare il computation to communication ratio come $ccratio=\frac{T_{comp}}{T_{comm}} = \frac{H(K)+C(N,K)}{L(K)+L(N)}$, in questo caso il rapporto , non avendo nessuna variabile relativa agli esecutori rimane giustamente fisso e completamente dipendente dalle caratteristiche hardware del singolo nodo.
 
 \footnotetext[1]{Durante la trattazione si commetterà un piccolo abuso di notazione, le funzioni che accettano singole stringhe riportando i tempi medi d'esecuzione accetteranno anche insiemi di stringhe, per cui ad esempio $H(K)$ sarà il tempo medio necessario ad effettuare l'hashing di tutto l'insieme delle password}
 
@@ -38,7 +38,8 @@ L'architettura più semplice a cui si può pensare è sostanzialmente la classic
         }
     }
 \end{lstlisting}
-L'unico problema è che non si sta tenendo conto di una caratteristica fondamentale del sistema in cui si sta lavorando: il bisogno dei nodi di comunicare. Il problema infatti sorge quando si considera che in qualche modo tutti i nodi dovranno avere conoscenza o delle password che si vogliono cercare oppure del database copiato, viste le dimensioni, l'approccio più semplice è sicuramente quello di distribuire a tutti i nodi una copia delle password da cercare mentre si divide a pezzi il database e lo si trasmette ai vari nodi che dovranno eseguire il task, questo supponendo che il file del database sia molto più grande di quello con le password da testare. Alla luce di queste considerazioni si può modificare un pò lo pseudocodice nel seguente modo 
+
+Questo pseudocodice, molto generico, lancerebbe semplicemente la ricerca della password corrente in parallelo alle altre su tutte il database. Con lo scopo di analizzare in maniera più approfondita il problema con un approccio più distribuito si può riscrivere come
 
 \begin{lstlisting}
     rank = world().rank 
@@ -61,13 +62,16 @@ L'unico problema è che non si sta tenendo conto di una caratteristica fondament
         }
     }
 \end{lstlisting}
-questa versione statica dell'algoritmo , divide il file in chunk di uguale lunghezza e li trasmette a tutti i nodi coinvolti, che cominciano il loro computo una volta che hanno ottenuto il file. 
+
+Che è un pò meno generale ma modella un pò meglio un ambiente di computazione distribuita oltre che parallela. In questo caso, l'algoritmo lavora in modo piuttosto semplice, prima di tutto si distribuisce una copia del file con le password a tutti i worker. Poi si divide in pezzi equamente grandi il file del database e lo si distribuisce tra i worker, a questo punto si effettua la comparazione e quando si incontra una password la si notifica. 
+
 \begin{figure}[H]
     \includegraphics[width=0.6\textwidth]{images/main_worker_diagram.png}
     \caption{Architettura main worker proposta per il problema}
 \end{figure}
 
-Lo svantaggio è che i nodi in quel frangente non faranno nient'altro se non aspettare che la trasmissione dei dati sia completa, di fatto però la sua implementazione è molto semplice, per cui vale la pena almeno a titolo conoscitivo di sapere in che misura scala bene sul problema. 
+
+
 \subsubsection{Speedup, efficienza e ccratio}
 Supponendo di assegnare le seguenti variabili 
 \begin{itemize}
@@ -176,5 +180,9 @@ Come accennato precedentemente una possibile miglioria può essere quella di int
 
 \begin{figure}[H]
     \includegraphics[width=0.8\textwidth]{images/pipelineblocked.png}
-    \caption{speedup , costo , efficienza e cc ratio dell'architettura ad anello}
+    \caption{speedup , costo , efficienza e cc ratio dell'architettura ad anello con task fissi grandi 2000 stringhe a blocco}
 \end{figure}
+
+Confronto al caso precedente, in cui erano presenti task di dimensione variabile a seconda degli esecutori questo caso presenta invece una buona performance. L'introduzione di una variabile aggiuntiva come la dimensione del task richiederebbe ovviamente più esecuzioni per poter effettuare uno scrutinio più approfondito, si è visto tuttavia empiricamente che se la simulazione viene eseguita facendo si che vi sia un rapport di circa 1:20 tra esecutori e task si ottengono le performance migliori.
+
+Questa architettura per quanto possa sembrare un poco più complicata da gestire, presenta il notevole vantaggio di poter suddividere tra gli esecutori tutti e due i file, ma non solo, nel caso in cui vi fosse uno dei due file notevolmente più grande dell'altro si può trattare questo ultimo come uno stream. Nel caso in itinere per esempio il database, che è un file notevolmente più grande delle password potrebbe subire questo trattamento, in questo modo si potrebbero trattare senza problemi dei database di dimensioni decisamente considerevoli, senza doversi preoccupare troppo dello spazio che ciascuno degli esecutori ha a disposizione in RAM. 
