@@ -1,6 +1,6 @@
 \section{Attacco con ricerca lineare}
 
-In un attacco di tipo password spraying esistono due entità, il database e il file con le password da testare, che vanno confrontati tra di loro. L'operazione di confronto è molto simile a un operazione di ricerca, infatti il database può essere visto come una lista utente-passwordhash in cui si vuole controllare quali di questi hash sono contenuti nella lista delle password. Riassumendo le operazioni da fare in questo caso sono:
+In un attacco di tipo password spraying esistono due entità, il database e il file con le password da testare, che vanno confrontati tra di loro. L'operazione di confronto è molto simile a un operazione di ricerca, infatti il database può essere visto come una lista utente-hash in cui si vuole controllare quali di questi hash sono contenuti nella lista delle password. Riassumendo le operazioni da fare in questo caso sono:
 \begin{itemize}
     \item Caricare in memoria il file del database 
     \item Caricare in memoria il file delle password
@@ -42,7 +42,7 @@ L'architettura più semplice a cui si può pensare è sostanzialmente la classic
 Questo pseudocodice, molto generico, lancerebbe semplicemente la ricerca della password corrente in parallelo alle altre su tutte il database. Con lo scopo di analizzare in maniera più approfondita il problema con un approccio più distribuito si può riscrivere come
 
 \begin{lstlisting}
-    rank = world().rank 
+    rank = world().rank \footnotemark[2]
     if rank is root{
         database = load_database()
         password = load_password()
@@ -71,7 +71,7 @@ Che è un pò meno generale ma modella un pò meglio un ambiente di computazione
 \end{figure}
 
 
-
+\footnotetext[2]{World si riferisce alla variabile che permette di accedere al comunicatore globale di MPI}
 \subsubsection{Speedup, efficienza e ccratio}
 Supponendo di assegnare le seguenti variabili 
 \begin{itemize}
@@ -98,7 +98,7 @@ A questo punto si possono introdurre delle variabili aggiuntive, utili alla stim
     \item Algoritmo di hashing SHA256: circa $0.81*10^{-3} s$ per stringa
 \end{itemize}
 
-La lunghezza media delle password è esagerata, ma è stata scelta in modo da coprire anche quei database su cui è stata posta una policy molto stringente in termini di lunghezza delle password. Bisogna fare un appunto, tendenzialmente più la policy è stringente , più le password saranno "semplici" dal punto di vista della conformazione perchè l'utente medio fatica a ricordarle. La velocità della rete è presa direttamente dal sito di hpc4ai che riporta la velocità della ethernet di connessione tra i nodi, la velocità del disco fisso è stimata considerando che il cluster usi degli HDD di tipo enterprise con interfaccia SAS, che normalmente riescono in lettura a offrire un range di velocità che varia dai 250 MB/s a 1GB/s. La velocità del processore invece è stimata partendo dalla velocità base di un Intel Xeon E5-2697V4 , un architettura disponibile per i formati server. La velocità di esecuzione di SHA256 è stata calcolata eseguendo un piccolo benchmark su 100000 stringhe su un processore AMD Ryzen 9-5950X, impostando una frequenza fissa a 2.3 GHz, si è ottenuta un massimo di $0.81*10^{-3} s$ necessari per calcolare l'hash su di una stringa, si potrebbe usare la media , che è decisamente più bassa $0.28*10^{-6} s$, ma vista la varianza del computo molto alta $1*10^{-s} s$ e vista la natura della simulazione che si preferisce sottostimi leggermente le performance dell'algoritmo, si opta per prendere il caso peggiore, visto che non si conosce la natura delle stringhe che generano questa varianza all'interno del calcolo.  
+La lunghezza media delle password è esagerata, ma è stata scelta in modo da coprire anche quei database su cui è stata posta una policy molto stringente in termini di lunghezza delle password. Bisogna fare un appunto, tendenzialmente più la policy è stringente , più le password saranno "semplici" dal punto di vista della conformazione perchè l'utente medio fatica a ricordarle. La velocità della rete è presa direttamente dal sito di hpc4ai\cite{hpc4ai} che riporta la velocità della ethernet di connessione tra i nodi, la velocità del disco fisso è stimata considerando che il cluster usi degli HDD di tipo enterprise con interfaccia SAS, che normalmente riescono in lettura a offrire un range di velocità che varia dai 250 MB/s a 1GB/s. La velocità del processore invece è stimata partendo dalla velocità base di un Intel Xeon E5-2697V4 , un architettura disponibile per i formati server. La velocità di esecuzione di SHA256 è stata calcolata eseguendo un piccolo benchmark su 100000 stringhe su un processore AMD Ryzen 9-5950X, impostando una frequenza fissa a 2.3 GHz, si è ottenuta un massimo di $0.81*10^{-3} s$ necessari per calcolare l'hash su di una stringa, si potrebbe usare la media , che è decisamente più bassa $0.28*10^{-6} s$, ma vista la varianza del computo molto alta $1*10^{-s} s$ e vista la natura della simulazione che si preferisce sottostimi leggermente le performance dell'algoritmo, si opta per prendere il caso peggiore, visto che non si conosce la natura delle stringhe che generano questa varianza all'interno del calcolo.  
 
 
 \begin{figure}[H]
@@ -173,14 +173,14 @@ $$
     \caption{speedup , costo , efficienza e cc ratio dell'architettura ad anello}
 \end{figure}
 
-La simulazione mostra che quest'architettura soffre parecchio il periodo transitorio iniziale, come ci si aspetta in un certo senso poichè con questo approccio a task equamente distribuiti non si usano praticamente mai tutti gli esecutori, poichè l'anello si riempirà del tutto per un breve momento prima di doversi svuotare nuovamente. 
+La simulazione mostra che quest'architettura soffre parecchio il periodo transitorio iniziale, come ci si aspetta, poichè con questo approccio a task equamente distribuiti non si usino praticamente mai tutti gli esecutori, con la conseguenza che l'anello si riempirà del tutto per un breve momento prima di doversi svuotare nuovamente. 
 
 Come accennato precedentemente una possibile miglioria può essere quella di introdurre dei task a dimensione fissa, opportunamente scelta per evitare di saturare troppo  l'I/O e ridurre i periodi transitori. Si supponga di assegnare a $T_s$ la dimensione massima del task, allora il numero di task da completare sarà $T_n(p)= \lceil \frac{T_s}{p} \rceil$, da cui si può ottenere una nuova definizione del tempo per completare un task $T_{task}=S(T_s)*2 + C(\frac{N}{P},T_s)$. A questo punto si può usare l'espressione precedente del tempo impiegato $T(P)=\frac{(P-1)P}{2}*T_{task}+L(K)+L(N)+S(K)+S(N)+\frac{T_{task}*T_s}{P}$ per ottenere dei nuovi risultati.
 
 
 \begin{figure}[H]
     \includegraphics[width=0.8\textwidth]{images/pipelineblocked.png}
-    \caption{speedup , costo , efficienza e cc ratio dell'architettura ad anello con task fissi grandi 2000 stringhe a blocco}
+    \caption{speedup,costo,efficienza e runtime dell'architettura ad anello con task fissi grandi 2000 stringhe a blocco}
 \end{figure}
 
 Confronto al caso precedente, in cui erano presenti task di dimensione variabile a seconda degli esecutori questo caso presenta invece una buona performance. L'introduzione di una variabile aggiuntiva come la dimensione del task richiederebbe ovviamente più esecuzioni per poter effettuare uno scrutinio più approfondito, si è visto tuttavia empiricamente che se la simulazione viene eseguita facendo si che vi sia un rapport di circa 1:20 tra esecutori e task si ottengono le performance migliori.
