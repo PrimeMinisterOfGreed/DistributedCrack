@@ -166,22 +166,27 @@ Ogni nodo per completare un task dovrà svolgere i seguenti passi:
     \item ricevere e trasmettere il contenuto del task 
 \end{enumerate}
 
-Per cui questo tempo è rappresentabile, almeno nel primo caso in cui i task sono tanti quanti i nodi, come $T_{task} = T_{taskcomp} + T_{taskcomm}$ dove $T_{taskcomm} =S(\frac{N}{P})*2$ e $T_{taskcomp} = C(\frac{N}{P},\frac{K}{P})$. Con queste variabili ne segue che si può rappresentare il runtime come:
+Per cui questo tempo è rappresentabile, almeno nel primo caso in cui i task sono tanti quanti i nodi, come $T_{task} = T_{taskcomp} + T_{taskcomm}$ dove $T_{taskcomm} =S(\frac{N}{P})*2$ e $T_{taskcomp} = C(\frac{N}{P},\frac{K}{P})$. Ne consegue che si possono rappresentare il tempo di comunicazione e di computazione come:
+$$ T_{comm} = L(K) + L(N) + S(K) + S(N) + T_{taskcomm}*P $$
+$$ T_{comp} = \frac{T_{task}*P}{P} + \frac{(P-1)*P}{2}*T_{task} $$
+
+Si considera quindi il tempo transitorio come tempo di computazione aggiuntivo. Con queste variabili ne segue che si può rappresentare il runtime come:
 
 $$
-T(P)=\frac{(P-1)P}{2}*T_{task}+L(K)+L(N)+S(K)+S(N)+\frac{T_{task}*P}{P}
+T(P)=T_{comm} + T_{comp}=  L(K) + L(N) + S(K) + S(N) + T_{taskcomm}*P + \frac{T_{taskcomp}*P}{P} + \frac{(P-1)*P}{2}*T_{task}
 $$
 
 
 
 \begin{figure}[H]
     \includegraphics[width=0.8\textwidth]{images/pipelinelinear.png}
-    \caption{speedup , costo , efficienza e cc ratio dell'architettura ad anello}
+    \caption{speedup , costo , efficienza e cc ratio dell'architettura ad anello con numero di task fissi}
 \end{figure}
 
 La simulazione mostra che quest'architettura soffre parecchio il periodo transitorio iniziale, come ci si aspetta, poichè con questo approccio a task equamente distribuiti non si usino praticamente mai tutti gli esecutori, con la conseguenza che l'anello si riempirà del tutto per un breve momento prima di doversi svuotare nuovamente. 
 
-Come accennato precedentemente una possibile miglioria può essere quella di introdurre dei task a dimensione fissa, opportunamente scelta per evitare di saturare troppo  l'I/O e ridurre i periodi transitori. Si supponga di assegnare a $T_s$ la dimensione massima del task, allora il numero di task da completare sarà $T_n(p)= \lceil \frac{T_s}{p} \rceil$, da cui si può ottenere una nuova definizione del tempo per completare un task $T_{task}=S(T_s)*2 + C(\frac{N}{P},T_s)$. A questo punto si può usare l'espressione precedente del tempo impiegato $T(P)=\frac{(P-1)P}{2}*T_{task}+L(K)+L(N)+S(K)+S(N)+\frac{T_{task}*T_s}{P}$ per ottenere dei nuovi risultati.
+Come accennato precedentemente una possibile miglioria può essere quella di introdurre dei task a dimensione fissa, opportunamente scelta per evitare di saturare troppo  l'I/O e ridurre i periodi transitori. Si supponga di assegnare a $T_s$ la dimensione massima del task, allora il numero di task da completare sarà $T_n(p)= \lceil \frac{T_s}{p} \rceil$, da cui si può ottenere una nuova definizione del tempo per completare un task $T_{task}=S(T_s)*2 + C(\frac{N}{P},T_s)$. A questo punto si può modificare leggermente l'espressione precedentemente usata per descrivere il tempo in 
+$$T(P)=L(K) + L(N) + S(K) + S(N) + T_{taskcomm}*T_n(p) + \frac{T_{taskcomp}*T_n(p)}{P} + \frac{(P-1)*P}{2}*T_{task}$$ 
 
 
 \begin{figure}[H]
@@ -189,6 +194,7 @@ Come accennato precedentemente una possibile miglioria può essere quella di int
     \caption{speedup,costo,efficienza e runtime dell'architettura ad anello con task fissi grandi 2000 stringhe a blocco}
 \end{figure}
 
-Confronto al caso precedente, in cui erano presenti task di dimensione variabile a seconda degli esecutori questo caso presenta invece una buona performance. L'introduzione di una variabile aggiuntiva come la dimensione del task richiederebbe ovviamente più esecuzioni per poter effettuare uno scrutinio più approfondito, si è visto tuttavia empiricamente che se la simulazione viene eseguita facendo si che vi sia un rapport di circa 1:20 tra esecutori e task si ottengono le performance migliori.
+Confronto al caso precedente, in cui erano presenti task di dimensione variabile a seconda degli esecutori questo caso presenta invece una buona performance. L'introduzione di una variabile aggiuntiva come la dimensione del task richiederebbe ovviamente più esecuzioni per poter effettuare uno scrutinio più approfondito, tuttavia empiricamente si è ottenuto che almeno a livello teorico la configurazione della grandezza del task impatta in modo completamente diverso l'esecuzione in base a quanti nodi sono disponibili, pertanto bisognerebbe effettuare diverse prove per capire se esistono eventualmente degli ottimi.
 
-Questa architettura per quanto possa sembrare un poco più complicata da gestire, presenta il notevole vantaggio di poter suddividere tra gli esecutori tutti e due i file, ma non solo, nel caso in cui vi fosse uno dei due file notevolmente più grande dell'altro si può trattare questo ultimo come uno stream. Nel caso in itinere per esempio il database, che è un file notevolmente più grande delle password potrebbe subire questo trattamento, in questo modo si potrebbero trattare senza problemi dei database di dimensioni decisamente considerevoli, senza doversi preoccupare troppo dello spazio che ciascuno degli esecutori ha a disposizione in RAM. 
+
+Questa architettura per quanto possa sembrare un poco più complicata da gestire, presenta il notevole vantaggio di poter suddividere tra gli esecutori tutti e due i file, ma non solo, nel caso in cui vi fosse uno dei due file notevolmente più grande dell'altro si può trattare questo ultimo come uno stream. Nel caso in itinere ,per esempio il database, che è un file notevolmente più grande delle password , potrebbe subire questo trattamento, in questo modo si potrebbero trattare senza problemi dei database di dimensioni decisamente considerevoli, senza doversi preoccupare troppo dello spazio che ciascuno degli esecutori ha a disposizione in RAM. 
