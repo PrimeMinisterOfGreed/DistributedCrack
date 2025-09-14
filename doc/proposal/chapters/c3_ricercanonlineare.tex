@@ -10,9 +10,9 @@ Il caso sequenziale a singolo nodo, implementa in modo molto semplice i passi de
     database = load_database()
     password = load_password()
     map = hashmap(space)
-    for hash in database do{
+    for i in 0..database.len do{
         index = bigint_read(hash) % space 
-        map.append(hash,index)
+        map.append(index,{database[i].user,database[i].hash})
     }
     for pw in password do{
         pwhash = hash(pw)
@@ -43,19 +43,20 @@ Parallelizzare un attacco del genere non è immediato, neanche sfruttando un arc
 Per usare una DHT l'approccio prevede sempre un architettura main worker, ogni worker istanzia in memoria una normale hash table. Il main legge il file del database e calcola il modulo dell'hash a seconda di quanti nodi ci sono in rete, poi manda al nodo indicato dal risultato l'hash se è diverso da se stesso, altrimenti lo memorizza. Successivamente il nodo root scorre il file delle password ed effettua lo stesso processo con ogni entry e se lui o un altro nodo trovano una corrispondenza lo notificano , in pseudocodice
 
 \begin{lstlisting}
+
     rank = world().rank 
     if rank is root{
         map = hashmap(size)
         password = load_password()
         database = load_database()
-        for hash in database do{
+        for entry in database do{
             dest = big_int(hash) % world().size
             if dest is not root{
                 send(hash,dest,database_tag)
             }
             else{
                 index = big_int(hash) % size
-                map.append(hash,index)
+                map.insert(index,entry.user,entry.hash)
             }
         }
         for pw in password do {
@@ -65,8 +66,9 @@ Per usare una DHT l'approccio prevede sempre un architettura main worker, ogni w
             send(pw,dest,pw_tag)
             }
             else{
-                if pwhash in map{
-                    notify_password(pw)
+                entry = map[pwhash]
+                if entry != null{
+                    notify_password(pw,entry.user,entry.hash)
                 }
             }
         }
@@ -81,8 +83,9 @@ Per usare una DHT l'approccio prevede sempre un architettura main worker, ogni w
         else {
             pw = message.pw 
             hashpw = hash(pw)
-            if map.contains(hashpw){
-                notify_password(pw)
+            entry = map[hashpw]
+            if entry != null{
+                notify_password(pw,entry.user,entry.hash)
             }
         }
     }
@@ -106,4 +109,18 @@ Tuttavia i risultati della simulazione mostrano uno scarso rendimento rispetto a
 \end{figure}
 
 \section{Conclusioni}
+Da una prima comparazione parrebbe chiaro che il metodo che più scala con la presenza di esecutori sia l'archittettura ad anello con 
+task dinamici, di lunghezza fissa. 
+\begin{figure}[H]
+    \includegraphics[width=0.9\textwidth]{images/confrontation.png}
+    \caption{Comparazione degli speedup}
+\end{figure}
 
+Tuttavia sembra essere meno efficiente, man mano che che vengono aggiunti gli esecutori, del più banale master worker. 
+
+\begin{figure}[H]
+    \includegraphics[width=0.9\textwidth]{images/efficiency_comparison.png}
+    \caption{Comparazione delle efficienze}
+\end{figure}
+
+Nonostante le differenze architetturali comunque, tutte le architetture performano piuttosto bene a livello teorico, meno che quella ad anello con numero di task fissi, che è l'unica che si può scartare a priori. Al di là delle performance, tutte e 3 le architetture hanno motivi diversi per essere implementate, la prima che è la più semplice è particolarmente facile e veloce da applicare, oltretutto funziona anche piuttosto bene anche in contesti non distribuiti, ad esempio in multithread sulla stessa macchina o su una GPU. L'architettura ad anello invece, come già accennato, è efficace in un contesto in cui si vuole trattare il database come un flusso. Invece la DHT può risultare efficace se si hanno molti dispositivi, magari con poca capacità di calcolo ma molta memoria, da cui trarrebbero più beneficio rispetto che usando le altre due architetture. Non esiste quindi un architettura che a livello teorico superi in tutto e per tutto le altre, l'unico modo per capire quale sia la migliore per l'hardware che si ha a disposizione è quella di eseguire un benchmark.

@@ -14,8 +14,10 @@ Volendo si può scrivere in modo molto semplice in forma algoritmica
     passwords = load_passwords()
     foreach word in passwords do {
         pwhash = hash(word)
-        if pwhash is in database{
-            notify_password_found(word)
+        for i in 0..database.len {
+            if pwhash == database[i].hash do{
+                notify_password(word,database[i].user,database[i].password)
+            }
         }
     }
 \end{lstlisting}
@@ -33,16 +35,18 @@ L'architettura più semplice a cui si può pensare è sostanzialmente la classic
     password = load_password()
     foreach pw in password do in parallel{
         pwhash = hash(pw)
-        if pwhash in database{
-            notify_password(pw)
+        for i in 0..database.len do{
+            if pwhash == database[i].hash{
+                notify_password(pw,database[i].user,database[i].hash)
+            }
         }
     }
 \end{lstlisting}
 
-Questo pseudocodice, molto generico, lancerebbe semplicemente la ricerca della password corrente in parallelo alle altre su tutte il database. Con lo scopo di analizzare in maniera più approfondita il problema con un approccio più distribuito si può riscrivere come
+Questo pseudocodice, molto generico, lancerebbe semplicemente la ricerca della password corrente in parallelo alle altre su tutte il database. Con lo scopo di analizzare in maniera più approfondita il problema con un approccio più distribuito si può riscrivere come\footnotemark[2]
 
 \begin{lstlisting}
-    rank = world().rank \footnotemark[2]
+    rank = world().rank 
     if rank is root{
         database = load_database()
         password = load_password()
@@ -56,8 +60,10 @@ Questo pseudocodice, molto generico, lancerebbe semplicemente la ricerca della p
         scatter(database, database/world.size)
         foreach pw in password{
             pwhash = hash(pw)
-            if pwhash in database{
-                notify_password(pw)
+            for i in 0..database.len do{
+                if pwhash == database[i].hash{
+                    notify_password(pw,database[i].user,database[i].len)
+                }
             }
         }
     }
@@ -98,17 +104,17 @@ A questo punto si possono introdurre delle variabili aggiuntive, utili alla stim
     \item Algoritmo di hashing SHA256: circa $0.81*10^{-3} s$ per stringa
 \end{itemize}
 
-La lunghezza media delle password è esagerata, ma è stata scelta in modo da coprire anche quei database su cui è stata posta una policy molto stringente in termini di lunghezza delle password. Bisogna fare un appunto, tendenzialmente più la policy è stringente , più le password saranno "semplici" dal punto di vista della conformazione perchè l'utente medio fatica a ricordarle. La velocità della rete è presa direttamente dal sito di hpc4ai\cite{hpc4ai} che riporta la velocità della ethernet di connessione tra i nodi, la velocità del disco fisso è stimata considerando che il cluster usi degli HDD di tipo enterprise con interfaccia SAS, che normalmente riescono in lettura a offrire un range di velocità che varia dai 250 MB/s a 1GB/s. La velocità del processore invece è stimata partendo dalla velocità base di un Intel Xeon E5-2697V4 , un architettura disponibile per i formati server. La velocità di esecuzione di SHA256 è stata calcolata eseguendo un piccolo benchmark su 100000 stringhe su un processore AMD Ryzen 9-5950X, impostando una frequenza fissa a 2.3 GHz, si è ottenuta un massimo di $0.81*10^{-3} s$ necessari per calcolare l'hash su di una stringa, si potrebbe usare la media , che è decisamente più bassa $0.28*10^{-6} s$, ma vista la varianza del computo molto alta $1*10^{-s} s$ e vista la natura della simulazione che si preferisce sottostimi leggermente le performance dell'algoritmo, si opta per prendere il caso peggiore.
+La lunghezza media delle password è esagerata, ma è stata scelta in modo da coprire anche quei database su cui è stata posta una policy molto stringente in termini di lunghezza delle password. La velocità della rete è presa direttamente dal sito di hpc4ai\cite{hpc4ai} che riporta la velocità della ethernet di connessione tra i nodi, la velocità del disco fisso è stimata considerando che il cluster usi degli HDD di tipo enterprise con interfaccia SAS, che normalmente riescono in lettura a offrire un range di velocità che varia dai 250 MB/s a 1GB/s. La velocità del processore invece è stimata partendo dalla velocità base di un Intel Xeon E5-2697V4 , un architettura disponibile per i formati server. La velocità di esecuzione di SHA256 è stata calcolata eseguendo un piccolo benchmark su 100000 stringhe su un processore AMD Ryzen 9-5950X, impostando una frequenza fissa a 2.3 GHz, si è ottenuta un massimo di $0.81*10^{-3} s$ necessari per calcolare l'hash su di una stringa, si potrebbe usare la media , che è decisamente più bassa $0.28*10^{-6} s$, che però potrebbe risultare decisamente ottimista , per cui si opta per utilizzare il caso peggiore che al massimo sottostimerà le performance dell'algoritmo, per cui comunque bisognerebbe effettuare un vero benchmark per poter trarre delle conclusioni più precise.
 
 \begin{figure}[H]
     \includegraphics[width=0.9\textwidth]{images/mainworkerlinear.png}
     \caption{Misure ottenute dalla simulazione sul caso main worker}
 \end{figure}
 
-Dal grafico si evince subito che l'algoritmo scala piuttosto bene all'aumentare dell'input e si dimostra anche piuttosto efficiente nonostante la sua semplicità. Di fatto in questa istanza non sono state considerate due cose, che potrebbero modificare profondamente il risultato di questa stima, il tempo di spostamento dalla RAM alla cache del processore quando avviene un cache miss e il tempo di lag dovuto alla preemption dei task eseguiti su una certa macchina, tutte variabili che richiederebbero una simulazione più complicate, come ad esempio a eventi discreti,  per cui normalmente è più efficace e veloce considerare invece i risultati di un benchmark diretto. 
+Dal grafico si evince subito che l'algoritmo scala piuttosto bene all'aumentare dell'input e si dimostra anche piuttosto efficiente nonostante la sua semplicità. Di fatto in questa istanza non sono state considerate diverse variabili, che potrebbero modificare profondamente il risultato di questa stima, per esempio il tempo di spostamento dalla RAM alla cache del processore quando avviene un cache miss oppure il ritardo dovuto allo scheduling dei task da parte del sistema operativo, variabili che possono influenzare molto l'esecuzione e per cui un benchmark fornirebbe dati sicuramente più attendibili.
 
 
-Un ultima analisi va fatta considerando lo spazio che deve essere occupato in RAM per eseguire il processo. Per quanto vi sia la necessità di condividere uno dei due insiemi (il database e le password) in copia completa su tutti gli esecutori, a livello pratico bisogna tenere a mente che non è detto che tutti i task vengano eseguiti su macchine diverse per cui sono disponibili più strategie. Se si vuole mantenere la tecnologia di parallelizzazione omogenea, per cui si vuole usare solo MPI senza ricorrere al pthread per la parallelizzazione un utile metodo potrebbe essere quello di memorizzare la copia dell'insieme scelto, in questo caso quello delle password, in shared memory, così che tutti i task che vengono eseguiti sulla stessa macchina possano accedere a quel segmento senza per forza riceverne una copia da usare localmente al processo. Se invece si opta per l'utilizzo del multithread la memoria è già condivisa e quindi non è necessario ricorrere esplicitamente alla shared memory.
+Un ultima analisi va fatta considerando lo spazio che deve essere occupato in RAM per eseguire il processo. Per quanto vi sia la necessità di condividere uno dei due insiemi (il database e le password) in copia completa su tutti gli esecutori, a livello pratico è utile pensare che non è detto che tutti i task vengano eseguiti su macchine diverse, per cui sono disponibili più strategie. Se si vuole mantenere la tecnologia di parallelizzazione omogenea, per cui si vuole usare solo MPI senza ricorrere al multithreading per la parallelizzazione, un utile metodo potrebbe essere quello di memorizzare la copia dell'insieme scelto, in questo caso quello delle password, in shared memory, così che tutti i task che vengono eseguiti sulla stessa macchina possano accedere a quel segmento senza per forza riceverne una copia da usare localmente al processo. Se invece si opta per l'utilizzo del multithread la memoria è già condivisa e quindi non è necessario ricorrere esplicitamente alla shared memory.
 
 
 \subsection{Ricerca con architettura ad anello}
@@ -145,8 +151,10 @@ In questa architettura, il primo passo è distribuire le password da testare ai 
             if token is tasktoken{
                 for password in token.passwords do{
                     pwhash = hash(password)
-                    if pwhash in database {
-                        notify_password(password)
+                    for i in 0..database.len{
+                        if pwhash == database[i].hash{
+                            notify_password(password,database[i].user,database[i].hash)
+                        }
                     }
                 }
                 send(rank+1,tasktoken)
@@ -158,7 +166,7 @@ In questa architettura, il primo passo è distribuire le password da testare ai 
     }
 \end{lstlisting}
 
-Per capire meglio se questo approccio possa essere più o meno vantaggioso rispetto al precedente bisogna modellare opportunamente il problema, avendo cura di trattare il periodo transitorio, che può essere visto come una somma di tempi, se si prende $T_{task}$ come tempo impiegato da un nodo a completare un task, allora il transitorio iniziale sarà $\sum_{i=1}^{P-1}(P-i)*T_{task}*2=\frac{(p-1)p}{2}T_{task}*2$. Il tempo che un nodo impiega a completare un task dipende dalla strategia adottata, se si decide di avere tanti task quanti sono i nodi, allora la sua dimensione sarà dipendente dalla grandezza dei due file e da quanti nodi sono presenti nell'anello. Viceversa , se invece si adottasse una politica per cui la grandezza del task è fissa, allora il numero di task presenti sarebbe dipendente esclusivamente dalla dimensione dei due file, per altro in questo secondo caso è più semplice trattare i due input come se fossero degli stream infiniti.
+Per capire meglio se questo approccio possa essere più o meno vantaggioso rispetto al precedente è necessario modellare opportunamente il problema, avendo cura di trattare il periodo transitorio, che può essere visto come una somma di tempi, se si prende $T_{task}$ come tempo impiegato da un nodo a completare un task, allora il transitorio iniziale sarà $\sum_{i=1}^{P-1}(P-i)*T_{task}*2=\frac{(p-1)p}{2}T_{task}*2$. Il tempo che un nodo impiega a completare un task dipende dalla strategia adottata, se si decide di avere tanti task quanti sono i nodi, allora la sua dimensione sarà dipendente dalla grandezza dei due file e da quanti nodi sono presenti nell'anello. Viceversa , se invece si adottasse una politica per cui la grandezza del task è fissa, allora il numero di task presenti sarebbe dipendente esclusivamente dalla dimensione dei due file, per altro in questo secondo caso è più semplice trattare i due input come se fossero degli stream infiniti.
 
 Ogni nodo per completare un task dovrà svolgere i seguenti passi:
 \begin{enumerate}
