@@ -104,6 +104,7 @@ $$
 Tuttavia i risultati della simulazione mostrano uno scarso rendimento rispetto alla prima delle soluzioni parallele in cui si cercavano gli hash corrispondenti utilizzando un approccio di ricerca lineare. 
 
 \begin{figure}[H]
+    \centering
     \includegraphics[width=0.9\textwidth]{images/mainworkerhashmap.png}
     \caption{Misure ottenute dalla simulazione sul caso della hashmap distribuita}
 \end{figure}
@@ -112,6 +113,7 @@ Tuttavia i risultati della simulazione mostrano uno scarso rendimento rispetto a
 Da una prima comparazione parrebbe chiaro che il metodo che più scala con la presenza di esecutori sia l'archittettura ad anello con 
 task dinamici, di lunghezza fissa. 
 \begin{figure}[H]
+    \centering
     \includegraphics[width=0.9\textwidth]{images/confrontation.png}
     \caption{Comparazione degli speedup}
 \end{figure}
@@ -119,6 +121,7 @@ task dinamici, di lunghezza fissa.
 Tuttavia sembra essere meno efficiente, man mano che che vengono aggiunti gli esecutori, del più banale master worker. 
 
 \begin{figure}[H]
+    \centering
     \includegraphics[width=0.9\textwidth]{images/efficiency_comparison.png}
     \caption{Comparazione delle efficienze}
 \end{figure}

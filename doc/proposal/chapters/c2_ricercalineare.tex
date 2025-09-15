@@ -72,13 +72,14 @@ Questo pseudocodice, molto generico, lancerebbe semplicemente la ricerca della p
 Che è un pò meno generale ma modella un pò meglio un ambiente di computazione distribuita oltre che parallela. In questo caso, l'algoritmo lavora in modo piuttosto semplice, prima di tutto si distribuisce una copia del file con le password a tutti i worker. Poi si divide in pezzi equamente grandi il file del database e lo si distribuisce tra i worker, a questo punto si effettua la comparazione e quando si incontra una password la si notifica. 
 
 \begin{figure}[H]
+    \centering
     \includegraphics[width=0.6\textwidth]{images/main_worker_diagram.png}
     \caption{Architettura main worker proposta per il problema}
 \end{figure}
 
 
 \footnotetext[2]{World si riferisce alla variabile che permette di accedere al comunicatore globale di MPI}
-\subsubsection{Speedup, efficienza e ccratio}
+\subsubsection{Speedup, Efficienza e CC Ratio}
 Supponendo di assegnare le seguenti variabili 
 \begin{itemize}
     \item P : il numero di esecutori 
@@ -104,9 +105,10 @@ A questo punto si possono introdurre delle variabili aggiuntive, utili alla stim
     \item Algoritmo di hashing SHA256: circa $0.81*10^{-3} s$ per stringa
 \end{itemize}
 
-La lunghezza media delle password è esagerata, ma è stata scelta in modo da coprire anche quei database su cui è stata posta una policy molto stringente in termini di lunghezza delle password. La velocità della rete è presa direttamente dal sito di hpc4ai\cite{hpc4ai} che riporta la velocità della ethernet di connessione tra i nodi, la velocità del disco fisso è stimata considerando che il cluster usi degli HDD di tipo enterprise con interfaccia SAS, che normalmente riescono in lettura a offrire un range di velocità che varia dai 250 MB/s a 1GB/s. La velocità del processore invece è stimata partendo dalla velocità base di un Intel Xeon E5-2697V4 , un architettura disponibile per i formati server. La velocità di esecuzione di SHA256 è stata calcolata eseguendo un piccolo benchmark su 100000 stringhe su un processore AMD Ryzen 9-5950X, impostando una frequenza fissa a 2.3 GHz, si è ottenuta un massimo di $0.81*10^{-3} s$ necessari per calcolare l'hash su di una stringa, si potrebbe usare la media , che è decisamente più bassa $0.28*10^{-6} s$, che però potrebbe risultare decisamente ottimista , per cui si opta per utilizzare il caso peggiore che al massimo sottostimerà le performance dell'algoritmo, per cui comunque bisognerebbe effettuare un vero benchmark per poter trarre delle conclusioni più precise.
+La lunghezza media delle password è esagerata, ma è stata scelta in modo da coprire anche quei database su cui è stata posta una policy molto stringente in termini di lunghezza delle password. La velocità della rete è presa direttamente dal sito di hpc4ai\cite{hpc4ai} che riporta la velocità della ethernet di connessione tra i nodi, la velocità del disco fisso è stimata considerando che il cluster usi degli HDD di tipo enterprise con interfaccia SAS, che normalmente riescono in lettura a offrire un range di velocità che varia dai 250 MB/s a 1GB/s. La velocità del processore invece è stimata partendo dalla velocità base di un Intel Xeon E5-2697V4, un'architettura disponibile per i formati server. La velocità di esecuzione di SHA256 è stata calcolata eseguendo un piccolo benchmark su 100000 stringhe su un processore AMD Ryzen 9-5950X, impostando una frequenza fissa a 2.3 GHz, si è ottenuta un massimo di $0.81*10^{-3} s$ necessari per calcolare l'hash su di una stringa, si potrebbe usare la media , che è decisamente più bassa $0.28*10^{-6} s$, che però potrebbe risultare decisamente ottimista , per cui si opta per utilizzare il caso peggiore che al massimo sottostimerà le performance dell'algoritmo, per cui comunque bisognerebbe effettuare un vero benchmark per poter trarre delle conclusioni più precise.
 
 \begin{figure}[H]
+    \centering
     \includegraphics[width=0.9\textwidth]{images/mainworkerlinear.png}
     \caption{Misure ottenute dalla simulazione sul caso main worker}
 \end{figure}
@@ -123,6 +125,7 @@ Nel caso del main worker si è costretti a passare almeno uno dei due file in co
 
 
 \begin{figure}[H]
+    \centering
     \includegraphics[width=0.6\textwidth]{images/pipeline_diagram.png}
     \caption{Architettura ad anello}
 \end{figure}
@@ -187,8 +190,9 @@ $$
 
 
 \begin{figure}[H]
+    \centering
     \includegraphics[width=0.8\textwidth]{images/pipelinelinear.png}
-    \caption{speedup , costo , efficienza e cc ratio dell'architettura ad anello con numero di task fissi}
+    \caption{speedup,costo,efficienza e cc ratio dell'architettura ad anello con numero di task fissi}
 \end{figure}
 
 La simulazione mostra che quest'architettura soffre parecchio il periodo transitorio iniziale, come ci si aspetta, poichè con questo approccio a task equamente distribuiti non si usino praticamente mai tutti gli esecutori, con la conseguenza che l'anello si riempirà del tutto per un breve momento prima di doversi svuotare nuovamente. 
@@ -198,6 +202,7 @@ $$T(P)=L(K) + L(N) + S(K) + S(N) + T_{taskcomm}*T_n(p) + \frac{T_{taskcomp}*T_n(
 
 
 \begin{figure}[H]
+    \centering
     \includegraphics[width=0.8\textwidth]{images/pipelineblocked.png}
     \caption{speedup,costo,efficienza e runtime dell'architettura ad anello con task fissi grandi 2000 stringhe a blocco}
 \end{figure}
