@@ -100,12 +100,16 @@ A questo punto si possono introdurre delle variabili aggiuntive, utili alla stim
     \item Lunghezza media di una password : 16 caratteri 
     \item Velocità della rete : 25 GB/s 
     \item Velocità del disco fisso: 700 MB/s 
-    \item Velocità del core di un processore: 2.3 GHz 
+    \item Velocità del processore:  0.66 TFlops
     \item Dimensione dell'hash : 32 byte 
-    \item Algoritmo di hashing SHA256: circa $0.81*10^{-3} s$ per stringa
+    \item SHA256 Ops totali: 512 Flops
 \end{itemize}
 
-La lunghezza media delle password è esagerata, ma è stata scelta in modo da coprire anche quei database su cui è stata posta una policy molto stringente in termini di lunghezza delle password. La velocità della rete è presa direttamente dal sito di hpc4ai\cite{hpc4ai} che riporta la velocità della ethernet di connessione tra i nodi, la velocità del disco fisso è stimata considerando che il cluster usi degli HDD di tipo enterprise con interfaccia SAS, che normalmente riescono in lettura a offrire un range di velocità che varia dai 250 MB/s a 1GB/s. La velocità del processore invece è stimata partendo dalla velocità base di un Intel Xeon E5-2697V4, un'architettura disponibile per i formati server. La velocità di esecuzione di SHA256 è stata calcolata eseguendo un piccolo benchmark su 100000 stringhe su un processore AMD Ryzen 9-5950X, impostando una frequenza fissa a 2.3 GHz, si è ottenuta un massimo di $0.81*10^{-3} s$ necessari per calcolare l'hash su di una stringa, si potrebbe usare la media , che è decisamente più bassa $0.28*10^{-6} s$, che però potrebbe risultare decisamente ottimista , per cui si opta per utilizzare il caso peggiore che al massimo sottostimerà le performance dell'algoritmo, per cui comunque bisognerebbe effettuare un vero benchmark per poter trarre delle conclusioni più precise.
+La lunghezza media delle password è esagerata, ma è stata scelta in modo da coprire anche quei database su cui è stata posta una policy molto stringente in termini di lunghezza delle password. La velocità della rete è presa direttamente dal sito di hpc4ai\cite{hpc4ai} che riporta la velocità della ethernet di connessione tra i nodi, la velocità del disco fisso è stimata considerando che il cluster usi degli HDD di tipo enterprise con interfaccia SAS, che normalmente riescono in lettura a offrire un range di velocità che varia dai 250 MB/s a 1GB/s. La velocità del processore invece è stimata partendo dalla velocità base di un Intel Xeon E5-2697V4, un'architettura disponibile per i formati server, usando la seguente formula
+$$
+Gflops= Freq_{ghz}*Ncores*OPpercycle
+$$
+per ottenere i teraflops è sufficiente $TFlops=\frac{Gflops}{1000}$. Il numero di operazioni necessarie invece per calcolare un blocco da 64 byte in SHA256 con 64 round è $SHA_{ops}=64*(6+2)$ dove 6 sono le operazioni logiche AND, OR, XOR, NOT, shift, rotate a cui il blocco viene sottoposto mentre 2 sono le due addizioni modulari $\mod 2^{32}$ che vengono compiute dall'algoritmo, per cui per ogni blocco sono necessarie 512 operazioni , in questo caso intere, ma che possono essere approssimate a flops. A questo punto si può calcolare il tempo necessario per calcolare l'hash di una singola stringa, prendendo in esame l'Intel Xeon precedente si ottiene $T_{hash}=\frac{512}{0.66*10^12}=7.75*10^{-10}s$.  
 
 \begin{figure}[H]
     \centering
