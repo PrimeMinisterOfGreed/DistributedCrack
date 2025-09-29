@@ -93,7 +93,7 @@ Per usare una DHT l'approccio prevede sempre un architettura main worker, ogni w
 
 Per ricavare le misure di performance si possono usare tutte le variabili del caso precedente, per cui si può scrivere
 $$
-T_{comp}= C_h(N,K,H_s*P) +  H(K)  + I(N)*2 + I(P)
+T_{comp}= C_h(N,K,H_s*P) +  H(K)  + I(N) + I(P)
 $$
 
 Il vantaggio sostanziale per cui è che si abbassa notelvolmente la probabilità di collisioni nelle hashmap, di contro si aggiunge un overhead dovuto alla comunicazione, che però è ottimizzata poichè si conosce già il nodo possibile detentore di una certa password.
@@ -123,4 +123,4 @@ Non esiste un vincitore assoluto in questa lista di soluzioni, di fatto la scelt
     \includegraphics[width=0.9\textwidth]{images/efficiency_comparison.png}
     \caption{Comparazione delle efficienze}
 \end{figure}
-Le altre tecniche invece potrebbero dimostrarsi valide a seconda dei contesti specifici, ad esempio la pipeline con task fissi, anche se sembra nettamente inferiore in quanto a scalabilità rispetto alla soluzione master worker, presenta il vantaggio di poter trattare stream infiniti con estrema facilità. Invece la tecnica della hashmap distribuita potrebbe, allo stato attuale, essere efficace nel gestire lo stesso problema in un contesto con capacità computazionale limitata ma tanta memoria, a meno di non parallelizzare alcune delle sue fasi, che la renderebbero sicuramente più efficace. Bisogna inoltre specificare che le simulazioni numeriche sono molto approssimate, pertanto per effettuare uno scrutinio più approfondito e sperimentare se le soluzioni sono o meno adatte a un certo hardware sarà necessario effettuare dei veri e proprio benchmark.
+Le altre tecniche invece potrebbero dimostrarsi valide a seconda dei contesti specifici, ad esempio la pipeline con task di dimensione fissa, anche se sembra nettamente inferiore in quanto a scalabilità rispetto alla soluzione master worker, presenta il vantaggio di poter trattare stream infiniti con estrema facilità. Invece la tecnica della hashmap distribuita potrebbe, allo stato attuale, essere efficace nel gestire lo stesso problema in un contesto con capacità computazionale limitata ma tanta memoria, a meno di non parallelizzare alcune delle sue fasi, che la renderebbero sicuramente più efficace. Bisogna inoltre specificare che le simulazioni numeriche sono molto approssimate, pertanto per effettuare uno scrutinio più approfondito e sperimentare se le soluzioni sono o meno adatte a un certo hardware sarà necessario effettuare dei veri e proprio benchmark.
