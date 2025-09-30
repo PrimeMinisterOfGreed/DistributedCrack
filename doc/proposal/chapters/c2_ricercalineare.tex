@@ -107,12 +107,13 @@ Il risultato è la seguente formula $T=w+gh+l$ che è la forma prevista dal mode
 \begin{itemize}
     \item Lunghezza media di una password : 16 caratteri 
     \item Istruzioni necessarie per inviare una word (g): 10 Flops
+    \item Flops per caricare una stringa dal disco : 20000 
     \item Dimensione dell'hash : 32 byte 
     \item operazioni per SHA256 totali: 512 Flops
     \item Dimensione del dizionario delle password : $10^{6}$ stringhe 
 \end{itemize}
 
-La lunghezza media delle password è sicuramente più grande del normale, ma è stata scelta in modo da coprire anche quei database su cui è stata posta una policy molto stringente in termini di lunghezza delle password.Per ricavare g si è eseguito un semplice programma sul cluster di hpc4ai\cite{hpc4ai} che invii diverse word da 64 bit tra un nodo e l'altro, avendo poi ricavato il tempo medio si è calcolato il numero di flops necessari usando il modello del processore, Intel Xeon E5-2697V4, partendo dalla capacità di calcolo, approssimando per comodità il risultato per eccesso a 10. Il numero di operazioni necessarie invece per calcolare un blocco da 64 byte in SHA256 con 64 round è $SHA_{ops}=64*(6+2)$ dove 6 sono le operazioni logiche AND, OR, XOR, NOT, shift, rotate a cui il blocco viene sottoposto mentre 2 sono le due addizioni modulari $\mod 2^{32}$ che vengono compiute dall'algoritmo, per cui per ogni blocco sono necessarie 512 operazioni. L invece contiene tutta la parte dovuta all'inizializzazione della comunicazione e anche al caricamento dal disco dei file necessari.
+La lunghezza media delle password è sicuramente più grande del normale, ma è stata scelta in modo da coprire anche quei database su cui è stata posta una policy molto stringente in termini di lunghezza delle password.Per ricavare g si è eseguito un semplice programma sul cluster di hpc4ai\cite{hpc4ai} che invii diverse word da 64 bit tra un nodo e l'altro, avendo poi ricavato il tempo medio si è calcolato il numero di flops necessari usando il modello del processore, Intel Xeon E5-2697V4, partendo dalla capacità di calcolo, approssimando per comodità il risultato per eccesso a 10. Il numero di operazioni necessarie invece per calcolare un blocco da 64 byte in SHA256 con 64 round è $SHA_{ops}=64*(6+2)$ dove 6 sono le operazioni logiche AND, OR, XOR, NOT, shift, rotate a cui il blocco viene sottoposto mentre 2 sono le due addizioni modulari $\mod 2^{32}$ che vengono compiute dall'algoritmo, per cui per ogni blocco sono necessarie 512 operazioni. $l$ invece contiene tutta la parte dovuta all'inizializzazione della comunicazione e anche al caricamento dal disco dei file necessari che è stimato essere $l=50000+L(N)+L(K)$, dove L saranno i tempi dovuti al caricamento delle stringhe, per cui sono necessari circa 20000 flops a stringa.
 
 \begin{figure}[H]
     \centering
